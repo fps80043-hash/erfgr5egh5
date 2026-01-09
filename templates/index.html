@@ -12,13 +12,12 @@
 
   <header class="top">
     <div class="brand">
-      <div class="logo" aria-label="R$T logo">
-        <span class="l l1">R</span><span class="l l2">$</span><span class="l l3">T</span>
-        <span class="lol" aria-hidden="true">😂</span>
+      <div class="logo" aria-label="RST logo">
+        <span class="logoWord">RST</span>
       </div>
       <div class="btxt">
         <div class="name">R$T</div>
-        <div class="tag">neon night • fast • clean</div>
+        <div class="tag">RBX Tool Seller</div>
       </div>
     </div>
 
@@ -26,7 +25,9 @@
       <button class="navbtn active" data-tab="main"><span>⚡</span><b>Генератор</b></button>
       <button class="navbtn" data-tab="ai"><span>✨</span><b>AI</b></button>
       <button class="navbtn" data-tab="help"><span>❓</span><b>Справка</b></button>
+      <button class="navbtn" data-tab="profile"><span>👤</span><b>Профиль</b></button>
     </nav>
+    <div class="topspacer" aria-hidden="true"></div>
   </header>
 
   <main class="wrap">
@@ -42,6 +43,7 @@
             <button id="btnAnalyze" class="btn primary">Анализировать</button>
             <div id="status" class="status">Ожидание…</div>
           </div>
+          <div class="pbar" id="pbarAnalyze"><div class="pfill" id="pfillAnalyze"></div></div>
 
           <div class="divider"></div>
 
@@ -106,6 +108,7 @@
             <select id="aiProvider" class="input">
               <option value="pollinations">Pollinations (free)</option>
               <option value="groq">Groq (key)</option>
+              <option value="blackbox">BlackBox (key)</option>
             </select>
           </div>
 
@@ -140,15 +143,39 @@
             <button id="btnAIGen" class="btn primary">Сгенерировать</button>
             <div id="aiStatus" class="status">—</div>
           </div>
+          <div class="pbar" id="pbarAI"><div class="pfill" id="pfillAI"></div></div>
 
           <div class="divider"></div>
           <details class="rawbox">
             <summary>Показать ответ модели</summary>
             <pre id="aiRaw" class="raw"></pre>
           </details>
+
+          <div class="divider"></div>
+
+          <h2>💬 Чат</h2>
+          <p class="muted">Можно писать модели напрямую. Ползунок отключает контекст аккаунта/шаблонов.</p>
+
+          <div class="row">
+            <label class="lbl" style="margin:0">Контекст</label>
+            <label class="switch">
+              <input id="chatCtx" type="checkbox" checked>
+              <span class="slider"></span>
+            </label>
+            <div class="muted" id="chatCtxLabel">включён</div>
+          </div>
+
+          <div class="chatlog" id="chatLog"></div>
+
+          <div class="chatrow" id="chatBox">
+            <input id="chatMsg" class="input" placeholder="Напиши сообщение…" />
+            <button id="btnChatSend" class="btn primary">Отправить</button>
+          </div>
+
+          <div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
         </div>
       </div>
-    </section>
+    </section
 
     <!-- HELP -->
     <section class="pane" id="tab-help">
@@ -163,25 +190,43 @@
 
           <div class="divider"></div>
 
-          <h3>🚀 Деплой на Render</h3>
-          <ol class="muted">
-            <li>Залей проект на GitHub.</li>
-            <li>Render → New → Web Service → выбери репозиторий.</li>
-            <li>Build: <code>pip install -r requirements.txt</code></li>
-            <li>Start: <code>uvicorn app:app --host 0.0.0.0 --port $PORT</code></li>
-            <li>(Опционально) Environment: добавь <code>GROQ_API_KEY</code>.</li>
-          </ol>
+          <h3>👨‍💻 Разработчик</h3>
+          <p class="muted">TG: <b>@E6JLAHOC</b></p>
         </div>
       </div>
     </section>
+
+    <!-- PROFILE -->
+    <section class="pane" id="tab-profile">
+      <div class="grid1">
+        <div class="card">
+          <h2>👤 Профиль</h2>
+          <p class="muted">Регистрация будет позже. Сейчас — локальный профиль в браузере (без сервера).</p>
+
+          <label class="lbl">Никнейм</label>
+          <input id="profNick" class="input" placeholder="Например: Kirill" />
+
+          <div class="row">
+            <button id="btnProfSave" class="btn primary">Сохранить</button>
+            <button id="btnProfReset" class="btn">Сбросить</button>
+          </div>
+
+          <div class="divider"></div>
+          <p class="muted">Статус: <b id="profStatus">—</b></p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <nav class="bottomnav" aria-label="Навигация снизу">
     <button class="btab active" data-tab="main"><span>⚡</span><small>Главная</small></button>
     <button class="btab" data-tab="ai"><span>✨</span><small>AI</small></button>
     <button class="btab" data-tab="help"><span>❓</span><small>Помощь</small></button>
+    <button class="btab" data-tab="profile"><span>👤</span><small>Профиль</small></button>
   </nav>
 
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
   <script src="/static/app.js"></script>
 </body>
 </html>

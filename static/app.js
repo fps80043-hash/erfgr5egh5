@@ -2,6 +2,37 @@ const $ = (sel) => document.querySelector(sel);
 
 let accountData = null;
 
+function toast(title, msg="", type="ok"){
+  const box = document.getElementById("toasts");
+  if(!box) return;
+  const el = document.createElement("div");
+  el.className = "toast " + type;
+  el.innerHTML = `<div class="t1">${title}</div>${msg?`<div class="t2">${msg}</div>`:""}`;
+  box.appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateY(-4px)"; }, 2400);
+  setTimeout(()=>{ el.remove(); }, 2800);
+}
+
+function startBar(barId, fillId){
+  const bar = document.getElementById(barId);
+  const fill = document.getElementById(fillId);
+  if(!bar || !fill) return ()=>{};
+  bar.classList.add("active");
+  fill.style.width = "0%";
+  let p = 4 + Math.random()*6;
+  fill.style.width = p + "%";
+  const t = setInterval(()=>{
+    p = Math.min(p + (3 + Math.random()*10), 92);
+    fill.style.width = p + "%";
+  }, 260);
+  return (ok=true)=>{
+    clearInterval(t);
+    fill.style.width = ok ? "100%" : Math.max(p, 25) + "%";
+    setTimeout(()=>{ bar.classList.remove("active"); }, 420);
+  };
+}
+
+
 // Default templates
 const DEFAULT_TITLE = "⭐ ТОП {year_tag} | {donate_tag} ДОНАТА";
 const DEFAULT_DESC = `✨ Аккаунт готов к игре!
@@ -133,6 +164,31 @@ function setGroqModels(){
 }
 
 // Particles (neon night)
+function spawnLogoBurst(){
+  const logo = document.querySelector(".logo");
+  if(!logo) return;
+  const EM = ["💲","💥","💢","⭐","🔥"];
+  // random chance, not always same cycle
+  if(Math.random() < 0.55) return;
+  const count = 2 + Math.floor(Math.random()*4);
+  for(let i=0;i<count;i++){
+    const e = document.createElement("span");
+    e.className = "emoji";
+    e.textContent = EM[Math.floor(Math.random()*EM.length)];
+    const ang = (Math.random()*Math.PI*2);
+    const dist = 18 + Math.random()*46;
+    const dx = Math.cos(ang)*dist;
+    const dy = Math.sin(ang)*dist - (10 + Math.random()*10);
+    const rot = (-90 + Math.random()*180) + "deg";
+    e.style.setProperty("--dx", dx + "px");
+    e.style.setProperty("--dy", dy + "px");
+    e.style.setProperty("--rot", rot);
+    e.style.fontSize = (14 + Math.random()*10) + "px";
+    logo.appendChild(e);
+    setTimeout(()=>e.remove(), 920);
+  }
+}
+
 function initParticles(){
   const canvas = document.getElementById("particles");
   if(!canvas) return;
@@ -212,6 +268,7 @@ window.addEventListener("load", async ()=>{
   setupTabs();
   setActiveTab("main");
   initParticles();
+  setInterval(spawnLogoBurst, 420);
   loadTpl();
 
   // Cookie local save (browser only)
@@ -230,6 +287,8 @@ window.addEventListener("load", async ()=>{
   $("#btnAnalyze")?.addEventListener("click", async ()=>{
     const status = $("#status");
     setStatus(status, "Подключение…", "warn");
+    const stopBar = startBar("pbarAnalyze","pfillAnalyze");
+    toast("Подключение", "Читаю данные аккаунта…", "warn");
     $("#btnAnalyze").disabled = true;
     try{
       const cookie = ($("#cookie").value || ""); // do NOT trim
@@ -238,8 +297,12 @@ window.addEventListener("load", async ()=>{
       fillFacts(accountData);
       await renderPreview();
       setStatus(status, "Готово ✅", "ok");
+      stopBar(true);
+      toast("Готово", "Аккаунт проанализирован", "ok");
     }catch(e){
       setStatus(status, "Ошибка: " + e.message, "bad");
+      stopBar(false);
+      toast("Ошибка", e.message, "bad");
     }finally{
       $("#btnAnalyze").disabled = false;
     }
@@ -259,24 +322,85 @@ window.addEventListener("load", async ()=>{
     localStorage.removeItem("rst_desc_tpl");
     loadTpl();
     if(accountData) await renderPreview();
+    toast("Сброс", "Шаблоны восстановлены", "warn");
   });
 
   // Copy
-  $("#btnCopyTitle")?.addEventListener("click", ()=> copyText($("#outTitle").value));
-  $("#btnCopyDesc")?.addEventListener("click", ()=> copyText($("#outDesc").value));
-  $("#btnCopyAll")?.addEventListener("click", ()=> copyText($("#outTitle").value + "\n\n" + $("#outDesc").value));
+  $("#btnCopyTitle")?.addEventListener("click", ()=>{ copyText($("#outTitle").value); toast("Скопировано", "Заголовок в буфере", "ok"); });
+  $("#btnCopyDesc")?.addEventListener("click", ()=>{ copyText($("#outDesc").value); toast("Скопировано", "Описание в буфере", "ok"); });
+  $("#btnCopyAll")?.addEventListener("click", ()=>{ copyText($("#outTitle").value + "\n\n" + $("#outDesc").value); toast("Скопировано", "Всё в буфере", "ok"); });
 
   // AI: models
   await loadPollinationsModels();
   $("#aiProvider")?.addEventListener("change", async ()=>{
     const p = $("#aiProvider").value;
-    if(p === "groq") setGroqModels(); else await loadPollinationsModels();
+    if(p === "groq") setGroqModels();
+    else if(p === "blackbox") setBlackboxModels();
+    else await loadPollinationsModels();
+  });
+
+  // Chat context label
+  const ctxEl = $("#chatCtx");
+  const ctxLabel = $("#chatCtxLabel");
+  if(ctxEl && ctxLabel){
+    const upd = ()=> ctxLabel.textContent = ctxEl.checked ? "включён" : "выключен";
+    ctxEl.addEventListener("change", upd);
+    upd();
+  }
+
+  function pushMsg(who, text, me=false){
+    const log = $("#chatLog");
+    if(!log) return;
+    const m = document.createElement("div");
+    m.className = "msg" + (me? " me":"");
+    m.innerHTML = `<div class="who">${who}</div><div class="txt"></div>`;
+    m.querySelector(".txt").textContent = text;
+    log.appendChild(m);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  $("#btnChatSend")?.addEventListener("click", async ()=>{
+    const inp = $("#chatMsg");
+    if(!inp) return;
+    const text = (inp.value || "");
+    if(!text.trim()) return;
+    inp.value = "";
+    pushMsg("Ты", text, true);
+    const stopBar = startBar("pbarChat","pfillChat");
+    try{
+      const provider = $("#aiProvider")?.value || "pollinations";
+      const model = $("#aiModel")?.value || "";
+      const include_context = $("#chatCtx")?.checked ?? true;
+      const j = await apiPost("/api/chat", {
+        provider,
+        model,
+        message: text,
+        include_context,
+        data: accountData || {},
+        title_template: $("#tplTitle")?.value || "",
+        desc_template: $("#tplDesc")?.value || "",
+        current_title: $("#outTitle")?.value || "",
+        current_desc: $("#outDesc")?.value || ""
+      });
+      pushMsg("R$T", j.reply || "…", false);
+      stopBar(true);
+    }catch(e){
+      stopBar(false);
+      toast("Ошибка", e.message, "bad");
+      pushMsg("R$T", "Ошибка: " + e.message, false);
+    }
+  });
+
+  $("#chatMsg")?.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Enter"){ ev.preventDefault(); $("#btnChatSend")?.click(); }
   });
 
   // AI generate
   $("#btnAIGen")?.addEventListener("click", async ()=>{
     const st = $("#aiStatus");
     setStatus(st, "Генерация…", "warn");
+    const stopBar = startBar("pbarAI","pfillAI");
+    toast("Генерация", "Готовлю новый текст…", "warn");
     $("#btnAIGen").disabled = true;
     try{
       if(!accountData) throw new Error("Сначала сделай анализ аккаунта");
@@ -294,12 +418,53 @@ window.addEventListener("load", async ()=>{
       saveTpl();
       await renderPreview();
       setStatus(st, "Готово ✅", "ok");
+      stopBar(true);
+      toast("Готово", "Шаблоны обновлены", "ok");
       // jump to main
       setActiveTab("main");
     }catch(e){
       setStatus(st, "Ошибка: " + e.message, "bad");
+      stopBar(false);
+      toast("Ошибка", e.message, "bad");
     }finally{
       $("#btnAIGen").disabled = false;
     }
   });
 });
+
+
+function setBlackboxModels(){
+  const sel = $("#aiModel");
+  if(!sel) return;
+  sel.innerHTML = "";
+  [
+    "blackboxai/deepseek/deepseek-chat:free",
+    "blackboxai/deepseek/deepseek-chat",
+    "blackboxai/deepseek/deepseek-chat-v3-0324:free",
+    "blackboxai/deepseek/deepseek-chat-v3-0324"
+  ].forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m.replace("blackboxai/","BB: ");
+    sel.appendChild(opt);
+  });
+  sel.value = "blackboxai/deepseek/deepseek-chat:free";
+}
+  // Profile (local)
+  const pn = $("#profNick");
+  if(pn){
+    pn.value = localStorage.getItem("rst_nick") || "";
+  }
+  const ps = $("#profStatus");
+  const updPS = (t)=>{ if(ps) ps.textContent = t; };
+  $("#btnProfSave")?.addEventListener("click", ()=>{
+    localStorage.setItem("rst_nick", pn?.value || "");
+    updPS("сохранено");
+    toast("Профиль", "Сохранено локально", "ok");
+  });
+  $("#btnProfReset")?.addEventListener("click", ()=>{
+    localStorage.removeItem("rst_nick");
+    if(pn) pn.value = "";
+    updPS("сброшено");
+    toast("Профиль", "Сброшено", "warn");
+  });

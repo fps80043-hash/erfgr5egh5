@@ -19,6 +19,7 @@ POLLINATIONS_MODELS_URL = "https://text.pollinations.ai/models"
 
 # Groq (key required)
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+BLACKBOX_CHAT_URL = "https://api.blackbox.ai/chat/completions"
 
 # Roblox endpoints (cookie-based private fields need .ROBLOSECURITY)
 RBX_AUTH = "https://users.roblox.com/v1/users/authenticated"
@@ -132,6 +133,36 @@ def groq_chat(api_key: str, model: str, system: str, user: str, temperature: flo
     )
     if r.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Groq error: {r.status_code} {r.text[:300]}")
+    j = r.json()
+    return j["choices"][0]["message"]["content"]
+
+
+def blackbox_chat(api_key: str, model: str, system: str, user: str, temperature: float = 0.9, max_tokens: int = 900) -> str:
+    """
+    BLACKBOX AI is OpenAI-compatible.
+    Base URL: https://api.blackbox.ai
+    Endpoint: POST /chat/completions
+    """
+    if not api_key:
+        raise HTTPException(status_code=400, detail="BLACKBOX_API_KEY is missing. Add it in Render -> Environment.")
+    payload = {
+        "model": model or "blackboxai/deepseek/deepseek-chat:free",
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+    r = requests.post(
+        BLACKBOX_CHAT_URL,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=DEFAULT_TIMEOUT,
+    )
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"BlackBox error: {r.status_code} {r.text[:300]}")
     j = r.json()
     return j["choices"][0]["message"]["content"]
 
@@ -333,7 +364,10 @@ def api_ai_generate(payload: Dict[str, Any]):
         f"Сгенерируй TITLE и DESC."
     )
 
-    if provider == "groq":
+    if provider == "blackbox":
+        api_key = os.environ.get("BLACKBOX_API_KEY", "")
+        out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=900)
+    elif provider == "groq":
         api_key = os.environ.get("GROQ_API_KEY", "")
         out = groq_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=900)
     else:
@@ -341,6 +375,62 @@ def api_ai_generate(payload: Dict[str, Any]):
 
     title, desc = extract_title_desc(out)
     return {"ok": True, "title": title, "desc": desc, "raw": clamp(out, 7000)}
+
+
+@app.post("/api/chat")
+def api_chat(payload: Dict[str, Any]):
+    provider = (payload.get("provider") or "pollinations").lower()
+    model = payload.get("model") or ""
+    message = payload.get("message") or ""
+    include_context = bool(payload.get("include_context", True))
+    data = payload.get("data") or {}
+    title_tpl = payload.get("title_template") or ""
+    desc_tpl = payload.get("desc_template") or ""
+    current_title = payload.get("current_title") or ""
+    current_desc = payload.get("current_desc") or ""
+
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="message is empty")
+
+    system = (
+        "Ты помощник для продавца Roblox-аккаунтов. "
+        "Отвечай на русском, коротко и по делу. "
+        "Не упоминай, что ты ИИ/нейросеть/бот. "
+        "Если спрашивают про безопасность сделки — давай безопасные и практичные советы."
+    )
+
+    ctx = ""
+    if include_context:
+        ctx = (
+            "Контекст (можно использовать при ответе):\n"
+            f"- Ник: {data.get('username','')}\n"
+            f"- Профиль: {data.get('profile_link','')}\n"
+            f"- Robux: {data.get('robux','')}\n"
+            f"- RAP: {data.get('rap_tag','')}\n"
+            f"- Донат/траты: {data.get('donate_tag','')}\n"
+            f"- Год: {data.get('year_tag','')}\n"
+            f"- Инвентарь: {data.get('inv_ru','')}\n"
+            f"- Шаблон заголовка: {title_tpl}\n"
+            f"- Шаблон описания: {desc_tpl}\n"
+            f"- Текущий заголовок: {current_title}\n"
+            f"- Текущее описание: {current_desc}\n"
+        )
+
+    user = (ctx + "\n\n" if ctx else "") + message
+
+    if provider == "blackbox":
+        api_key = os.environ.get("BLACKBOX_API_KEY", "")
+        out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
+    elif provider == "blackbox":
+        api_key = os.environ.get("BLACKBOX_API_KEY", "")
+        out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=900)
+    elif provider == "groq":
+        api_key = os.environ.get("GROQ_API_KEY", "")
+        out = groq_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
+    else:
+        out = pollinations_chat(model=model or "openai", system=system, user=user, temperature=0.9, max_tokens=900)
+
+    return {"ok": True, "reply": out}
 
 @app.get("/api/health")
 def api_health():
