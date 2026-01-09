@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: roblox-seller-tool-web
+    name: rst-web
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -8,6 +8,3 @@ services:
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
-      # Optional: set this in Render dashboard (Secrets)
-      # - key: GROQ_API_KEY
-      #   sync: false

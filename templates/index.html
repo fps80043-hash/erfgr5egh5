@@ -3,120 +3,109 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Roblox Seller Tool — Web</title>
+  <title>R$T — генератор объявлений</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
   <canvas id="particles"></canvas>
-  <div class="bg"></div>
-  <header class="topbar">
+  <div class="veil"></div>
+
+  <header class="top">
     <div class="brand">
-      <div class="logo" aria-label="R$T logo"><span class="logoText">R$T</span></div>
-      <div>
-        <div class="title">ROBLOX SELLER TOOL</div>
-        <div class="sub">neon night edition</div>
+      <div class="logo" aria-label="R$T logo">
+        <span class="l l1">R</span><span class="l l2">$</span><span class="l l3">T</span>
+        <span class="lol" aria-hidden="true">😂</span>
+      </div>
+      <div class="btxt">
+        <div class="name">R$T</div>
+        <div class="tag">neon night • fast • clean</div>
       </div>
     </div>
 
-    <nav class="tabs" aria-label="Навигация">
-      <div class="dock">
-        <button class="tab active" data-tab="gen">
-          <span class="ic">🏠</span><span class="tx">Генератор</span>
-        </button>
-        <button class="tab" data-tab="ai">
-          <span class="ic">✨</span><span class="tx">AI Generate</span>
-        </button>
-        <button class="tab" data-tab="help">
-          <span class="ic">❓</span><span class="tx">Справка</span>
-        </button>
-      </div>
+    <nav class="nav" aria-label="Навигация">
+      <button class="navbtn active" data-tab="main"><span>⚡</span><b>Генератор</b></button>
+      <button class="navbtn" data-tab="ai"><span>✨</span><b>AI</b></button>
+      <button class="navbtn" data-tab="help"><span>❓</span><b>Справка</b></button>
     </nav>
-</header>
+  </header>
 
   <main class="wrap">
-    <!-- Generator -->
-    <section class="panel tabpane active" id="tab-gen">
+    <!-- MAIN -->
+    <section class="pane active" id="tab-main">
       <div class="grid">
         <div class="card">
-          <h2>🔐 Cookie (.ROBLOSECURITY)</h2>
-          <p class="muted">Не делись этим с другими. На сервере cookie не сохраняется — используется только для запроса.</p>
-          <p class="muted">Cookie не изменяется и не “ломается”: мы лишь отправляем его в запросе для чтения данных. Сохранение — только у тебя в браузере.</p>
+          <h2>🔐 Вход по cookie</h2>
+          <p class="muted">Cookie не изменяется и не «ломается»: мы только читаем данные аккаунта. На сервере не сохраняется.</p>
           <textarea id="cookie" class="input mono" rows="3" placeholder="_|WARNING:DO-NOT-SHARE-THIS..."></textarea>
+
           <div class="row">
-            <button id="btnAnalyze" class="btn primary">Анализировать аккаунт</button>
+            <button id="btnAnalyze" class="btn primary">Анализировать</button>
             <div id="status" class="status">Ожидание…</div>
           </div>
 
           <div class="divider"></div>
+
           <h3>📌 Факты</h3>
-          <div class="facts" id="facts">
-            <div class="fact"><span>Ник:</span> <b id="f_username">—</b></div>
-            <div class="fact"><span>Ссылка:</span> <a id="f_link" target="_blank" rel="noreferrer">—</a></div>
-            <div class="fact"><span>Robux:</span> <b id="f_robux">—</b></div>
-            <div class="fact"><span>RAP:</span> <b id="f_rap">—</b></div>
-            <div class="fact"><span>Донат:</span> <b id="f_total">—</b></div>
-            <div class="fact"><span>Год:</span> <b id="f_year">—</b></div>
-            <div class="fact"><span>Возраст:</span> <b id="f_age">—</b></div>
-            <div class="fact"><span>Инвентарь:</span> <b id="f_inv">—</b></div>
+          <div class="facts">
+            <div class="fact"><span>Ник</span><b id="f_username">—</b></div>
+            <div class="fact"><span>Профиль</span><a id="f_link" target="_blank" rel="noreferrer">—</a></div>
+            <div class="fact"><span>Robux</span><b id="f_robux">—</b></div>
+            <div class="fact"><span>RAP</span><b id="f_rap">—</b></div>
+            <div class="fact"><span>Донат</span><b id="f_total">—</b></div>
+            <div class="fact"><span>Год</span><b id="f_year">—</b></div>
+            <div class="fact"><span>Инвентарь</span><b id="f_inv">—</b></div>
           </div>
         </div>
 
         <div class="card">
-          <div class="cardhead">
-            <h2>🧩 Шаблон</h2>
-            <div class="minirow">
-              <button id="btnSaveTpl" class="btn">💾 Сохранить</button>
-              <button id="btnResetTpl" class="btn">↺ Сброс</button>
+          <div class="headrow">
+            <h2>🧩 Шаблоны</h2>
+            <div class="headtools">
+              <button id="btnSaveTpl" class="btn mini">💾</button>
+              <button id="btnResetTpl" class="btn mini">↺</button>
             </div>
           </div>
 
           <label class="lbl">Шаблон заголовка</label>
-          <input id="tplHead" class="input" placeholder="⭐ ТОП {year_tag} | {donate_tag}" />
+          <input id="tplTitle" class="input" />
+
           <label class="lbl">Шаблон описания</label>
-          <textarea id="tplBody" class="input mono" rows="10"></textarea>
+          <textarea id="tplDesc" class="input mono" rows="10"></textarea>
 
           <div class="divider"></div>
-          <div class="cardhead">
+
+          <div class="headrow">
             <h2>✅ Результат</h2>
-            <div class="minirow">
-              <button id="btnCopyHead" class="btn">Копировать заголовок</button>
-              <button id="btnCopyBody" class="btn">Копировать описание</button>
-              <button id="btnCopyAll" class="btn primary">📄 Копировать всё</button>
+            <div class="headtools">
+              <button id="btnCopyTitle" class="btn mini">📋 Заголовок</button>
+              <button id="btnCopyDesc" class="btn mini">📋 Описание</button>
+              <button id="btnCopyAll" class="btn primary mini">📄 Всё</button>
             </div>
           </div>
 
           <label class="lbl">Заголовок</label>
-          <input id="outHead" class="input" readonly />
+          <input id="outTitle" class="input" readonly />
+
           <label class="lbl">Описание</label>
-          <textarea id="outBody" class="input mono" rows="12" readonly></textarea>
+          <textarea id="outDesc" class="input mono" rows="12" readonly></textarea>
 
-          <div class="row">
-            <button id="btnTranslate" class="btn">RU ➜ EN (перевод)</button>
-            <div id="enStatus" class="status">EN: —</div>
-          </div>
-
-          <div id="enBox" class="enbox hidden">
-            <label class="lbl">Заголовок (EN)</label>
-            <input id="outHeadEn" class="input" readonly />
-            <label class="lbl">Описание (EN)</label>
-            <textarea id="outBodyEn" class="input mono" rows="10" readonly></textarea>
-          </div>
+          <div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
         </div>
       </div>
     </section>
 
     <!-- AI -->
-    <section class="panel tabpane" id="tab-ai">
-      <div class="grid">
+    <section class="pane" id="tab-ai">
+      <div class="grid1">
         <div class="card">
-          <h2>✨ AI Generate</h2>
-          <p class="muted">Сгенерирует новый шаблон HEAD/BODY по фактам аккаунта. По умолчанию Pollinations (бесплатно, без ключа).</p>
+          <h2>✨ AI генератор</h2>
+          <p class="muted">Сгенерирует новый заголовок и описание по фактам аккаунта. Два сервиса: Pollinations (бесплатно) и Groq (нужен ключ).</p>
 
           <div class="row">
             <label class="lbl">Сервис</label>
             <select id="aiProvider" class="input">
               <option value="pollinations">Pollinations (free)</option>
-              <option value="groq">Groq (ключ в ENV)</option>
+              <option value="groq">Groq (key)</option>
             </select>
           </div>
 
@@ -128,129 +117,70 @@
           <div class="row">
             <label class="lbl">Режим</label>
             <select id="aiMode" class="input">
-              <option>✏️ Рерайт (Легкий)</option>
-              <option>🎨 Рерайт v2 (Креативный)</option>
-              <option>✨ С Нуля (Новый)</option>
+              <option>Рерайт</option>
+              <option>Креатив</option>
+              <option>С нуля</option>
             </select>
           </div>
 
           <div class="row">
-            <label class="lbl">Тон</label>
+            <label class="lbl">Стиль</label>
             <select id="aiTone" class="input">
-              <option>✨ Классика</option>
-              <option>💎 Люкс</option>
-              <option>🧊 Минимал</option>
-              <option>🤝 Доверие</option>
+              <option>Классика</option>
+              <option>Люкс</option>
+              <option>Минимал</option>
+              <option>Доверие</option>
             </select>
           </div>
 
-          <label class="lbl">Доп. инструкция (опционально)</label>
-          <input id="aiExtra" class="input" placeholder="Например: сделай под стиль Avito..." />
+          <label class="lbl">Доп. пожелания</label>
+          <input id="aiExtra" class="input" placeholder="Например: сделай под стиль Avito, добавь гарантию..." />
 
           <div class="row">
-            <button id="btnAIGen" class="btn primary">🚀 Выполнить</button>
+            <button id="btnAIGen" class="btn primary">Сгенерировать</button>
             <div id="aiStatus" class="status">—</div>
           </div>
 
           <div class="divider"></div>
-          <h3>🧾 Ответ ИИ</h3>
-          <pre id="aiRaw" class="log"></pre>
-        </div>
-
-        <div class="card">
-          <h2>💬 Чат</h2>
-          <p class="muted">Пиши боту прямо здесь. Он поможет с текстом, структурой, гарантией и стилем продажи.</p>
-          <div id="chatLog" class="chatlog"></div>
-          <div class="chatbar">
-            <div class="hint muted">Совет: <b>Ctrl+Enter</b> — отправить. Чат учитывает факты аккаунта, если ты его анализировал.</div>
-            <textarea id="chatInput" class="input mono" rows="3" placeholder="Напиши сообщение..."></textarea>
-            <div class="chatbtns">
-              <button id="btnChatSend" class="btn primary">➡ Отправить</button>
-              <button id="btnChatClear" class="btn">🧹 Очистить</button>
-            </div>
-            <div id="chatStatus" class="status">—</div>
-          </div>
-
-          <div class="divider"></div>
-          <h2>🛠 Быстрые подсказки</h2>
-          <div class="muted">
-            <p><b>Pollinations</b> — бесплатный, без ключей. Иногда бывают очереди/таймауты.</p>
-            <p><b>Groq</b> — очень быстрый, нужен ключ <code>GROQ_API_KEY</code> в Render → Environment. Иногда в РФ может понадобиться VPN.</p>
-            <p>Шаблоны поддерживают переменные: <code>{username}</code>, <code>{robux}</code>, <code>{rap_tag}</code>, <code>{donate_tag}</code>, <code>{year_tag}</code>, <code>{profile_link}</code>, <code>{inv_ru}</code> и т.д.</p>
-          </div>
+          <details class="rawbox">
+            <summary>Показать ответ модели</summary>
+            <pre id="aiRaw" class="raw"></pre>
+          </details>
         </div>
       </div>
     </section>
 
-    
-    <!-- Chat -->
-    <section class="panel tabpane" id="tab-chat">
-      <div class="grid">
+    <!-- HELP -->
+    <section class="pane" id="tab-help">
+      <div class="grid1">
         <div class="card">
-          <div class="cardhead">
-            <h2>💬 Чат с ботом</h2>
-            <div class="minirow">
-              <button id="btnChatClear" class="btn">🧹 Очистить</button>
-              <button id="btnCopySelected" class="btn">📋 Копировать выделенное</button>
-            </div>
+          <h2>❓ Справка</h2>
+          <div class="muted">
+            <p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно/таймауты.</p>
+            <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> в Render → Environment. В РФ может понадобиться VPN.</p>
+            <p><b>Cookie</b> нигде не сохраняется сервером. Мы не делаем “опасных” запросов к настройкам — только чтение данных для расчётов.</p>
           </div>
-          <p class="muted">История хранится в браузере. Можно выбрать сервис/модель (как в AI GENERATE).</p>
-
-          <div id="chatBox" class="chatbox" aria-live="polite"></div>
-
-          <div class="chatbar">
-            <div class="hint muted">Совет: <b>Ctrl+Enter</b> — отправить. Чат учитывает факты аккаунта, если ты его анализировал.</div>
-            <textarea id="chatInput" class="input chatinput" rows="2" placeholder="Напиши сообщение… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
-            <button id="btnChatSend" class="btn primary">➡ Отправить</button>
-          </div>
-
-          <div class="row">
-            <div id="chatStatus" class="status">—</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>⚙️ Подключение</h2>
-          <p class="muted">Если запросы не проходят:</p>
-          <ul class="muted">
-            <li><b>Groq</b>: добавь <code>GROQ_API_KEY</code> в Render → Environment. В РФ иногда нужен VPN.</li>
-            <li><b>Pollinations</b>: бесплатно, но иногда очереди/таймауты.</li>
-          </ul>
 
           <div class="divider"></div>
-          <h3>Быстрые команды</h3>
-          <div class="muted">
-            <p><code>Сделай описание более коротким</code></p>
-            <p><code>Сделай тон “Люкс”</code></p>
-            <p><code>Сгенерируй 3 варианта заголовка</code></p>
-          </div>
+
+          <h3>🚀 Деплой на Render</h3>
+          <ol class="muted">
+            <li>Залей проект на GitHub.</li>
+            <li>Render → New → Web Service → выбери репозиторий.</li>
+            <li>Build: <code>pip install -r requirements.txt</code></li>
+            <li>Start: <code>uvicorn app:app --host 0.0.0.0 --port $PORT</code></li>
+            <li>(Опционально) Environment: добавь <code>GROQ_API_KEY</code>.</li>
+          </ol>
         </div>
-      </div>
-    </section>
-
-
-    <!-- Help -->
-    <section class="panel tabpane" id="tab-help">
-      <div class="card">
-        <h2>❓ Справка (Render)</h2>
-        <ol class="muted">
-          <li>Залей этот проект на GitHub.</li>
-          <li>На Render создай <b>New → Web Service</b>, выбери репозиторий.</li>
-          <li>Build command: <code>pip install -r requirements.txt</code></li>
-          <li>Start command: <code>uvicorn app:app --host 0.0.0.0 --port $PORT</code></li>
-          <li>Если хочешь Groq — добавь Environment Variable: <code>GROQ_API_KEY</code>.</li>
-        </ol>
-        <p class="muted">Важно: free-tier Render может “засыпать” без трафика — первый запрос после простоя иногда медленный.</p>
       </div>
     </section>
   </main>
 
-  <nav id="bottomNav" class="bottomnav" aria-label="Навигация снизу">
-    <button class="btab active" data-tab="gen"><span>🏠</span><small>Главная</small></button>
+  <nav class="bottomnav" aria-label="Навигация снизу">
+    <button class="btab active" data-tab="main"><span>⚡</span><small>Главная</small></button>
     <button class="btab" data-tab="ai"><span>✨</span><small>AI</small></button>
     <button class="btab" data-tab="help"><span>❓</span><small>Помощь</small></button>
   </nav>
-
 
   <script src="/static/app.js"></script>
 </body>
