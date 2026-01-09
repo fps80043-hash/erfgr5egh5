@@ -25,15 +25,15 @@ function showNextToast(){
   toastBusy = true;
 
   const now = Date.now();
-  const gap = Math.max(0, 420 - (now - toastLastAt)); // spacing between toasts
+  const gap = Math.max(0, 650 - (now - toastLastAt)); // spacing between toasts
   toastLastAt = now + gap;
 
   setTimeout(()=>{
     const el = document.createElement("div");
     el.className = "toast " + item.type;
     const icon = item.type==="ok" ? "✅" : item.type==="warn" ? "⚠️" : "❌";
-    el.innerHTML = `<div class="tTop"><div class="tIcon">${icon}</div><div class="tText"><div class="t1">${item.title}</div>${item.msg?`<div class="t2">${item.msg}</div>`:""}</div></div>`;
-    box.appendChild(el);
+    el.innerHTML = `<div class="tTitle">${icon} ${escapeHtml(item.title)}</div>${item.msg?`<div class="tMsg">${escapeHtml(item.msg)}</div>`:""}`;
+    box.appendChild(el)(el);
 
     // enter animation
     requestAnimationFrame(()=> el.classList.add("show"));
@@ -253,7 +253,7 @@ function setGroqModels(){
 function spawnLogoBurst(){
   const logo = document.querySelector(".logo");
   if(!logo) return;
-  const EM = ["⭐"];
+  const EM = ["💲","💥","💢","⭐","🔥"];
   // random chance, not always same cycle
   if(Math.random() < 0.35) return;
   const count = 1;
@@ -518,6 +518,25 @@ window.addEventListener("load", async ()=>{
   });
 
   // Auth / Profile
+  function setAuthPane(which){
+    document.querySelectorAll(".authTabs .pill").forEach(b=>{
+      b.classList.toggle("active", b.dataset.auth===which);
+    });
+    const panes = {
+      login: $("#authPaneLogin"),
+      register: $("#authPaneRegister"),
+      reset: $("#authPaneReset"),
+    };
+    Object.entries(panes).forEach(([k, el])=>{
+      if(!el) return;
+      el.style.display = (k===which) ? "block" : "none";
+    });
+  }
+
+  document.querySelectorAll(".authTabs .pill").forEach(btn=>{
+    btn.addEventListener("click", ()=> setAuthPane(btn.dataset.auth));
+  });
+
   async function refreshMe(){
     try{
       const j = await apiGet("/api/auth/me");
@@ -530,7 +549,8 @@ window.addEventListener("load", async ()=>{
     const tools = $("#profileTools");
     const lo = $("#btnLogout");
     if(currentUser){
-      if(st) st.textContent = currentUser.username;
+      const extra = currentUser.email ? ` • ${currentUser.email}` : "";
+      if(st) st.textContent = `${currentUser.username}${extra}`;
       if(authBox) authBox.style.display = "none";
       if(tools) tools.style.display = "block";
       if(lo) lo.style.display = "inline-flex";
@@ -544,11 +564,82 @@ window.addEventListener("load", async ()=>{
 
   $("#btnLogin")?.addEventListener("click", async ()=>{
     try{
-      const username = $("#authUser")?.value || "";
-      const password = $("#authPass")?.value || "";
+      const username = $("#loginUser")?.value || "";
+      const password = $("#loginPass")?.value || "";
       await apiPost("/api/auth/login", {username, password});
       toast("Профиль", "Вход выполнен", "ok");
       await refreshMe();
+      await syncPull().catch(()=>{});
+      await chatPull().catch(()=>{});
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnRegStart")?.addEventListener("click", async ()=>{
+    try{
+      const username = $("#regUser")?.value || "";
+      const email = $("#regEmail")?.value || "";
+      const password = $("#regPass")?.value || "";
+      await apiPost("/api/auth/register_start", {username, email, password});
+      toast("Регистрация", "Код отправлен на почту", "ok");
+      $("#regCode")?.focus();
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnRegConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const email = $("#regEmail")?.value || "";
+      const code = $("#regCode")?.value || "";
+      await apiPost("/api/auth/register_confirm", {email, code});
+      toast("Регистрация", "Готово — ты вошёл", "ok");
+      await refreshMe();
+      await syncPull().catch(()=>{});
+      await chatPull().catch(()=>{});
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnResetStart")?.addEventListener("click", async ()=>{
+    try{
+      const email = $("#resetEmail")?.value || "";
+      await apiPost("/api/auth/reset_start", {email});
+      toast("Сброс", "Если email существует — код отправлен", "ok");
+      $("#resetCode")?.focus();
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnResetConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const email = $("#resetEmail")?.value || "";
+      const code = $("#resetCode")?.value || "";
+      const new_password = $("#resetPass")?.value || "";
+      await apiPost("/api/auth/reset_confirm", {email, code, new_password});
+      toast("Сброс", "Пароль обновлён", "ok");
+      setAuthPane("login");
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnLogout")?.addEventListener("click", async ()=>{
+    await apiPost("/api/auth/logout", {});
+    toast("Профиль", "Выход выполнен", "warn");
+    await refreshMe();
+  });
+
+  $("#btnSyncPull")?.addEventListener("click", ()=> syncPull().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnSyncPush")?.addEventListener("click", ()=> syncPush().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnChatPull")?.addEventListener("click", ()=> chatPull().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnChatClear")?.addEventListener("click", ()=> chatClear().catch(e=>toast("Ошибка", e.message, "bad")));
+
+  setAuthPane("login");
+  await refreshMe();
       await syncPull().catch(()=>{});
       await chatPull().catch(()=>{});
     }catch(e){

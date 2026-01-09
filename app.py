@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 import sqlite3
+import json
 import hashlib
 import hmac
 import secrets
@@ -51,6 +52,44 @@ GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # BlackBox (key required)
 BLACKBOX_CHAT_URL = "https://api.blackbox.ai/chat/completions"
+# Brevo (email verification / reset)
+BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email"
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
+BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "RST")
+OTP_TTL_MINUTES = int(os.environ.get("OTP_TTL_MINUTES", "10"))
+OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", "5"))
+
+def send_brevo_email(to_email: str, subject: str, text_content: str, html_content: str = ""):
+    if not BREVO_API_KEY:
+        raise HTTPException(status_code=500, detail="Brevo is not configured (BREVO_API_KEY)")
+    if not BREVO_SENDER_EMAIL:
+        raise HTTPException(status_code=500, detail="Brevo sender is not configured (BREVO_SENDER_EMAIL)")
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": text_content,
+    }
+    if html_content:
+        payload["htmlContent"] = html_content
+    r = requests.post(
+        BREVO_EMAIL_URL,
+        headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json", "accept": "application/json"},
+        data=json.dumps(payload),
+        timeout=DEFAULT_TIMEOUT,
+    )
+    if r.status_code not in (200, 201, 202):
+        raise HTTPException(status_code=502, detail=f"Brevo error: {r.status_code} {r.text[:300]}")
+
+def gen_otp_code() -> str:
+    return f"{secrets.randbelow(1000000):06d}"
+
+def otp_hash(code: str) -> str:
+    # HMAC with SECRET_KEY (server-side)
+    key = (SECRET_KEY or "dev").encode("utf-8")
+    return hmac.new(key, code.encode("utf-8"), hashlib.sha256).hexdigest()
+
 
 # Roblox endpoints
 RBX_AUTH = "https://users.roblox.com/v1/users/authenticated"
@@ -81,6 +120,29 @@ def db_init():
           created_at TEXT NOT NULL
         )
     """)
+
+    # Migrations: email fields
+    cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+    if "email" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    if "email_verified" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+
+    # OTP store for email verification / reset
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS email_otps(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT NOT NULL,
+          purpose TEXT NOT NULL,
+          code_hash TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_otps_lookup ON email_otps(email, purpose)")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS templates(
           user_id INTEGER PRIMARY KEY,
@@ -405,35 +467,208 @@ def index(request: Request):
 @app.get("/api/auth/me")
 def auth_me(request: Request):
     u = get_current_user(request)
-    return {"ok": True, "user": {"username": u["username"]} if u else None}
+    if not u:
+        return {"ok": True, "user": None}
+    con = db_conn()
+    row = con.execute("SELECT email FROM users WHERE id=?", (u["id"],)).fetchone()
+    con.close()
+    return {"ok": True, "user": {"username": u["username"], "email": (row["email"] if row else "")}}
 
-@app.post("/api/auth/register")
-def auth_register(payload: Dict[str, Any]):
+
+@app.post("/api/auth/register_start")
+def auth_register_start(payload: Dict[str, Any]):
     username = (payload.get("username") or "").strip()
+    email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
+
     if len(username) < 3 or len(username) > 24:
         raise HTTPException(status_code=400, detail="Username: 3-24 symbols")
     if not re.match(r"^[a-zA-Z0-9_]+$", username):
         raise HTTPException(status_code=400, detail="Username: only A-Z, 0-9, _")
+    if not email or "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Email is required")
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="Password: min 6 symbols")
 
-    ph = hash_password(password)
     con = db_conn()
+    # check username/email uniqueness
+    if con.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
+        con.close()
+        raise HTTPException(status_code=400, detail="Username already exists")
+    if con.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+        con.close()
+        raise HTTPException(status_code=400, detail="Email already used")
+
+    code = gen_otp_code()
+    code_h = otp_hash(code)
+    ph = hash_password(password)
+    payload_obj = {"username": username, "password_hash": ph}
+
+    # invalidate old pending codes
+    con.execute("DELETE FROM email_otps WHERE email=? AND purpose='verify'", (email,))
+    exp = (datetime.datetime.utcnow() + datetime.timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
+    con.execute(
+        "INSERT INTO email_otps(email,purpose,code_hash,payload,expires_at,attempts,created_at) VALUES(?,?,?,?,?,?,?)",
+        (email, "verify", code_h, json.dumps(payload_obj), exp, 0, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+
+    text = f"Код подтверждения регистрации: {code}\n\nКод действует {OTP_TTL_MINUTES} минут."
+    html = f"<div style='font-family:Arial,sans-serif'><h3>Код подтверждения</h3><p style='font-size:18px'><b>{code}</b></p><p>Действует {OTP_TTL_MINUTES} минут.</p></div>"
+    send_brevo_email(email, "Код подтверждения регистрации", text, html)
+
+    return {"ok": True}
+
+@app.post("/api/auth/register_confirm")
+def auth_register_confirm(request: Request, payload: Dict[str, Any]):
+    email = (payload.get("email") or "").strip().lower()
+    code = (payload.get("code") or "").strip()
+
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="Email and code are required")
+
+    con = db_conn()
+    row = con.execute(
+        "SELECT id, code_hash, payload, expires_at, attempts FROM email_otps WHERE email=? AND purpose='verify' ORDER BY id DESC LIMIT 1",
+        (email,),
+    ).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=400, detail="Code not found")
+
+    exp = datetime.datetime.fromisoformat(row["expires_at"])
+    if datetime.datetime.utcnow() > exp:
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Code expired")
+
+    attempts = int(row["attempts"] or 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Too many attempts")
+
+    if otp_hash(code) != row["code_hash"]:
+        con.execute("UPDATE email_otps SET attempts=attempts+1 WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Wrong code")
+
+    payload_obj = json.loads(row["payload"])
+    username = (payload_obj.get("username") or "").strip()
+    ph = payload_obj.get("password_hash") or ""
+
     try:
         con.execute(
-            "INSERT INTO users(username,password_hash,created_at) VALUES(?,?,?)",
-            (username, ph, datetime.datetime.utcnow().isoformat()),
+            "INSERT INTO users(username,password_hash,email,email_verified,created_at) VALUES(?,?,?,?,?)",
+            (username, ph, email, 1, datetime.datetime.utcnow().isoformat()),
         )
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
         con.commit()
     except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Username already exists")
-    except Exception as e:
-        # For debugging in early stage; check Render logs for full stacktrace.
-        raise HTTPException(status_code=500, detail=f"Register failed: {e.__class__.__name__}")
+        con.close()
+        raise HTTPException(status_code=400, detail="Username/email already exists")
     finally:
         con.close()
+
+    # auto-login
+    con2 = db_conn()
+    urow = con2.execute("SELECT id, username FROM users WHERE username=?", (username,)).fetchone()
+    con2.close()
+    token = make_token(int(urow["id"]), urow["username"])
+    jr = JSONResponse({"ok": True, "user": {"username": urow["username"], "email": email}})
+    jr.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=cookie_secure(request),
+        max_age=60*60*24*14,
+        path="/",
+    )
+    return jr
+
+@app.post("/api/auth/reset_start")
+def auth_reset_start(payload: Dict[str, Any]):
+    email = (payload.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    con = db_conn()
+    u = con.execute("SELECT id, username FROM users WHERE email=?", (email,)).fetchone()
+    # anti-enumeration: always respond ok
+    if not u:
+        con.close()
+        return {"ok": True}
+
+    code = gen_otp_code()
+    code_h = otp_hash(code)
+    payload_obj = {"user_id": int(u["id"])}
+    con.execute("DELETE FROM email_otps WHERE email=? AND purpose='reset'", (email,))
+    exp = (datetime.datetime.utcnow() + datetime.timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
+    con.execute(
+        "INSERT INTO email_otps(email,purpose,code_hash,payload,expires_at,attempts,created_at) VALUES(?,?,?,?,?,?,?)",
+        (email, "reset", code_h, json.dumps(payload_obj), exp, 0, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+
+    text = f"Код для сброса пароля: {code}\n\nКод действует {OTP_TTL_MINUTES} минут."
+    html = f"<div style='font-family:Arial,sans-serif'><h3>Сброс пароля</h3><p style='font-size:18px'><b>{code}</b></p><p>Действует {OTP_TTL_MINUTES} минут.</p></div>"
+    send_brevo_email(email, "Сброс пароля", text, html)
+
     return {"ok": True}
+
+@app.post("/api/auth/reset_confirm")
+def auth_reset_confirm(payload: Dict[str, Any]):
+    email = (payload.get("email") or "").strip().lower()
+    code = (payload.get("code") or "").strip()
+    new_password = payload.get("new_password") or ""
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="Email and code are required")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password: min 6 symbols")
+
+    con = db_conn()
+    row = con.execute(
+        "SELECT id, code_hash, payload, expires_at, attempts FROM email_otps WHERE email=? AND purpose='reset' ORDER BY id DESC LIMIT 1",
+        (email,),
+    ).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=400, detail="Code not found")
+
+    exp = datetime.datetime.fromisoformat(row["expires_at"])
+    if datetime.datetime.utcnow() > exp:
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Code expired")
+
+    attempts = int(row["attempts"] or 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Too many attempts")
+
+    if otp_hash(code) != row["code_hash"]:
+        con.execute("UPDATE email_otps SET attempts=attempts+1 WHERE id=?", (row["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Wrong code")
+
+    ph = hash_password(new_password)
+    con.execute("UPDATE users SET password_hash=? WHERE email=?", (ph, email))
+    con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+    con.commit()
+    con.close()
+
+    return {"ok": True}
+
 
 @app.post("/api/auth/login")
 def auth_login(request: Request, payload: Dict[str, Any]):

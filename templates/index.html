@@ -13,7 +13,7 @@
   <header class="top">
     <div class="brand">
       <div class="logo" aria-label="RST logo">
-        <span class="logoWord">RST</span><span class="logoEmoji" aria-hidden="true">⭐</span>
+        <span class="logoWord">RST</span><span class="lol" aria-hidden="true">⭐</span>
       </div>
       <div class="btxt">
         <div class="name">R$T</div>
@@ -184,7 +184,8 @@
           <h2>❓ Справка</h2>
           <div class="muted">
             <p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно/таймауты.</p>
-            <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> в Render → Environment. В РФ может понадобиться VPN.</p>
+            <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment). В РФ может понадобиться VPN.</p>
+            <p><b>Почта (Brevo)</b> — для регистрации и сброса пароля нужны <code>BREVO_API_KEY</code> и <code>BREVO_SENDER_EMAIL</code> (отправитель должен быть подтверждён в Brevo).</p>
             <p><b>Cookie</b> нигде не сохраняется сервером. Мы не делаем “опасных” запросов к настройкам — только чтение данных для расчётов.</p>
           </div>
 
@@ -207,24 +208,85 @@
 
           <div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
 
+          
           <div id="authBox">
-            <div class="row">
-              <div style="flex:1">
-                <label class="lbl">Логин</label>
-                <input id="authUser" class="input" placeholder="Kirill_123" />
+            <div class="authTabs">
+              <button class="pill active" data-auth="login">Вход</button>
+              <button class="pill" data-auth="register">Регистрация</button>
+              <button class="pill" data-auth="reset">Сброс</button>
+            </div>
+
+            <!-- LOGIN -->
+            <div class="authPane" id="authPaneLogin">
+              <div class="row">
+                <div style="flex:1">
+                  <label class="lbl">Логин или Email</label>
+                  <input id="loginUser" class="input" placeholder="Kirill_123 или mail@example.com" />
+                </div>
+                <div style="flex:1">
+                  <label class="lbl">Пароль</label>
+                  <input id="loginPass" type="password" class="input" placeholder="••••••" />
+                </div>
               </div>
-              <div style="flex:1">
-                <label class="lbl">Пароль</label>
-                <input id="authPass" type="password" class="input" placeholder="••••••" />
+
+              <div class="row">
+                <button id="btnLogin" class="btn primary">Войти</button>
               </div>
             </div>
 
-            <div class="row">
-              <button id="btnLogin" class="btn primary">Войти</button>
-              <button id="btnRegister" class="btn">Регистрация</button>
+            <!-- REGISTER -->
+            <div class="authPane" id="authPaneRegister" style="display:none">
+              <div class="row">
+                <div style="flex:1">
+                  <label class="lbl">Логин</label>
+                  <input id="regUser" class="input" placeholder="Kirill_123" />
+                </div>
+                <div style="flex:1">
+                  <label class="lbl">Email</label>
+                  <input id="regEmail" class="input" placeholder="mail@example.com" />
+                </div>
+              </div>
+              <div class="row">
+                <div style="flex:1">
+                  <label class="lbl">Пароль</label>
+                  <input id="regPass" type="password" class="input" placeholder="••••••" />
+                </div>
+                <div style="flex:1">
+                  <label class="lbl">Код</label>
+                  <input id="regCode" class="input" placeholder="000000" />
+                </div>
+              </div>
+              <div class="row">
+                <button id="btnRegStart" class="btn">Отправить код</button>
+                <button id="btnRegConfirm" class="btn primary">Подтвердить</button>
+              </div>
+              <p class="muted">Код придёт на почту (Brevo). Если письма нет — проверь «Спам».</p>
             </div>
 
-            <p class="muted">Регистрация и шаблоны сохраняются в базе сайта. Если хостинг чистит диск при редеплое — позже подключим постоянное хранилище.</p>
+            <!-- RESET -->
+            <div class="authPane" id="authPaneReset" style="display:none">
+              <div class="row">
+                <div style="flex:1">
+                  <label class="lbl">Email</label>
+                  <input id="resetEmail" class="input" placeholder="mail@example.com" />
+                </div>
+              </div>
+              <div class="row">
+                <div style="flex:1">
+                  <label class="lbl">Код</label>
+                  <input id="resetCode" class="input" placeholder="000000" />
+                </div>
+                <div style="flex:1">
+                  <label class="lbl">Новый пароль</label>
+                  <input id="resetPass" type="password" class="input" placeholder="••••••" />
+                </div>
+              </div>
+              <div class="row">
+                <button id="btnResetStart" class="btn">Отправить код</button>
+                <button id="btnResetConfirm" class="btn primary">Сменить пароль</button>
+              </div>
+              <p class="muted">Если аккаунт с этим email существует — код отправится.</p>
+            </div>
           </div>
 
           <div id="profileTools" style="display:none">
