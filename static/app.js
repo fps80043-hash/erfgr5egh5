@@ -3,16 +3,47 @@ const $ = (sel) => document.querySelector(sel);
 let accountData = null;
 let currentUser = null;
 
+let toastQueue = [];
+let toastBusy = false;
+let toastLastAt = 0;
+
 function toast(title, msg="", type="ok"){
-  const box = document.getElementById("toasts");
-  if(!box) return;
-  const el = document.createElement("div");
-  el.className = "toast " + type;
-  el.innerHTML = `<div class="t1">${title}</div>${msg?`<div class="t2">${msg}</div>`:""}`;
-  box.appendChild(el);
-  setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateY(-4px)"; }, 2400);
-  setTimeout(()=>{ el.remove(); }, 2800);
+  // merge duplicates
+  const last = toastQueue.length ? toastQueue[toastQueue.length-1] : null;
+  if(last && last.title===title && last.msg===msg && last.type===type) return;
+
+  toastQueue.push({title, msg, type});
+  if(!toastBusy) showNextToast();
 }
+
+function showNextToast(){
+  const box = document.getElementById("toasts");
+  if(!box){ toastQueue = []; toastBusy = false; return; }
+
+  const item = toastQueue.shift();
+  if(!item){ toastBusy = false; return; }
+  toastBusy = true;
+
+  const now = Date.now();
+  const gap = Math.max(0, 420 - (now - toastLastAt)); // spacing between toasts
+  toastLastAt = now + gap;
+
+  setTimeout(()=>{
+    const el = document.createElement("div");
+    el.className = "toast " + item.type;
+    const icon = item.type==="ok" ? "✅" : item.type==="warn" ? "⚠️" : "❌";
+    el.innerHTML = `<div class="tTop"><div class="tIcon">${icon}</div><div class="tText"><div class="t1">${item.title}</div>${item.msg?`<div class="t2">${item.msg}</div>`:""}</div></div>`;
+    box.appendChild(el);
+
+    // enter animation
+    requestAnimationFrame(()=> el.classList.add("show"));
+
+    const life = 2600;
+    setTimeout(()=>{ el.classList.remove("show"); el.classList.add("hide"); }, life);
+    setTimeout(()=>{ el.remove(); showNextToast(); }, life + 420);
+  }, gap);
+}
+
 
 function startBar(barId, fillId){
   const bar = document.getElementById(barId);
@@ -222,10 +253,10 @@ function setGroqModels(){
 function spawnLogoBurst(){
   const logo = document.querySelector(".logo");
   if(!logo) return;
-  const EM = ["💲","💥","💢","⭐","🔥"];
+  const EM = ["⭐"];
   // random chance, not always same cycle
-  if(Math.random() < 0.55) return;
-  const count = 2 + Math.floor(Math.random()*4);
+  if(Math.random() < 0.35) return;
+  const count = 1;
   for(let i=0;i<count;i++){
     const e = document.createElement("span");
     e.className = "emoji";
@@ -323,7 +354,7 @@ window.addEventListener("load", async ()=>{
   setupTabs();
   setActiveTab("main");
   initParticles();
-  setInterval(spawnLogoBurst, 420);
+  setInterval(spawnLogoBurst, 520);
   loadTpl();
 
   // Cookie local save (browser only)

@@ -2,6 +2,10 @@ import os
 import re
 import datetime
 import sqlite3
+import hashlib
+import hmac
+import secrets
+import base64
 from typing import Any, Dict, List, Tuple, Optional
 
 import requests
@@ -9,7 +13,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from passlib.context import CryptContext
 from jose import jwt, JWTError
 
 # ----------------------------
@@ -22,7 +25,22 @@ DB_PATH = os.environ.get("DB_PATH", "data.db")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 JWT_ALG = "HS256"
 SESSION_COOKIE = "rst_session"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+PBKDF2_ITERS = int(os.environ.get('PBKDF2_ITERS', '200000'))
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, PBKDF2_ITERS)
+    return base64.b64encode(salt).decode('ascii') + '.' + base64.b64encode(dk).decode('ascii')
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        salt_b64, dk_b64 = stored.split('.', 1)
+        salt = base64.b64decode(salt_b64.encode('ascii'))
+        dk0 = base64.b64decode(dk_b64.encode('ascii'))
+        dk1 = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, PBKDF2_ITERS)
+        return hmac.compare_digest(dk0, dk1)
+    except Exception:
+        return False
 
 # Pollinations (no key)
 POLLINATIONS_OPENAI_URL = "https://text.pollinations.ai/openai"   # OpenAI-compatible
@@ -50,6 +68,9 @@ def db_conn():
     return con
 
 def db_init():
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     con = db_conn()
     cur = con.cursor()
     cur.execute("""
@@ -397,7 +418,7 @@ def auth_register(payload: Dict[str, Any]):
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="Password: min 6 symbols")
 
-    ph = pwd_context.hash(password)
+    ph = hash_password(password)
     con = db_conn()
     try:
         con.execute(
@@ -407,6 +428,9 @@ def auth_register(payload: Dict[str, Any]):
         con.commit()
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Username already exists")
+    except Exception as e:
+        # For debugging in early stage; check Render logs for full stacktrace.
+        raise HTTPException(status_code=500, detail=f"Register failed: {e.__class__.__name__}")
     finally:
         con.close()
     return {"ok": True}
@@ -419,7 +443,7 @@ def auth_login(request: Request, payload: Dict[str, Any]):
     con = db_conn()
     row = con.execute("SELECT id, username, password_hash FROM users WHERE username=?", (username,)).fetchone()
     con.close()
-    if not row or not pwd_context.verify(password, row["password_hash"]):
+    if not row or not verify_password(password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Wrong login or password")
 
     token = make_token(int(row["id"]), row["username"])

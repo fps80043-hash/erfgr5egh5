@@ -14,7 +14,7 @@
   --shadow: 0 26px 90px rgba(0,0,0,.65);
   --radius:18px;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji";
 }
 
 *{box-sizing:border-box}
@@ -75,6 +75,24 @@ body{
   gap:2px;
   user-select:none;
   transform-origin:center;
+}
+
+.logoEmoji{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-left:8px;
+  font-size:18px;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.45));
+  animation: emojiBop 1.2s ease-in-out infinite;
+  transform-origin: 50% 70%;
+}
+@keyframes emojiBop{
+  0%{transform: translateY(0) rotate(0deg) scale(1)}
+  20%{transform: translateY(-2px) rotate(-10deg) scale(1.04)}
+  50%{transform: translateY(1px) rotate(8deg) scale(.98)}
+  80%{transform: translateY(-1px) rotate(-6deg) scale(1.02)}
+  100%{transform: translateY(0) rotate(0deg) scale(1)}
 }
 .logo .l{
   font-weight:1000;
@@ -394,20 +412,67 @@ code{
 }
 .toast{
   pointer-events:none;
-  padding:12px 12px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(10,12,28,.82);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 22px 70px rgba(0,0,0,.55);
-  animation: toastIn .22s ease;
+  position:relative;
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(9,10,24,.78);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 26px 80px rgba(0,0,0,.55);
+  opacity:0;
+  transform: translateY(-10px) scale(.98);
+  transition: opacity .22s ease, transform .22s ease, border-color .22s ease;
+  overflow:hidden;
 }
-@keyframes toastIn{from{opacity:0; transform: translateY(-6px)}to{opacity:1; transform: translateY(0)}}
+.toast::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.14;
+  background: radial-gradient(circle at 30% 10%, rgba(124,92,255,.70), transparent 55%),
+              radial-gradient(circle at 90% 90%, rgba(34,211,238,.55), transparent 58%);
+  pointer-events:none;
+}
+.toast::after{
+  content:"";
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width:3px;
+  background: rgba(255,255,255,.18);
+  opacity:.85;
+}
+.toast.ok::after{ background: rgba(16,185,129,.85) }
+.toast.bad::after{ background: rgba(255,77,109,.85) }
+.toast.warn::after{ background: rgba(255,209,102,.85) }
+
+.toast.show{opacity:1; transform: translateY(0) scale(1)}
+.toast.hide{opacity:0; transform: translateY(-6px) scale(.99)}
+
+.toast .tTop{
+  position:relative;
+  z-index:1;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.toast .tIcon{
+  width:28px; height:28px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  font-size: 16px;
+  flex: 0 0 auto;
+}
 .toast .t1{font-weight:1000}
-.toast .t2{color:var(--muted); font-size:13px; margin-top:2px}
-.toast.ok{border-color: rgba(16,185,129,.30)}
-.toast.bad{border-color: rgba(255,77,109,.35)}
-.toast.warn{border-color: rgba(255,209,102,.35)}
+.toast .t2{color:var(--muted); font-size:13px; margin-top:2px; line-height:1.25}
+
+.toast.ok{border-color: rgba(16,185,129,.24)}
+.toast.bad{border-color: rgba(255,77,109,.26)}
+.toast.warn{border-color: rgba(255,209,102,.24)}
 
 .chatlog{
   height: 320px;
