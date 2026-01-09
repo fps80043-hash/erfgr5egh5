@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+  <canvas id="particles"></canvas>
   <div class="bg"></div>
   <header class="topbar">
     <div class="brand">
@@ -17,12 +18,24 @@
       </div>
     </div>
 
-    <nav class="tabs">
-      <button class="tab active" data-tab="gen">🏠 Генератор</button>
-      <button class="tab" data-tab="ai">✨ AI Generate</button>
-      <button class="tab" data-tab="chat">💬 Чат</button>
-      <button class="tab" data-tab="help">❓ Справка</button>
+    <nav class="tabs" aria-label="Навигация">
+      <div class="dock">
+        <button class="tab active" data-tab="gen">
+          <span class="ic">🏠</span><span class="tx">Генератор</span>
+        </button>
+        <button class="tab" data-tab="ai">
+          <span class="ic">✨</span><span class="tx">AI Generate</span>
+        </button>
+        <button class="tab" data-tab="help">
+          <span class="ic">❓</span><span class="tx">Справка</span>
+        </button>
+      </div>
     </nav>
+    <div class="top-actions">
+      <button id="btnTopConn" class="btn ghost" title="Проверить соединение">🔌</button>
+      <a class="btn ghost" href="https://render.com" target="_blank" rel="noreferrer" title="Render">☁️</a>
+    </div>
+
   </header>
 
   <main class="wrap">
@@ -153,6 +166,7 @@
           <p class="muted">Пиши боту прямо здесь. Он поможет с текстом, структурой, гарантией и стилем продажи.</p>
           <div id="chatLog" class="chatlog"></div>
           <div class="chatbar">
+            <div class="hint muted">Совет: <b>Ctrl+Enter</b> — отправить. Чат учитывает факты аккаунта, если ты его анализировал.</div>
             <textarea id="chatInput" class="input mono" rows="3" placeholder="Напиши сообщение..."></textarea>
             <div class="chatbtns">
               <button id="btnChatSend" class="btn primary">➡ Отправить</button>
@@ -189,6 +203,7 @@
           <div id="chatBox" class="chatbox" aria-live="polite"></div>
 
           <div class="chatbar">
+            <div class="hint muted">Совет: <b>Ctrl+Enter</b> — отправить. Чат учитывает факты аккаунта, если ты его анализировал.</div>
             <textarea id="chatInput" class="input chatinput" rows="2" placeholder="Напиши сообщение… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
             <button id="btnChatSend" class="btn primary">➡ Отправить</button>
           </div>

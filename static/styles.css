@@ -1,6 +1,11 @@
 :root{
-  --bg1:#0b0f19;
-  --bg2:#0a1226;
+  --glass: rgba(255,255,255,.06);
+  --glass2: rgba(255,255,255,.035);
+  --glass3: rgba(0,0,0,.22);
+  --accGlow: rgba(109,94,252,.35);
+
+  --bg1:#05070e;
+  --bg2:#060a14;
   --card:#0f172a;
   --card2:#0b1220;
   --text:#e5e7eb;
@@ -60,7 +65,7 @@ body{
 .title{font-weight:900; letter-spacing:.6px}
 .sub{font-size:12px; color:var(--muted)}
 
-.tabs{display:flex; gap:10px; align-items:center}
+.tabs{display:flex; align-items:center}
 .tab{
   border:1px solid var(--line);
   background:rgba(255,255,255,.04);
@@ -93,6 +98,7 @@ body{
   border-radius: var(--radius);
   padding:16px;
   box-shadow: var(--shadow);
+  transition: transform .18s ease, border .18s ease, background .18s ease;
 }
 .card h2{margin:0 0 10px 0}
 .card h3{margin:10px 0}
@@ -300,3 +306,81 @@ body{
   0%,80%,100%{transform: translateY(0); opacity:.55}
   40%{transform: translateY(-4px); opacity:1}
 }
+
+#particles{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.65;
+}
+.bg{z-index:1}
+.topbar, .wrap{position:relative; z-index:2}
+
+.topbar{
+  align-items:center;
+}
+.top-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.btn.ghost{
+  padding:10px 12px;
+  border-radius:14px;
+  background: rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  text-decoration:none;
+}
+.btn.ghost:hover{background: rgba(255,255,255,.06)}
+
+.dock{
+  display:flex;
+  gap:6px;
+  padding:6px;
+  border-radius:18px;
+  background: rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow: 0 16px 50px rgba(0,0,0,.35);
+}
+.tab{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:none;
+  background: transparent;
+  padding:10px 14px;
+  border-radius:14px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.tab .ic{
+  width:28px; height:28px;
+  display:grid; place-items:center;
+  border-radius:10px;
+  background: rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.tab.active{
+  background: rgba(109,94,252,.16);
+  box-shadow: 0 0 0 1px rgba(109,94,252,.25) inset, 0 20px 60px rgba(109,94,252,.12);
+}
+.tab.active .ic{
+  background: rgba(109,94,252,.22);
+  border-color: rgba(109,94,252,.35);
+  box-shadow: 0 12px 36px rgba(109,94,252,.18);
+}
+@media (max-width: 640px){
+  .tab .tx{display:none}
+  .tab{padding:10px}
+  .dock{gap:4px}
+}
+
+.card:hover{
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.12);
+}
+
+.hint{margin:6px 0 10px 0}
+.chatbtns{justify-content:flex-end}

@@ -90,6 +90,31 @@ async function loadPollinationsModels(){
   sel.value = "openai";
 }
 
+
+function parseSSE(buffer){
+  // returns {events: [{event, data}], rest}
+  const out = [];
+  let idx;
+  while((idx = buffer.indexOf("\n\n")) !== -1){
+    const raw = buffer.slice(0, idx);
+    buffer = buffer.slice(idx + 2);
+
+    let ev = "message";
+    let dataLines = [];
+    raw.split("\n").forEach(line=>{
+      if(line.startsWith("event:")){
+        ev = line.slice(6).trim();
+      }else if(line.startsWith("data:")){
+        dataLines.push(line.slice(5).trimStart());
+      }
+    });
+    if(dataLines.length){
+      out.push({event: ev, data: dataLines.join("\n")});
+    }
+  }
+  return {events: out, rest: buffer};
+}
+
 function setupTabs(){
   document.querySelectorAll(".tab").forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -195,32 +220,42 @@ async function chatSend(){
       if(done) break;
       buf += decoder.decode(value, {stream:true});
 
-      // parse SSE frames separated by double newline
-      let idx;
-      while((idx = buf.indexOf("\n\n")) !== -1){
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx+2);
+      let parsed;
+      while(true){
+        const {value, done} = await reader.read();
+        if(done) break;
+        buf += decoder.decode(value, {stream:true});
+        parsed = parseSSE(buf);
+        buf = parsed.rest;
 
-        if(frame.startsWith("event: error")){
-          // next lines contain data
-          continue;
-        }
-
-        const dataLine = frame.split("\n").find(l=>l.startsWith("data: "));
-        if(!dataLine) continue;
-        const data = dataLine.slice(6);
-        try{
-          const obj = JSON.parse(data);
-          if(obj.delta){
-            full += obj.delta;
-            bub.textContent = full;
-            $("#chatLog").scrollTop = $("#chatLog").scrollHeight;
+        for(const ev of parsed.events){
+          if(ev.event === "error"){
+            try{
+              const obj = JSON.parse(ev.data);
+              throw new Error(obj.error || "stream error");
+            }catch(_e){
+              throw new Error("stream error");
+            }
           }
-        }catch(_e){
-          // ignore
+          if(ev.event === "done"){
+            // ignore
+            continue;
+          }
+          // default message
+          try{
+            const obj = JSON.parse(ev.data);
+            if(obj.delta){
+              full += obj.delta;
+              bub.textContent = full;
+              $("#chatLog").scrollTop = $("#chatLog").scrollHeight;
+            }
+          }catch(_e){
+            // if server sends plain text chunks
+            full += ev.data;
+            bub.textContent = full;
+          }
         }
       }
-    }
 
     chatMessages.push({role:"assistant", content: full});
     setStatus(st, "Готово ✅", "ok");
@@ -248,9 +283,89 @@ function setupChat(){
   });
 }
 
+
+// --------------------
+// Particles (background)
+// --------------------
+function initParticles(){
+  const canvas = document.getElementById("particles");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let w=0,h=0, dpr=1;
+  const particles = [];
+  const N = 80;
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.width = Math.floor(window.innerWidth * dpr);
+    h = canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+  }
+
+  function rnd(a,b){return a + Math.random()*(b-a)}
+  function make(){
+    return {
+      x: rnd(0,w),
+      y: rnd(0,h),
+      r: rnd(1.2, 3.2)*dpr,
+      vx: rnd(-0.18, 0.18)*dpr,
+      vy: rnd(-0.12, 0.12)*dpr,
+      a: rnd(0.10, 0.55)
+    }
+  }
+
+  function step(){
+    ctx.clearRect(0,0,w,h);
+    // soft glow dots + lines
+    for(let i=0;i<particles.length;i++){
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if(p.x<0) p.x=w;
+      if(p.x>w) p.x=0;
+      if(p.y<0) p.y=h;
+      if(p.y>h) p.y=0;
+
+      ctx.beginPath();
+      ctx.globalAlpha = p.a;
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fill();
+    }
+    // lines
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const a = particles[i], b = particles[j];
+        const dx=a.x-b.x, dy=a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        const max = 170*dpr;
+        if(dist<max){
+          ctx.globalAlpha = 0.08*(1 - dist/max);
+          ctx.strokeStyle = "rgba(109,94,252,1)";
+          ctx.lineWidth = 1*dpr;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);
+          ctx.lineTo(b.x,b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(step);
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+  particles.length = 0;
+  for(let i=0;i<N;i++) particles.push(make());
+  requestAnimationFrame(step);
+}
+
 window.addEventListener("load", async ()=>{
   setupTabs();
   setupChat();
+  initParticles();
   loadTpl();
   await loadPollinationsModels();
 
