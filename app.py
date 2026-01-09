@@ -25,10 +25,8 @@ DEFAULT_TIMEOUT = 30
 RBX_AUTH = "https://users.roblox.com/v1/users/authenticated"
 RBX_USER = "https://users.roblox.com/v1/users/{uid}"
 RBX_ROBUX = "https://economy.roblox.com/v1/users/{uid}/currency"
-RBX_INV_PRIV = "https://accountsettings.roblox.com/v1/inventory-privacy"
 RBX_COLLECT = "https://inventory.roblox.com/v1/users/{uid}/assets/collectibles?limit=100&cursor={cur}"
 RBX_TX = "https://economy.roblox.com/v2/users/{uid}/transactions?transactionType=Purchase&limit=100&cursor={cur}"
-RBX_BIRTH = "https://accountinformation.roblox.com/v1/birthdate"
 
 # ----------------------------
 # Helpers
@@ -241,9 +239,8 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
     uname = info.get("name")
     if not uid:
         raise HTTPException(status_code=401, detail="Bad cookie (no user id).")
-
-    # Inventory privacy
-    inv_priv = "NoOne"
+    # Inventory visibility is inferred from collectible access (no settings calls)
+    inv_priv = "Unknown"
     try:
         pr = s.get(RBX_INV_PRIV, timeout=DEFAULT_TIMEOUT).json()
         inv_priv = pr.get("inventoryPrivacy") or "NoOne"
@@ -317,17 +314,8 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
             created_year = int(created[:4])
     except Exception:
         created_year = None
-
-    # Age tag (birthdate endpoint is auth-locked)
+    # Age tag is not requested (avoid sensitive endpoints)
     age_tag = "Скрыт"
-    try:
-        b = s.get(RBX_BIRTH, timeout=DEFAULT_TIMEOUT).json()
-        if all(k in b for k in ("birthYear", "birthMonth", "birthDay")):
-            td = datetime.date.today()
-            age = td.year - int(b["birthYear"]) - ((td.month, td.day) < (int(b["birthMonth"]), int(b["birthDay"])))
-            age_tag = "13+" if age >= 13 else "<13"
-    except Exception:
-        pass
 
     # Derived tags
     year_tag = f"{created_year}Г" if created_year and created_year <= 2017 else "NEW"
@@ -339,8 +327,8 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
     rap_tag = f"{int(rap_total/1000)}K" if rap_total >= 1000 else str(rap_total)
 
     # Inventory text
-    inv_ru = "Скрыт" if inv_priv != "AllUsers" else "Открыт"
-    if inv_priv == "AllUsers" and items:
+    inv_ru = "Скрыт"
+    if items:
         items_sorted = sorted(items, key=lambda x: x[1], reverse=True)[:12]
         lines = []
         for nm, rp in items_sorted:

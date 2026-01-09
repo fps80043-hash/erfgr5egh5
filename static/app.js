@@ -342,7 +342,7 @@ function initParticles(){
       ctx.beginPath();
       ctx.globalAlpha = p.a;
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = "rgba(210,216,255,1)";
+      ctx.fillStyle = "rgba(180,190,255,1)";
       ctx.fill();
     }
     // lines
@@ -354,7 +354,7 @@ function initParticles(){
         const max = 170*dpr;
         if(dist<max){
           ctx.globalAlpha = 0.08*(1 - dist/max);
-          ctx.strokeStyle = "rgba(124,92,255,1)";
+          ctx.strokeStyle = "rgba(34,211,238,1)";
           ctx.lineWidth = 1*dpr;
           ctx.beginPath();
           ctx.moveTo(a.x,a.y);
@@ -422,7 +422,7 @@ if(cookieEl){
     setStatus(status, "Подключение…", "warn");
     $("#btnAnalyze").disabled = true;
     try{
-      const cookie = $("#cookie").value.trim();
+      const cookie = $("#cookie").value;
       const j = await api("/api/analyze", {cookie});
       accountData = j.data;
       fillFacts(accountData);
