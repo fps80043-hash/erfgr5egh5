@@ -45,6 +45,7 @@
         <div class="card">
           <h2>🔐 Cookie (.ROBLOSECURITY)</h2>
           <p class="muted">Не делись этим с другими. На сервере cookie не сохраняется — используется только для запроса.</p>
+          <p class="muted">Cookie не изменяется и не “ломается”: мы лишь отправляем его в запросе для чтения данных. Сохранение — только у тебя в браузере.</p>
           <textarea id="cookie" class="input mono" rows="3" placeholder="_|WARNING:DO-NOT-SHARE-THIS..."></textarea>
           <div class="row">
             <button id="btnAnalyze" class="btn primary">Анализировать аккаунт</button>
@@ -74,24 +75,24 @@
             </div>
           </div>
 
-          <label class="lbl">Заголовок (template)</label>
+          <label class="lbl">Шаблон заголовка</label>
           <input id="tplHead" class="input" placeholder="⭐ ТОП {year_tag} | {donate_tag}" />
-          <label class="lbl">Описание (template)</label>
+          <label class="lbl">Шаблон описания</label>
           <textarea id="tplBody" class="input mono" rows="10"></textarea>
 
           <div class="divider"></div>
           <div class="cardhead">
             <h2>✅ Результат</h2>
             <div class="minirow">
-              <button id="btnCopyHead" class="btn">Копия Head</button>
-              <button id="btnCopyBody" class="btn">Копия Body</button>
+              <button id="btnCopyHead" class="btn">Копировать заголовок</button>
+              <button id="btnCopyBody" class="btn">Копировать описание</button>
               <button id="btnCopyAll" class="btn primary">📄 Копировать всё</button>
             </div>
           </div>
 
-          <label class="lbl">HEAD</label>
+          <label class="lbl">Заголовок</label>
           <input id="outHead" class="input" readonly />
-          <label class="lbl">BODY</label>
+          <label class="lbl">Описание</label>
           <textarea id="outBody" class="input mono" rows="12" readonly></textarea>
 
           <div class="row">
@@ -100,9 +101,9 @@
           </div>
 
           <div id="enBox" class="enbox hidden">
-            <label class="lbl">HEAD (EN)</label>
+            <label class="lbl">Заголовок (EN)</label>
             <input id="outHeadEn" class="input" readonly />
-            <label class="lbl">BODY (EN)</label>
+            <label class="lbl">Описание (EN)</label>
             <textarea id="outBodyEn" class="input mono" rows="10" readonly></textarea>
           </div>
         </div>
@@ -157,7 +158,7 @@
           </div>
 
           <div class="divider"></div>
-          <h3>🧾 Ответ</h3>
+          <h3>🧾 Ответ ИИ</h3>
           <pre id="aiRaw" class="log"></pre>
         </div>
 
@@ -248,6 +249,13 @@
       </div>
     </section>
   </main>
+
+  <nav id="bottomNav" class="bottomnav" aria-label="Навигация снизу">
+    <button class="btab active" data-tab="gen"><span>🏠</span><small>Главная</small></button>
+    <button class="btab" data-tab="ai"><span>✨</span><small>AI</small></button>
+    <button class="btab" data-tab="help"><span>❓</span><small>Помощь</small></button>
+  </nav>
+
 
   <script src="/static/app.js"></script>
 </body>

@@ -1,6 +1,7 @@
 const $ = (sel) => document.querySelector(sel);
 
 let accountData = null;
+let cookieSaved = false;
 
 const DEFAULT_TPL_HEAD = "⭐ ТОП {year_tag} | {donate_tag} ДОНАТА";
 const DEFAULT_TPL_BODY = `✨ Восхитительный аккаунт ждёт тебя! 👤 Ник: {username}
@@ -115,14 +116,25 @@ function parseSSE(buffer){
   return {events: out, rest: buffer};
 }
 
+function setActiveTab(id){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.btab').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('active'));
+  const pane = document.getElementById('tab-'+id);
+  if(pane) pane.classList.add('active');
+  // scroll to top for mobile comfort
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
 function setupTabs(){
-  document.querySelectorAll(".tab").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-      btn.classList.add("active");
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      
+      
       const id = btn.dataset.tab;
-      document.querySelectorAll(".tabpane").forEach(p=>p.classList.remove("active"));
-      $("#tab-"+id).classList.add("active");
+      setActiveTab(id);
+      
+      
     });
   });
 }
@@ -330,7 +342,7 @@ function initParticles(){
       ctx.beginPath();
       ctx.globalAlpha = p.a;
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillStyle = "rgba(210,216,255,1)";
       ctx.fill();
     }
     // lines
@@ -342,7 +354,7 @@ function initParticles(){
         const max = 170*dpr;
         if(dist<max){
           ctx.globalAlpha = 0.08*(1 - dist/max);
-          ctx.strokeStyle = "rgba(109,94,252,1)";
+          ctx.strokeStyle = "rgba(124,92,255,1)";
           ctx.lineWidth = 1*dpr;
           ctx.beginPath();
           ctx.moveTo(a.x,a.y);
@@ -352,6 +364,14 @@ function initParticles(){
       }
     }
     ctx.globalAlpha = 1;
+        // vignette
+    const grd = ctx.createRadialGradient(w*0.5,h*0.45, Math.min(w,h)*0.15, w*0.5,h*0.5, Math.min(w,h)*0.65);
+    grd.addColorStop(0,'rgba(0,0,0,0)');
+    grd.addColorStop(1,'rgba(0,0,0,0.35)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,w,h);
+
     requestAnimationFrame(step);
   }
 
@@ -359,15 +379,42 @@ function initParticles(){
   window.addEventListener("resize", resize);
   particles.length = 0;
   for(let i=0;i<N;i++) particles.push(make());
-  requestAnimationFrame(step);
+      // vignette
+    const grd = ctx.createRadialGradient(w*0.5,h*0.45, Math.min(w,h)*0.15, w*0.5,h*0.5, Math.min(w,h)*0.65);
+    grd.addColorStop(0,'rgba(0,0,0,0)');
+    grd.addColorStop(1,'rgba(0,0,0,0.35)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,w,h);
+
+    requestAnimationFrame(step);
 }
 
 window.addEventListener("load", async ()=>{
   setupTabs();
+  setActiveTab('gen');
   setupChat();
   initParticles();
   loadTpl();
+  // Restore cookie (stored only in your browser)
+  const savedCookie = localStorage.getItem("rbst_cookie") || "";
+  if(savedCookie && $("#cookie")) { $("#cookie").value = savedCookie; cookieSaved = true; }
+
   await loadPollinationsModels();
+
+  
+let debCookie = null;
+const cookieEl = $("#cookie");
+if(cookieEl){
+  cookieEl.addEventListener("input", ()=>{
+    if(debCookie) clearTimeout(debCookie);
+    debCookie = setTimeout(()=>{
+      localStorage.setItem("rbst_cookie", cookieEl.value || "");
+      cookieSaved = true;
+    }, 250);
+  });
+}
+
 
   // Analyze
   $("#btnAnalyze").addEventListener("click", async ()=>{
@@ -397,6 +444,10 @@ window.addEventListener("load", async ()=>{
     localStorage.removeItem("tplHead");
     localStorage.removeItem("tplBody");
     loadTpl();
+  // Restore cookie (stored only in your browser)
+  const savedCookie = localStorage.getItem("rbst_cookie") || "";
+  if(savedCookie && $("#cookie")) { $("#cookie").value = savedCookie; cookieSaved = true; }
+
     await renderPreview();
   });
 
@@ -462,6 +513,20 @@ window.addEventListener("load", async ()=>{
     sel.innerHTML = "";
     if(p === "pollinations"){
       await loadPollinationsModels();
+
+  
+let debCookie = null;
+const cookieEl = $("#cookie");
+if(cookieEl){
+  cookieEl.addEventListener("input", ()=>{
+    if(debCookie) clearTimeout(debCookie);
+    debCookie = setTimeout(()=>{
+      localStorage.setItem("rbst_cookie", cookieEl.value || "");
+      cookieSaved = true;
+    }, 250);
+  });
+}
+
     }else{
       // groq - show common models (you can extend)
       ["llama-3.3-70b-versatile","llama-3.1-70b-versatile","gemma2-9b-it","mixtral-8x7b-32768"].forEach(m=>{
