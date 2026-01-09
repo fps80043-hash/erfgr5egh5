@@ -459,3 +459,7 @@ code{
   border-color: rgba(124,92,255,.30);
 }
 .switch input:checked + .slider:before{transform: translateX(20px)}
+
+
+/* Auth */
+#authBox .row{align-items:flex-end}

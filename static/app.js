@@ -1,6 +1,7 @@
 const $ = (sel) => document.querySelector(sel);
 
 let accountData = null;
+let currentUser = null;
 
 function toast(title, msg="", type="ok"){
   const box = document.getElementById("toasts");
@@ -60,14 +61,68 @@ function copyText(text){
   navigator.clipboard?.writeText(text).catch(()=>{});
 }
 
+let debSync = null;
 function saveTpl(){
   localStorage.setItem("rst_title_tpl", $("#tplTitle")?.value || "");
   localStorage.setItem("rst_desc_tpl", $("#tplDesc")?.value || "");
+  if(currentUser){
+    if(debSync) clearTimeout(debSync);
+    debSync = setTimeout(()=> syncPush().catch(()=>{}), 900);
+  }
+}
+
+
+async function syncPull(){
+  const j = await apiGet("/api/user/templates");
+  const t = j.title_tpl || "";
+  const d = j.desc_tpl || "";
+  if(t) $("#tplTitle").value = t;
+  if(d) $("#tplDesc").value = d;
+  saveTpl();
+  if(accountData) await renderPreview();
+  toast("Синхронизация", "Шаблоны загружены", "ok");
+}
+
+async function syncPush(){
+  const title_tpl = $("#tplTitle")?.value || "";
+  const desc_tpl = $("#tplDesc")?.value || "";
+  await apiPost("/api/user/templates", {title_tpl, desc_tpl});
+  toast("Синхронизация", "Шаблоны сохранены", "ok");
+}
+
+async function chatPull(){
+  const j = await apiGet("/api/user/chat_history");
+  const log = $("#chatLog");
+  if(!log) return;
+  log.innerHTML = "";
+  (j.messages || []).forEach(m=>{
+    const who = m.role === "user" ? "Ты" : "R$T";
+    const me = m.role === "user";
+    pushMsg(who, m.content, me);
+  });
+  toast("Чат", "История загружена", "ok");
+}
+
+async function chatClear(){
+  await apiPost("/api/user/chat_clear", {});
+  const log = $("#chatLog");
+  if(log) log.innerHTML = "";
+  toast("Чат", "История очищена", "warn");
 }
 
 function loadTpl(){
   if($("#tplTitle")) $("#tplTitle").value = localStorage.getItem("rst_title_tpl") || DEFAULT_TITLE;
   if($("#tplDesc")) $("#tplDesc").value = localStorage.getItem("rst_desc_tpl") || DEFAULT_DESC;
+}
+
+async function apiGet(path){
+  const r = await fetch(path, {method:'GET'});
+  const j = await r.json().catch(()=> ({}));
+  if(!r.ok || !j.ok){
+    const msg = (j && j.detail) ? j.detail : ('HTTP ' + r.status);
+    throw new Error(msg);
+  }
+  return j;
 }
 
 async function apiPost(path, payload){
@@ -430,6 +485,70 @@ window.addEventListener("load", async ()=>{
       $("#btnAIGen").disabled = false;
     }
   });
+
+  // Auth / Profile
+  async function refreshMe(){
+    try{
+      const j = await apiGet("/api/auth/me");
+      currentUser = j.user;
+    }catch(_e){
+      currentUser = null;
+    }
+    const st = $("#meStatus");
+    const authBox = $("#authBox");
+    const tools = $("#profileTools");
+    const lo = $("#btnLogout");
+    if(currentUser){
+      if(st) st.textContent = currentUser.username;
+      if(authBox) authBox.style.display = "none";
+      if(tools) tools.style.display = "block";
+      if(lo) lo.style.display = "inline-flex";
+    }else{
+      if(st) st.textContent = "не вошёл";
+      if(authBox) authBox.style.display = "block";
+      if(tools) tools.style.display = "none";
+      if(lo) lo.style.display = "none";
+    }
+  }
+
+  $("#btnLogin")?.addEventListener("click", async ()=>{
+    try{
+      const username = $("#authUser")?.value || "";
+      const password = $("#authPass")?.value || "";
+      await apiPost("/api/auth/login", {username, password});
+      toast("Профиль", "Вход выполнен", "ok");
+      await refreshMe();
+      await syncPull().catch(()=>{});
+      await chatPull().catch(()=>{});
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnRegister")?.addEventListener("click", async ()=>{
+    try{
+      const username = $("#authUser")?.value || "";
+      const password = $("#authPass")?.value || "";
+      await apiPost("/api/auth/register", {username, password});
+      toast("Профиль", "Аккаунт создан — теперь войди", "ok");
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnLogout")?.addEventListener("click", async ()=>{
+    await apiPost("/api/auth/logout", {});
+    toast("Профиль", "Выход выполнен", "warn");
+    await refreshMe();
+  });
+
+  $("#btnSyncPull")?.addEventListener("click", ()=> syncPull().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnSyncPush")?.addEventListener("click", ()=> syncPush().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnChatPull")?.addEventListener("click", ()=> chatPull().catch(e=>toast("Ошибка", e.message, "bad")));
+  $("#btnChatClear")?.addEventListener("click", ()=> chatClear().catch(e=>toast("Ошибка", e.message, "bad")));
+
+  await refreshMe();
+
 });
 
 

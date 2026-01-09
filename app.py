@@ -1,17 +1,28 @@
 import os
+import re
 import datetime
-from typing import Any, Dict, List, Tuple
+import sqlite3
+from typing import Any, Dict, List, Tuple, Optional
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from passlib.context import CryptContext
+from jose import jwt, JWTError
 
 # ----------------------------
 # Config
 # ----------------------------
 DEFAULT_TIMEOUT = 30
+
+# Auth / DB
+DB_PATH = os.environ.get("DB_PATH", "data.db")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+JWT_ALG = "HS256"
+SESSION_COOKIE = "rst_session"
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Pollinations (no key)
 POLLINATIONS_OPENAI_URL = "https://text.pollinations.ai/openai"   # OpenAI-compatible
@@ -19,9 +30,11 @@ POLLINATIONS_MODELS_URL = "https://text.pollinations.ai/models"
 
 # Groq (key required)
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# BlackBox (key required)
 BLACKBOX_CHAT_URL = "https://api.blackbox.ai/chat/completions"
 
-# Roblox endpoints (cookie-based private fields need .ROBLOSECURITY)
+# Roblox endpoints
 RBX_AUTH = "https://users.roblox.com/v1/users/authenticated"
 RBX_USER = "https://users.roblox.com/v1/users/{uid}"
 RBX_ROBUX = "https://economy.roblox.com/v1/users/{uid}/currency"
@@ -29,7 +42,86 @@ RBX_COLLECT = "https://inventory.roblox.com/v1/users/{uid}/assets/collectibles?l
 RBX_TX = "https://economy.roblox.com/v2/users/{uid}/transactions?transactionType=Purchase&limit=100&cursor={cur}"
 
 # ----------------------------
-# Helpers
+# DB helpers
+# ----------------------------
+def db_conn():
+    con = sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    return con
+
+def db_init():
+    con = db_conn()
+    cur = con.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS templates(
+          user_id INTEGER PRIMARY KEY,
+          title_tpl TEXT NOT NULL,
+          desc_tpl TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          ts TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    con.commit()
+    con.close()
+
+def cookie_secure(request: Request) -> bool:
+    # Render/Proxy usually sets x-forwarded-proto=https
+    proto = (request.headers.get("x-forwarded-proto") or "").lower()
+    if proto == "https":
+        return True
+    fwd = (request.headers.get("forwarded") or "").lower()
+    if "proto=https" in fwd:
+        return True
+    return False
+
+def make_token(uid: int, username: str) -> str:
+    payload = {
+        "uid": uid,
+        "username": username,
+        "iat": int(datetime.datetime.utcnow().timestamp()),
+        "exp": int((datetime.datetime.utcnow() + datetime.timedelta(days=14)).timestamp()),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALG)
+
+def read_token(token: str) -> Optional[Dict[str, Any]]:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG])
+    except JWTError:
+        return None
+
+def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        return None
+    data = read_token(token)
+    if not data:
+        return None
+    uid = int(data.get("uid", 0) or 0)
+    username = str(data.get("username", "") or "")
+    if not uid or not username:
+        return None
+    return {"id": uid, "username": username}
+
+# ----------------------------
+# Template helpers
 # ----------------------------
 class SafeDict(dict):
     def __missing__(self, key):
@@ -46,15 +138,6 @@ def clamp(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n]
 
 def extract_title_desc(text: str) -> Tuple[str, str]:
-    """
-    Extracts "TITLE:" / "DESC:" response.
-    Expected:
-      TITLE: ...
-      DESC:
-      ...
-    Fallback: first line -> title, rest -> desc.
-    Always returns (title, desc).
-    """
     if not text:
         return "", ""
     t = text.strip().replace("```", "").strip()
@@ -90,6 +173,9 @@ def extract_title_desc(text: str) -> Tuple[str, str]:
         return lines[0].strip(), ""
     return lines[0].strip(), "\n".join(lines[1:]).strip()
 
+# ----------------------------
+# Providers
+# ----------------------------
 def pollinations_chat(model: str, system: str, user: str, temperature: float = 0.9, max_tokens: int = 900) -> str:
     payload = {
         "model": model or "openai",
@@ -114,7 +200,7 @@ def pollinations_chat(model: str, system: str, user: str, temperature: float = 0
 
 def groq_chat(api_key: str, model: str, system: str, user: str, temperature: float = 0.9, max_tokens: int = 900) -> str:
     if not api_key:
-        raise HTTPException(status_code=400, detail="GROQ_API_KEY is missing. Add it in Render -> Environment.")
+        raise HTTPException(status_code=400, detail="GROQ_API_KEY is missing")
     payload = {
         "model": model or "llama-3.3-70b-versatile",
         "messages": [
@@ -136,17 +222,11 @@ def groq_chat(api_key: str, model: str, system: str, user: str, temperature: flo
     j = r.json()
     return j["choices"][0]["message"]["content"]
 
-
 def blackbox_chat(api_key: str, model: str, system: str, user: str, temperature: float = 0.9, max_tokens: int = 900) -> str:
-    """
-    BLACKBOX AI is OpenAI-compatible.
-    Base URL: https://api.blackbox.ai
-    Endpoint: POST /chat/completions
-    """
     if not api_key:
-        raise HTTPException(status_code=400, detail="BLACKBOX_API_KEY is missing. Add it in Render -> Environment.")
+        raise HTTPException(status_code=400, detail="BLACKBOX_API_KEY is missing")
     payload = {
-        "model": model or "blackboxai/deepseek/deepseek-chat:free",
+        "model": model or "blackboxai/deepseek/deepseek-chat",
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -166,6 +246,9 @@ def blackbox_chat(api_key: str, model: str, system: str, user: str, temperature:
     j = r.json()
     return j["choices"][0]["message"]["content"]
 
+# ----------------------------
+# Business logic
+# ----------------------------
 def build_sales_rule(mode: str, tone: str) -> str:
     mode_map = {
         "Рерайт": "Сохрани смысл и факты, сделай текст более продающим.",
@@ -186,20 +269,18 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="cookie is required")
 
     s = requests.Session()
-    # Do NOT alter cookie string (some users include trailing chars)
+    # do NOT trim/modify
     s.cookies[".ROBLOSECURITY"] = cookie
 
-    # Auth
     r = s.get(RBX_AUTH, timeout=DEFAULT_TIMEOUT)
     if r.status_code != 200:
-        raise HTTPException(status_code=401, detail="Bad cookie (auth failed).")
+        raise HTTPException(status_code=401, detail="Bad cookie (auth failed)")
     info = r.json() or {}
     uid = info.get("id")
     uname = info.get("name")
     if not uid:
-        raise HTTPException(status_code=401, detail="Bad cookie (no user id).")
+        raise HTTPException(status_code=401, detail="Bad cookie (no user id)")
 
-    # Collectibles -> RAP (best-effort)
     rap_total = 0
     items: List[Tuple[str, int]] = []
     cur = ""
@@ -222,7 +303,6 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
         if not cur:
             break
 
-    # Transactions purchases -> spend (best-effort)
     donate_total = 0
     cur = ""
     for _ in range(25):
@@ -241,14 +321,12 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
         if not cur:
             break
 
-    # Robux
     robux = 0
     try:
         robux = int((s.get(RBX_ROBUX.format(uid=uid), timeout=DEFAULT_TIMEOUT).json() or {}).get("robux", 0))
     except Exception:
         robux = 0
 
-    # Created year
     created_year = ""
     try:
         u = s.get(RBX_USER.format(uid=uid), timeout=DEFAULT_TIMEOUT).json() or {}
@@ -258,12 +336,10 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
     except Exception:
         created_year = ""
 
-    # Tags
     year_tag = f"{created_year}Г" if created_year and int(created_year) <= 2017 else "NEW"
     donate_tag = f"{int(donate_total/1000)}K" if donate_total >= 1000 else str(donate_total)
     rap_tag = f"{int(rap_total/1000)}K" if rap_total >= 1000 else str(rap_total)
 
-    # Inventory text (no privacy/settings calls; only if collectibles were readable)
     inv_ru = "Скрыт"
     if items:
         items_sorted = sorted(items, key=lambda x: x[1], reverse=True)[:10]
@@ -291,6 +367,10 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
 # ----------------------------
 app = FastAPI(title="R$T Web")
 
+@app.on_event("startup")
+def _startup():
+    db_init()
+
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -298,18 +378,141 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+# ----------------------------
+# Auth / Profile API
+# ----------------------------
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    u = get_current_user(request)
+    return {"ok": True, "user": {"username": u["username"]} if u else None}
+
+@app.post("/api/auth/register")
+def auth_register(payload: Dict[str, Any]):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+    if len(username) < 3 or len(username) > 24:
+        raise HTTPException(status_code=400, detail="Username: 3-24 symbols")
+    if not re.match(r"^[a-zA-Z0-9_]+$", username):
+        raise HTTPException(status_code=400, detail="Username: only A-Z, 0-9, _")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password: min 6 symbols")
+
+    ph = pwd_context.hash(password)
+    con = db_conn()
+    try:
+        con.execute(
+            "INSERT INTO users(username,password_hash,created_at) VALUES(?,?,?)",
+            (username, ph, datetime.datetime.utcnow().isoformat()),
+        )
+        con.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    finally:
+        con.close()
+    return {"ok": True}
+
+@app.post("/api/auth/login")
+def auth_login(request: Request, payload: Dict[str, Any]):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+
+    con = db_conn()
+    row = con.execute("SELECT id, username, password_hash FROM users WHERE username=?", (username,)).fetchone()
+    con.close()
+    if not row or not pwd_context.verify(password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Wrong login or password")
+
+    token = make_token(int(row["id"]), row["username"])
+    jr = JSONResponse({"ok": True, "user": {"username": row["username"]}})
+    jr.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=cookie_secure(request),
+        max_age=60*60*24*14,
+        path="/",
+    )
+    return jr
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    jr = JSONResponse({"ok": True})
+    jr.delete_cookie(SESSION_COOKIE, path="/")
+    return jr
+
+@app.get("/api/user/templates")
+def user_templates_get(request: Request):
+    u = get_current_user(request)
+    if not u:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    con = db_conn()
+    row = con.execute("SELECT title_tpl, desc_tpl FROM templates WHERE user_id=?", (u["id"],)).fetchone()
+    con.close()
+    if not row:
+        return {"ok": True, "title_tpl": "", "desc_tpl": ""}
+    return {"ok": True, "title_tpl": row["title_tpl"], "desc_tpl": row["desc_tpl"]}
+
+@app.post("/api/user/templates")
+def user_templates_set(request: Request, payload: Dict[str, Any]):
+    u = get_current_user(request)
+    if not u:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    title_tpl = payload.get("title_tpl") or ""
+    desc_tpl = payload.get("desc_tpl") or ""
+    con = db_conn()
+    con.execute(
+        "INSERT INTO templates(user_id,title_tpl,desc_tpl,updated_at) VALUES(?,?,?,?) "
+        "ON CONFLICT(user_id) DO UPDATE SET title_tpl=excluded.title_tpl, desc_tpl=excluded.desc_tpl, updated_at=excluded.updated_at",
+        (u["id"], title_tpl, desc_tpl, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+@app.get("/api/user/chat_history")
+def user_chat_history(request: Request):
+    u = get_current_user(request)
+    if not u:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    con = db_conn()
+    rows = con.execute(
+        "SELECT role, content, ts FROM chat_messages WHERE user_id=? ORDER BY id DESC LIMIT 50",
+        (u["id"],),
+    ).fetchall()
+    con.close()
+    msgs = [{"role": r["role"], "content": r["content"], "ts": r["ts"]} for r in reversed(rows)]
+    return {"ok": True, "messages": msgs}
+
+@app.post("/api/user/chat_clear")
+def user_chat_clear(request: Request):
+    u = get_current_user(request)
+    if not u:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    con = db_conn()
+    con.execute("DELETE FROM chat_messages WHERE user_id=?", (u["id"],))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+# ----------------------------
+# Models
+# ----------------------------
 @app.get("/api/models/pollinations")
 def pollinations_models():
     try:
         r = requests.get(POLLINATIONS_MODELS_URL, timeout=DEFAULT_TIMEOUT)
         if r.status_code != 200:
-            return {"models": ["openai", "mistral", "searchgpt"]}
+            return {"ok": True, "models": ["openai", "mistral", "searchgpt"]}
         models = r.json()
         models = [m for m in models if isinstance(m, str)]
-        return {"models": models}
+        return {"ok": True, "models": models}
     except Exception:
-        return {"models": ["openai", "mistral", "searchgpt"]}
+        return {"ok": True, "models": ["openai", "mistral", "searchgpt"]}
 
+# ----------------------------
+# Core endpoints
+# ----------------------------
 @app.post("/api/analyze")
 def api_analyze(payload: Dict[str, Any]):
     cookie = payload.get("cookie", "")
@@ -326,7 +529,7 @@ def api_preview(payload: Dict[str, Any]):
     return {"ok": True, "title": title, "desc": desc}
 
 @app.post("/api/ai_generate")
-def api_ai_generate(payload: Dict[str, Any]):
+def api_ai_generate(request: Request, payload: Dict[str, Any]):
     provider = (payload.get("provider") or "pollinations").lower()
     model = payload.get("model") or ""
     mode = payload.get("mode") or "Рерайт"
@@ -374,11 +577,23 @@ def api_ai_generate(payload: Dict[str, Any]):
         out = pollinations_chat(model=model or "openai", system=system, user=user, temperature=0.95, max_tokens=900)
 
     title, desc = extract_title_desc(out)
+
+    # Save generated templates for logged-in user
+    u = get_current_user(request)
+    if u and title and desc:
+        con = db_conn()
+        con.execute(
+            "INSERT INTO templates(user_id,title_tpl,desc_tpl,updated_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET title_tpl=excluded.title_tpl, desc_tpl=excluded.desc_tpl, updated_at=excluded.updated_at",
+            (u["id"], title, desc, datetime.datetime.utcnow().isoformat()),
+        )
+        con.commit()
+        con.close()
+
     return {"ok": True, "title": title, "desc": desc, "raw": clamp(out, 7000)}
 
-
 @app.post("/api/chat")
-def api_chat(payload: Dict[str, Any]):
+def api_chat(request: Request, payload: Dict[str, Any]):
     provider = (payload.get("provider") or "pollinations").lower()
     model = payload.get("model") or ""
     message = payload.get("message") or ""
@@ -394,15 +609,15 @@ def api_chat(payload: Dict[str, Any]):
 
     system = (
         "Ты помощник для продавца Roblox-аккаунтов. "
-        "Отвечай на русском, коротко и по делу. "
+        "Отвечай коротко и по делу, на русском. "
         "Не упоминай, что ты ИИ/нейросеть/бот. "
-        "Если спрашивают про безопасность сделки — давай безопасные и практичные советы."
+        "Если спрашивают про безопасность сделки — предлагай безопасные советы."
     )
 
     ctx = ""
     if include_context:
         ctx = (
-            "Контекст (можно использовать при ответе):\n"
+            "Контекст:\n"
             f"- Ник: {data.get('username','')}\n"
             f"- Профиль: {data.get('profile_link','')}\n"
             f"- Robux: {data.get('robux','')}\n"
@@ -421,14 +636,20 @@ def api_chat(payload: Dict[str, Any]):
     if provider == "blackbox":
         api_key = os.environ.get("BLACKBOX_API_KEY", "")
         out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
-    elif provider == "blackbox":
-        api_key = os.environ.get("BLACKBOX_API_KEY", "")
-        out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=900)
     elif provider == "groq":
         api_key = os.environ.get("GROQ_API_KEY", "")
         out = groq_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
     else:
         out = pollinations_chat(model=model or "openai", system=system, user=user, temperature=0.9, max_tokens=900)
+
+    u = get_current_user(request)
+    if u:
+        con = db_conn()
+        now = datetime.datetime.utcnow().isoformat()
+        con.execute("INSERT INTO chat_messages(user_id,role,content,ts) VALUES(?,?,?,?)", (u["id"], "user", message, now))
+        con.execute("INSERT INTO chat_messages(user_id,role,content,ts) VALUES(?,?,?,?)", (u["id"], "assistant", out, now))
+        con.commit()
+        con.close()
 
     return {"ok": True, "reply": out}
 

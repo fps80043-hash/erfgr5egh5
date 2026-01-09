@@ -200,19 +200,50 @@
     <section class="pane" id="tab-profile">
       <div class="grid1">
         <div class="card">
-          <h2>👤 Профиль</h2>
-          <p class="muted">Регистрация будет позже. Сейчас — локальный профиль в браузере (без сервера).</p>
-
-          <label class="lbl">Никнейм</label>
-          <input id="profNick" class="input" placeholder="Например: Kirill" />
-
-          <div class="row">
-            <button id="btnProfSave" class="btn primary">Сохранить</button>
-            <button id="btnProfReset" class="btn">Сбросить</button>
+          <div class="headrow">
+            <h2>👤 Профиль</h2>
+            <button id="btnLogout" class="btn mini" style="display:none">Выйти</button>
           </div>
 
-          <div class="divider"></div>
-          <p class="muted">Статус: <b id="profStatus">—</b></p>
+          <div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
+
+          <div id="authBox">
+            <div class="row">
+              <div style="flex:1">
+                <label class="lbl">Логин</label>
+                <input id="authUser" class="input" placeholder="Kirill_123" />
+              </div>
+              <div style="flex:1">
+                <label class="lbl">Пароль</label>
+                <input id="authPass" type="password" class="input" placeholder="••••••" />
+              </div>
+            </div>
+
+            <div class="row">
+              <button id="btnLogin" class="btn primary">Войти</button>
+              <button id="btnRegister" class="btn">Регистрация</button>
+            </div>
+
+            <p class="muted">Регистрация и шаблоны сохраняются в базе сайта. Если хостинг чистит диск при редеплое — позже подключим постоянное хранилище.</p>
+          </div>
+
+          <div id="profileTools" style="display:none">
+            <div class="divider"></div>
+
+            <h3>🔄 Шаблоны</h3>
+            <div class="row">
+              <button id="btnSyncPull" class="btn">Загрузить</button>
+              <button id="btnSyncPush" class="btn primary">Сохранить</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <h3>🧹 Чат</h3>
+            <div class="row">
+              <button id="btnChatPull" class="btn">Загрузить историю</button>
+              <button id="btnChatClear" class="btn">Очистить</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
