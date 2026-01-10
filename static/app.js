@@ -674,7 +674,7 @@ window.addEventListener("load", async () => {
   await refreshModels();
 
   // AI generate
-  $("#btnAIGen")?.addEventListener("click", async () => {
+  ( $("#btnAiGenerate") || $("#btnAIGen") )?.addEventListener("click", async () => {
     if (!accountData) return toast("AI", "Сначала сделай анализ cookie", "warn");
 
     const provider = $("#aiProvider")?.value || "pollinations";

@@ -2,6 +2,20 @@ import os
 import re
 import datetime
 import sqlite3
+
+# Optional Postgres (Render)
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USE_PG = DATABASE_URL.lower().startswith("postgres")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except Exception:
+    psycopg2 = None
+    RealDictCursor = None
+
 import json
 import hashlib
 import hmac
@@ -101,11 +115,49 @@ RBX_TX = "https://economy.roblox.com/v2/users/{uid}/transactions?transactionType
 # ----------------------------
 # DB helpers
 # ----------------------------
+class _PGResult:
+    def __init__(self, rows):
+        self._rows = rows or []
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+    def fetchall(self):
+        return self._rows
+
+class _PGConn:
+    def __init__(self, conn):
+        self._conn = conn
+    def execute(self, q, params=()):
+        q = q.replace("?", "%s")
+        q_strip = q.lstrip().lower()
+        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(q, params)
+            if q_strip.startswith("select") or " returning " in q_strip:
+                try:
+                    rows = cur.fetchall()
+                except Exception:
+                    rows = []
+                return _PGResult(rows)
+            return _PGResult([])
+    def commit(self):
+        self._conn.commit()
+    def close(self):
+        self._conn.close()
+
 def db_conn():
+    """Returns a connection-like object with .execute/.commit/.close.
+
+    - SQLite by default for local dev
+    - Postgres when DATABASE_URL is present (Render)
+    """
+    if USE_PG:
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2 is not installed, but DATABASE_URL is set")
+        conn = psycopg2.connect(DATABASE_URL)
+        return _PGConn(conn)
+
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     return con
-
 def db_init():
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:
