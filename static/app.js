@@ -122,11 +122,11 @@ function drainToasts(){
   el.querySelector('.x')?.addEventListener('click', ()=>{
     el.remove();
     toastBusy = false;
-    setTimeout(drainToasts, 120);
+    setTimeout(drainToasts, 140);
   });
 
 
-  const SHOW_MS = 5200;
+  const SHOW_MS = 6500;
   const GAP_MS  = 520;
 
   setTimeout(()=>{
@@ -856,3 +856,57 @@ window.addEventListener("load", async () => {
   // initial preview (if templates exist)
   renderPreview().catch(() => {});
 });
+
+
+// --- Case (profile) ---
+let caseToken = "";
+
+async function caseStatus(){
+  const st = await apiGet("/api/case/status").catch(()=>null);
+  if(!st || !st.ok){ return null; }
+  const hint = $("#caseHint");
+  if(st.ready){
+    if(hint) hint.textContent = "Доступен";
+  }else{
+    if(hint) hint.textContent = "КД до: " + (st.next_at ? new Date(st.next_at).toLocaleString() : "—");
+  }
+  return st;
+}
+
+$("#btnCaseChallenge")?.addEventListener("click", async () => {
+  try{
+    const ch = await apiGet("/api/case/challenge");
+    caseToken = ch.token || "";
+    toast("Кейс", `Капча: ${ch.a} + ${ch.b} = ?`, "inf");
+  }catch(e){
+    toast("Кейс", e.message || "Ошибка", "bad");
+  }
+});
+
+$("#btnCaseOpen")?.addEventListener("click", async () => {
+  try{
+    const answer = ($("#caseAnswer")?.value || "").trim();
+    if(!caseToken){
+      toast("Кейс", "Сначала получи капчу", "warn");
+      return;
+    }
+    const r = await apiPost("/api/case/open", { token: caseToken, answer });
+    caseToken = "";
+    const map = {
+      GEN10: "+10 анализов",
+      AI3: "+3 AI-запроса",
+      P6H: "Premium на 6 часов",
+      P12H: "Premium на 12 часов",
+      P24H: "Premium на 24 часа",
+      P2D: "Premium на 2 дня",
+      P3D: "Premium на 3 дня",
+      P7D: "Premium на 7 дней",
+    };
+    toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
+    await refreshMe();
+    await caseStatus().catch(()=>{});
+  }catch(e){
+    toast("Кейс", e.message || "Ошибка", "bad");
+  }
+});
+

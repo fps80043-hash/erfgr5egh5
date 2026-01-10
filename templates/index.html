@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>R$T — генератор объявлений</title>
-  <link rel="stylesheet" href="/static/styles.css?v=5.3.6" />
+  <link rel="stylesheet" href="/static/styles.css?v=5.3.9" />
 </head>
 <body>
   <canvas id="particles"></canvas>
@@ -208,6 +208,24 @@
 
           <div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
 
+<div id="caseBox" class="card" style="margin-top:12px; display:none">
+  <div class="headrow">
+    <h3>🎁 Бесплатный кейс</h3>
+    <div class="muted" id="caseHint" style="margin-left:auto">—</div>
+  </div>
+
+  <div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
+    <button id="btnCaseChallenge" class="btn">Получить капчу</button>
+    <div style="flex:1; min-width:220px">
+      <label class="lbl">Ответ капчи</label>
+      <input id="caseAnswer" class="input" placeholder="Например: 7" />
+    </div>
+    <button id="btnCaseOpen" class="btn primary">Открыть кейс</button>
+  </div>
+
+  <div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 AI-запроса, Premium 6/12/24ч, 2/3/7 дней.</div>
+</div>
+
           
           <div id="authBox">
             <div class="authTabs">
@@ -320,6 +338,6 @@
   </nav>
 
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
-  <script src="/static/app.js?v=5.3.6"></script>
+  <script src="/static/app.js?v=5.3.9"></script>
 </body>
 </html>

@@ -30,7 +30,7 @@ body{
 #particles{
   position:fixed; inset:0;
   z-index:0;
-  pointer-events:auto;
+  pointer-events:none;
   opacity:.9;
 }
 
@@ -775,10 +775,11 @@ code{
   position:absolute; right:10px; top:8px;
   width:28px; height:28px; border-radius:10px;
   border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.18);
-  color:rgba(255,255,255,.9);
+  background:rgba(0,0,0,.22);
+  color:rgba(255,255,255,.92);
   cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
-.toast .x:hover{ transform: scale(1.03); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.2); }
+.toast .x:hover{ transform: scale(1.04); background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.18); }
+.toast .x:active{ transform: scale(.98); }

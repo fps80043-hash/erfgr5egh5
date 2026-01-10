@@ -1,6 +1,7 @@
 import os
 import re
 import datetime
+import random
 import sqlite3
 
 # Optional Postgres (Render)
@@ -174,6 +175,12 @@ def db_init():
             )
         """)
         con.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)""")
+        # limits/premium/case fields
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS credits_analyze INTEGER NOT NULL DEFAULT 3")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS credits_ai INTEGER NOT NULL DEFAULT 1")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS case_next_at TEXT")
+
         # OTP store for email verification / reset
         con.execute("""
             CREATE TABLE IF NOT EXISTS email_otps(
@@ -294,6 +301,62 @@ def read_token(token: str) -> Optional[Dict[str, Any]]:
     except JWTError:
         return None
 
+def _now_utc() -> datetime.datetime:
+    return datetime.datetime.utcnow()
+
+def _now_utc_iso() -> str:
+    return _now_utc().isoformat()
+
+def _parse_iso(dt_str: str) -> Optional[datetime.datetime]:
+    if not dt_str:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(dt_str)
+    except Exception:
+        return None
+
+def user_limits(uid: int) -> Dict[str, Any]:
+    con = db_conn()
+    row = con.execute(
+        "SELECT credits_analyze, credits_ai, premium_until, case_next_at FROM users WHERE id=?",
+        (uid,),
+    ).fetchone()
+    con.close()
+    if not row:
+        return {"credits_analyze": 0, "credits_ai": 0, "premium_until": None, "premium": False, "case_next_at": None}
+    pu = _parse_iso(row.get("premium_until") or "")
+    premium = bool(pu and _now_utc() < pu)
+    return {
+        "credits_analyze": int(row.get("credits_analyze") or 0),
+        "credits_ai": int(row.get("credits_ai") or 0),
+        "premium_until": (row.get("premium_until") or None),
+        "premium": premium,
+        "case_next_at": (row.get("case_next_at") or None),
+    }
+
+def require_user(request: Request) -> Dict[str, Any]:
+    u = get_current_user(request)
+    if not u:
+        raise HTTPException(status_code=401, detail="Auth required")
+    return u
+
+def require_premium(request: Request) -> Dict[str, Any]:
+    u = require_user(request)
+    lim = user_limits(int(u["id"]))
+    if not lim["premium"]:
+        raise HTTPException(status_code=403, detail="Premium required")
+    return u
+
+def spend_credit(uid: int, field: str, amount: int = 1):
+    # safe decrement (never below 0)
+    con = db_conn()
+    con.execute(
+        f"UPDATE users SET {field}=CASE WHEN {field}>=? THEN {field}-? ELSE {field} END WHERE id=?",
+        (amount, amount, uid),
+    )
+    con.commit()
+    con.close()
+
 def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -408,6 +471,18 @@ def groq_chat(api_key: str, model: str, system: str, user: str, temperature: flo
         raise HTTPException(status_code=502, detail=f"Groq error: {r.status_code} {r.text[:300]}")
     j = r.json()
     return j["choices"][0]["message"]["content"]
+
+def provider_chat(provider: str, model: str, system: str, user: str) -> str:
+    provider = (provider or "pollinations").lower()
+    model = model or "default"
+    if provider == "blackbox":
+        api_key = os.environ.get("BLACKBOX_API_KEY", "")
+        return blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=800)
+    if provider == "groq":
+        api_key = os.environ.get("GROQ_API_KEY", "")
+        return groq_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.9, max_tokens=800)
+    # default pollinations
+    return pollinations_chat(model=model, system=system, user=user, temperature=0.9, max_tokens=800)
 
 def blackbox_chat(api_key: str, model: str, system: str, user: str, temperature: float = 0.9, max_tokens: int = 900) -> str:
     if not api_key:
@@ -665,28 +740,35 @@ def auth_register_confirm(request: Request, payload: Dict[str, Any]):
     username = (payload_obj.get("username") or "").strip()
     ph = payload_obj.get("password_hash") or ""
 
-    
-try:
-    con.execute(
-        "INSERT INTO users(username,password_hash,email,email_verified,created_at) VALUES(?,?,?,?,?)",
-        (username, ph, email, 1, datetime.datetime.utcnow().isoformat()),
-    )
-    con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
-    con.commit()
-except Exception as e:
-    # SQLite / Postgres unique violations
-    if isinstance(e, sqlite3.IntegrityError) or (USE_PG and psycopg2 is not None and isinstance(e, psycopg2.IntegrityError)):
-        raise HTTPException(status_code=400, detail="Username/email already exists")
-    raise
-finally:
-    con.close()
+    try:
+        con.execute(
+            "INSERT INTO users(username,password_hash,email,email_verified,created_at) VALUES(?,?,?,?,?)",
+            (username, ph, email, 1, datetime.datetime.utcnow().isoformat()),
+        )
+        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+        con.commit()
+    except Exception as e:
+        # SQLite / Postgres unique violations
+        if isinstance(e, sqlite3.IntegrityError) or (USE_PG and psycopg2 is not None and isinstance(e, psycopg2.IntegrityError)):
+            con.close()
+            raise HTTPException(status_code=400, detail="Username/email already exists")
+        con.close()
+        raise
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
 
     # auto-login
     con2 = db_conn()
-    urow = con2.execute("SELECT id, username FROM users WHERE username=?", (username,)).fetchone()
+    urow = con2.execute("SELECT id, username, email FROM users WHERE username=?", (username,)).fetchone()
     con2.close()
+    if not urow:
+        raise HTTPException(status_code=500, detail="User creation failed")
+
     token = make_token(int(urow["id"]), urow["username"])
-    jr = JSONResponse({"ok": True, "user": {"username": urow["username"], "email": email}})
+    jr = JSONResponse({"ok": True, "user": {"username": urow["username"], "email": (urow.get("email") or email)}})
     jr.set_cookie(
         SESSION_COOKIE,
         token,
@@ -697,7 +779,6 @@ finally:
         path="/",
     )
     return jr
-
 @app.post("/api/auth/reset_start")
 def auth_reset_start(payload: Dict[str, Any]):
     email = (payload.get("email") or "").strip().lower()
@@ -845,6 +926,7 @@ def user_templates_set(request: Request, payload: Dict[str, Any]):
 
 @app.get("/api/user/chat_history")
 def user_chat_history(request: Request):
+    require_premium(request)
     u = get_current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Not logged in")
@@ -859,6 +941,7 @@ def user_chat_history(request: Request):
 
 @app.post("/api/user/chat_clear")
 def user_chat_clear(request: Request):
+    require_premium(request)
     u = get_current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Not logged in")
@@ -884,25 +967,202 @@ def pollinations_models():
         return {"ok": True, "models": ["openai", "mistral", "searchgpt"]}
 
 # ----------------------------
+# ----------------------------
+# Case (free every 72h) + captcha
+# ----------------------------
+CASE_COOLDOWN_HOURS = 72
+
+CASE_PRIZES = [
+    ("GEN10", 450),   # +10 анализов
+    ("AI3",   350),   # +3 AI generate
+    ("P6H",   100),
+    ("P12H",  50),
+    ("P24H",  25),
+    ("P2D",   12),
+    ("P3D",   8),
+    ("P7D",   5),
+]
+
+def _pick_weighted(items):
+    total = sum(w for _, w in items)
+    r = random.uniform(0, total)
+    upto = 0.0
+    for k, w in items:
+        upto += w
+        if upto >= r:
+            return k
+    return items[-1][0]
+
+def _case_token_make(uid: int, a: int, b: int) -> str:
+    payload = {"uid": uid, "a": a, "b": b, "typ": "case", "exp": int((_now_utc() + datetime.timedelta(minutes=5)).timestamp())}
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALG)
+
+def _case_token_read(token: str) -> Optional[Dict[str, Any]]:
+    try:
+        data = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG])
+        if data.get("typ") != "case":
+            return None
+        return data
+    except Exception:
+        return None
+
+def _apply_premium(uid: int, delta: datetime.timedelta):
+    con = db_conn()
+    row = con.execute("SELECT premium_until FROM users WHERE id=?", (uid,)).fetchone()
+    cur = _parse_iso((row.get("premium_until") if row else "") or "")
+    base = cur if (cur and _now_utc() < cur) else _now_utc()
+    new_until = (base + delta).isoformat()
+    con.execute("UPDATE users SET premium_until=? WHERE id=?", (new_until, uid))
+    con.commit()
+    con.close()
+
+@app.get("/api/case/status")
+def api_case_status(request: Request):
+    u = require_user(request)
+    lim = user_limits(int(u["id"]))
+    nxt = _parse_iso(lim.get("case_next_at") or "")
+    ready = (not nxt) or (_now_utc() >= nxt)
+    return {"ok": True, "ready": ready, "next_at": (lim.get("case_next_at") or None), "limits": lim}
+
+@app.get("/api/case/challenge")
+def api_case_challenge(request: Request):
+    u = require_user(request)
+    uid = int(u["id"])
+    lim = user_limits(uid)
+    nxt = _parse_iso(lim.get("case_next_at") or "")
+    if nxt and _now_utc() < nxt:
+        raise HTTPException(status_code=429, detail="Case cooldown")
+
+    a = random.randint(2, 9)
+    b = random.randint(2, 9)
+    tok = _case_token_make(uid, a, b)
+    return {"ok": True, "a": a, "b": b, "token": tok}
+
+@app.post("/api/case/open")
+def api_case_open(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+
+    tok = (payload.get("token") or "").strip()
+    ans = payload.get("answer")
+    if not tok or ans is None:
+        raise HTTPException(status_code=400, detail="Captcha required")
+
+    data = _case_token_read(tok)
+    if not data or int(data.get("uid", -1)) != uid:
+        raise HTTPException(status_code=400, detail="Captcha invalid")
+
+    try:
+        ans_i = int(ans)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Captcha invalid")
+
+    if ans_i != int(data.get("a", 0)) + int(data.get("b", 0)):
+        raise HTTPException(status_code=400, detail="Captcha wrong")
+
+    lim = user_limits(uid)
+    nxt = _parse_iso(lim.get("case_next_at") or "")
+    if nxt and _now_utc() < nxt:
+        raise HTTPException(status_code=429, detail="Case cooldown")
+
+    prize = _pick_weighted(CASE_PRIZES)
+
+    con = db_conn()
+    # ensure spins table exists
+    if USE_PG:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_spins(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              ts TEXT NOT NULL
+            )
+        """)
+    else:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_spins(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              ts TEXT NOT NULL
+            )
+        """)
+
+    # Apply prize
+    if prize == "GEN10":
+        con.execute("UPDATE users SET credits_analyze=credits_analyze+10 WHERE id=?", (uid,))
+    elif prize == "AI3":
+        con.execute("UPDATE users SET credits_ai=credits_ai+3 WHERE id=?", (uid,))
+    elif prize == "P6H":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(hours=6))
+        con = db_conn()
+    elif prize == "P12H":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(hours=12))
+        con = db_conn()
+    elif prize == "P24H":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(hours=24))
+        con = db_conn()
+    elif prize == "P2D":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(days=2))
+        con = db_conn()
+    elif prize == "P3D":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(days=3))
+        con = db_conn()
+    elif prize == "P7D":
+        con.close()
+        _apply_premium(uid, datetime.timedelta(days=7))
+        con = db_conn()
+
+    next_at = (_now_utc() + datetime.timedelta(hours=CASE_COOLDOWN_HOURS)).isoformat()
+    con.execute("UPDATE users SET case_next_at=? WHERE id=?", (next_at, uid))
+    # log spin
+    con.execute("INSERT INTO case_spins(user_id, prize, ts) VALUES(?,?,?)", (uid, prize, _now_utc_iso()))
+
+    con.commit()
+    con.close()
+
+    return {"ok": True, "prize": prize, "next_at": next_at, "limits": user_limits(uid)}
+
 # Core endpoints
 # ----------------------------
 @app.post("/api/analyze")
-def api_analyze(payload: Dict[str, Any]):
+def api_analyze(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    lim = user_limits(uid)
+    if not lim["premium"] and lim["credits_analyze"] <= 0:
+        raise HTTPException(status_code=402, detail="Limit reached (analyze)")
+
     cookie = payload.get("cookie", "")
     data = roblox_analyze(cookie)
-    return {"ok": True, "data": data}
 
+    # spend only on success
+    if not lim["premium"]:
+        spend_credit(uid, "credits_analyze", 1)
+
+    return {"ok": True, "data": data, "limits": user_limits(uid)}
 @app.post("/api/preview")
-def api_preview(payload: Dict[str, Any]):
+def api_preview(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
     data = payload.get("data") or {}
     title_tpl = payload.get("title_template") or ""
     desc_tpl = payload.get("desc_template") or ""
     title = safe_format(title_tpl, data)
     desc = safe_format(desc_tpl, data)
-    return {"ok": True, "title": title, "desc": desc}
-
+    return {"ok": True, "title": title, "desc": desc, "limits": user_limits(int(u["id"]))}
 @app.post("/api/ai_generate")
 def api_ai_generate(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    lim0 = user_limits(uid)
+    if not lim0["premium"] and lim0["credits_ai"] <= 0:
+        raise HTTPException(status_code=402, detail="Limit reached (AI generate)")
+
     provider = (payload.get("provider") or "pollinations").lower()
     model = payload.get("model") or ""
     mode = payload.get("mode") or "Рерайт"
@@ -963,69 +1223,25 @@ def api_ai_generate(request: Request, payload: Dict[str, Any]):
         con.commit()
         con.close()
 
+    # spend only on success
+    if not lim0["premium"]:
+        spend_credit(uid, "credits_ai", 1)
+
     return {"ok": True, "title": title, "desc": desc, "raw": clamp(out, 7000)}
 
 @app.post("/api/chat")
 def api_chat(request: Request, payload: Dict[str, Any]):
+    require_premium(request)
+    # original chat feature is premium-only
+    message = (payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    # For now, reuse AI generate provider/model pipeline as a chat reply:
     provider = (payload.get("provider") or "pollinations").lower()
-    model = payload.get("model") or ""
-    message = payload.get("message") or ""
-    include_context = bool(payload.get("include_context", True))
-    data = payload.get("data") or {}
-    title_tpl = payload.get("title_template") or ""
-    desc_tpl = payload.get("desc_template") or ""
-    current_title = payload.get("current_title") or ""
-    current_desc = payload.get("current_desc") or ""
-
-    if not message.strip():
-        raise HTTPException(status_code=400, detail="message is empty")
-
-    system = (
-        "Ты помощник для продавца Roblox-аккаунтов. "
-        "Отвечай коротко и по делу, на русском. "
-        "Не упоминай, что ты ИИ/нейросеть/бот. "
-        "Если спрашивают про безопасность сделки — предлагай безопасные советы."
-    )
-
-    ctx = ""
-    if include_context:
-        ctx = (
-            "Контекст:\n"
-            f"- Ник: {data.get('username','')}\n"
-            f"- Профиль: {data.get('profile_link','')}\n"
-            f"- Robux: {data.get('robux','')}\n"
-            f"- RAP: {data.get('rap_tag','')}\n"
-            f"- Донат/траты: {data.get('donate_tag','')}\n"
-            f"- Год: {data.get('year_tag','')}\n"
-            f"- Инвентарь: {data.get('inv_ru','')}\n"
-            f"- Шаблон заголовка: {title_tpl}\n"
-            f"- Шаблон описания: {desc_tpl}\n"
-            f"- Текущий заголовок: {current_title}\n"
-            f"- Текущее описание: {current_desc}\n"
-        )
-
-    user = (ctx + "\n\n" if ctx else "") + message
-
-    if provider == "blackbox":
-        api_key = os.environ.get("BLACKBOX_API_KEY", "")
-        out = blackbox_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
-    elif provider == "groq":
-        api_key = os.environ.get("GROQ_API_KEY", "")
-        out = groq_chat(api_key=api_key, model=model, system=system, user=user, temperature=0.85, max_tokens=900)
-    else:
-        out = pollinations_chat(model=model or "openai", system=system, user=user, temperature=0.9, max_tokens=900)
-
-    u = get_current_user(request)
-    if u:
-        con = db_conn()
-        now = datetime.datetime.utcnow().isoformat()
-        con.execute("INSERT INTO chat_messages(user_id,role,content,ts) VALUES(?,?,?,?)", (u["id"], "user", message, now))
-        con.execute("INSERT INTO chat_messages(user_id,role,content,ts) VALUES(?,?,?,?)", (u["id"], "assistant", out, now))
-        con.commit()
-        con.close()
-
+    model = (payload.get("model") or "default").lower()
+    system = "Ты дружелюбный помощник. Пиши на русском. Не упоминай ИИ."
+    out = provider_chat(provider=provider, model=model, system=system, user=message)
     return {"ok": True, "reply": out}
-
 @app.get("/api/health")
 def api_health():
     return {"ok": True}
