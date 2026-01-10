@@ -155,46 +155,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // -------------------------
 // Toasts (queue + delay)
 // -------------------------
-let toastQ = [];
-let toastBusy = false;
-
-
-async function runToasts() {
-  toastBusy = true;
-  const box = $("#toasts");
-  while (toastQ.length) {
-    const item = toastQ.shift();
-    if (!box) break;
-
-    const el = document.createElement("div");
-    el.className = "toast " + item.type;
-    el.innerHTML =
-      `<div class="t1">${escapeHtml(item.title)}</div>` +
-      (item.msg ? `<div class="t2">${escapeHtml(item.msg)}</div>` : "") +
-      `<div class="tprog"><span></span></div>`;
-
-    box.appendChild(el);
-    // animate progress
-    const bar = el.querySelector(".tprog span");
-    if (bar) {
-      bar.style.width = "0%";
-      requestAnimationFrame(() => (bar.style.width = "100%"));
-    }
-
-    // show time depends on message size
-    const hold = 1700 + Math.min(1800, (item.msg || "").length * 18);
-    await sleep(hold);
-
-    el.style.opacity = "0";
-    el.style.transform = "translateY(-6px)";
-    await sleep(360);
-    el.remove();
-
-    // small gap to avoid "double pop"
-    await sleep(220);
-  }
-  toastBusy = false;
-}
 
 function escapeHtml(s) {
   return (s || "")
