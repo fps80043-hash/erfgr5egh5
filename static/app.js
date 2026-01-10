@@ -1,7 +1,138 @@
+
+function closeAllSelects(except=null){
+  document.querySelectorAll(".cselect.open").forEach(w=>{
+    if(except && w === except) return;
+    w.classList.remove("open");
+  });
+}
+
+function buildOptions(wrap, sel){
+  const list = wrap.querySelector(".cselect-list");
+  list.innerHTML = "";
+  const btn = wrap.querySelector(".cselect-btn .cselect-text");
+
+  if(!sel.options || sel.options.length === 0){
+    const o = document.createElement("option");
+    o.value = "Default";
+    o.textContent = "Default";
+    sel.appendChild(o);
+    sel.value = "Default";
+  }
+
+  Array.from(sel.options).forEach(o=>{
+    const div = document.createElement("div");
+    div.className = "cselect-opt" + (o.value === sel.value ? " sel" : "");
+    div.textContent = o.textContent || o.value;
+    div.addEventListener("click", ()=>{
+      sel.value = o.value;
+      sel.dispatchEvent(new Event("change"));
+      btn.textContent = o.textContent || o.value;
+      buildOptions(wrap, sel);
+      wrap.classList.remove("open");
+    });
+    list.appendChild(div);
+  });
+
+  const cur = (sel.selectedOptions && sel.selectedOptions[0]) ? sel.selectedOptions[0] : sel.options[0];
+  if(cur) btn.textContent = cur.textContent || cur.value;
+}
+
+function enhanceSelect(sel){
+  if(!sel || sel.dataset.enhanced === "1") return;
+  sel.dataset.enhanced = "1";
+  sel.classList.add("native-hidden");
+
+  const wrap = document.createElement("div");
+  wrap.className = "cselect";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "cselect-btn";
+  btn.innerHTML = `<span class="cselect-text"></span><span class="cselect-arrow">▾</span>`;
+
+  const list = document.createElement("div");
+  list.className = "cselect-list";
+
+  wrap.appendChild(btn);
+  wrap.appendChild(list);
+
+  sel.parentNode.insertBefore(wrap, sel.nextSibling);
+
+  btn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    if(wrap.classList.contains("open")){
+      wrap.classList.remove("open");
+    }else{
+      closeAllSelects(wrap);
+      wrap.classList.add("open");
+    }
+  });
+
+  buildOptions(wrap, sel);
+
+  sel.addEventListener("change", ()=>{
+    buildOptions(wrap, sel);
+  });
+}
+
+function refreshSelect(sel){
+  if(!sel) return;
+  if(sel.dataset.enhanced !== "1") return;
+  sel.dispatchEvent(new Event("change"));
+}
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 let accountData = null;
+
+const toastQ = [];
+let toastBusy = false;
+
+function toastIcon(type){
+  if(type === "bad") return "⛔";
+  if(type === "warn") return "⚡";
+  return "✅";
+}
+
+function toast(title, msg="", type="ok"){
+  toastQ.push({title, msg, type});
+  if(!toastBusy) drainToasts();
+}
+
+function drainToasts(){
+  const box = document.getElementById("toasts");
+  if(!box){ toastQ.length = 0; toastBusy = false; return; }
+  const it = toastQ.shift();
+  if(!it){ toastBusy = false; return; }
+  toastBusy = true;
+
+  const el = document.createElement("div");
+  el.className = "toast " + it.type;
+  el.innerHTML = `
+    <div class="ico">${toastIcon(it.type)}</div>
+    <div class="twrap">
+      <div class="t1">${it.title}</div>
+      ${it.msg ? `<div class="t2">${it.msg}</div>` : ``}
+    </div>
+  `;
+  box.appendChild(el);
+
+  const SHOW_MS = 2700;
+  const GAP_MS  = 520;
+
+  setTimeout(()=>{
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-6px)";
+  }, SHOW_MS);
+
+  setTimeout(()=>{
+    el.remove();
+    setTimeout(drainToasts, GAP_MS);
+  }, SHOW_MS + 280);
+}
+
+
 let currentUser = null;
 
 const DEFAULT_TITLE = "⭐ ТОП {year_tag} | {donate_tag} ДОНАТА";
@@ -27,52 +158,40 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let toastQ = [];
 let toastBusy = false;
 
-function toast(title, msg = "", type = "ok") {
-  toastQ.push({ title, msg, type });
-  if (!toastBusy) runToasts();
-}
 
 async function runToasts() {
   toastBusy = true;
   const box = $("#toasts");
-  const ICON = { ok: "✨", warn: "⚡", bad: "⛔" };
-
   while (toastQ.length) {
     const item = toastQ.shift();
     if (!box) break;
 
     const el = document.createElement("div");
-    el.className = "toast " + (item.type || "ok");
-
-    const icon = ICON[item.type] || "✨";
-    el.innerHTML = `
-      <div class="tTop">
-        <div class="tIcon">${icon}</div>
-        <div class="tText">
-          <div class="t1">${escapeHtml(item.title)}</div>
-          ${item.msg ? `<div class="t2">${escapeHtml(item.msg)}</div>` : ""}
-        </div>
-      </div>
-      <div class="tprog"><span></span></div>
-    `;
+    el.className = "toast " + item.type;
+    el.innerHTML =
+      `<div class="t1">${escapeHtml(item.title)}</div>` +
+      (item.msg ? `<div class="t2">${escapeHtml(item.msg)}</div>` : "") +
+      `<div class="tprog"><span></span></div>`;
 
     box.appendChild(el);
-    requestAnimationFrame(() => el.classList.add("show"));
-
+    // animate progress
     const bar = el.querySelector(".tprog span");
     if (bar) {
       bar.style.width = "0%";
       requestAnimationFrame(() => (bar.style.width = "100%"));
     }
 
-    const hold = 2200 + Math.min(2200, (item.msg || "").length * 16);
+    // show time depends on message size
+    const hold = 1700 + Math.min(1800, (item.msg || "").length * 18);
     await sleep(hold);
 
-    el.classList.add("hide");
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-6px)";
     await sleep(360);
     el.remove();
 
-    await sleep(450);
+    // small gap to avoid "double pop"
+    await sleep(220);
   }
   toastBusy = false;
 }
@@ -237,15 +356,14 @@ async function setPollinationsModels() {
     const j = await apiGet("/api/models/pollinations");
     if (Array.isArray(j.models) && j.models.length) models = j.models;
   } catch (_e) {}
-  if (!Array.isArray(models) || models.length === 0) models = ["Default"]; 
   models.forEach((m) => {
     const opt = document.createElement("option");
     opt.value = m;
     opt.textContent = m;
     sel.appendChild(opt);
   });
-  sel.value = models[0] || "openai";
-  refreshCustomSelect(sel);
+  sel.value = safeModels[0] || "Default";
+    refreshSelect($("#aiModel"));
 }
 
 function setGroqModels() {
@@ -264,17 +382,6 @@ function setGroqModels() {
     sel.appendChild(opt);
   });
   sel.value = "llama-3.3-70b-versatile";
-
-  // fallback
-  if (sel.options.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "Default";
-    opt.textContent = "Default";
-    sel.appendChild(opt);
-    sel.value = "Default";
-  }
-
-  refreshCustomSelect(sel);
 }
 
 function setBlackboxModels() {
@@ -292,17 +399,6 @@ function setBlackboxModels() {
     sel.appendChild(opt);
   });
   sel.value = "blackboxai/deepseek/deepseek-chat:free";
-
-  // fallback
-  if (sel.options.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "Default";
-    opt.textContent = "Default";
-    sel.appendChild(opt);
-    sel.value = "Default";
-  }
-
-  refreshCustomSelect(sel);
 }
 
 async function refreshModels() {
@@ -366,20 +462,44 @@ async function chatClear() {
 // -------------------------
 // Logo burst + particles
 // -------------------------
-function spawnLogoStar() {
+function spawnLogoBurst() {
   const logo = document.querySelector(".logo");
   if (!logo) return;
+  const EM = ["💲", "💥", "💢", "⭐", "🔥"];
+  // random chance, not always same cycle
+  if (Math.random() < 0.58) return;
+  const count = 2 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    const e = document.createElement("span");
+    e.className = "emoji";
+    e.textContent = EM[Math.floor(Math.random() * EM.length)];
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 18 + Math.random() * 46;
+    const dx = Math.cos(ang) * dist;
+    const dy = Math.sin(ang) * dist - (10 + Math.random() * 10);
+    const rot = -90 + Math.random() * 180 + "deg";
+    e.style.setProperty("--dx", dx + "px");
+    e.style.setProperty("--dy", dy + "px");
+    e.style.setProperty("--rot", rot);
+    e.style.fontSize = 14 + Math.random() * 10 + "px";
+    logo.appendChild(e);
+    setTimeout(() => e.remove(), 920);
+  }
+}
+
+
+function spawnLogoStar(){
+  const logo = document.querySelector(".logo");
+  if(!logo) return;
   const e = document.createElement("span");
   e.className = "logoStar";
   e.textContent = "⭐";
-  const dx = (Math.random() * 90 - 45).toFixed(1) + "px";
-  const dy = (-(24 + Math.random() * 44)).toFixed(1) + "px";
-  const rot = (Math.random() * 140 - 70).toFixed(0) + "deg";
-  e.style.setProperty("--dx", dx);
-  e.style.setProperty("--dy", dy);
-  e.style.setProperty("--rot", rot);
+  const dx = (-42 + Math.random()*84);
+  const dy = -(24 + Math.random()*62); // only above
+  e.style.setProperty("--dx", dx + "px");
+  e.style.setProperty("--dy", dy + "px");
   logo.appendChild(e);
-  setTimeout(() => e.remove(), 1100);
+  setTimeout(()=> e.remove(), 1300);
 }
 
 function initParticles() {
@@ -527,10 +647,7 @@ window.addEventListener("load", async () => {
   initParticles();
   setInterval(spawnLogoStar, 5000);
 
-  // load templates + cookie
-  // Custom-select for dropdowns
-  document.querySelectorAll("select.input").forEach(initCustomSelect);
-
+// load templates + cookie
   loadTpl();
   const c = localStorage.getItem("rst_cookie");
   if (c && $("#cookie")) $("#cookie").value = c;
@@ -770,79 +887,4 @@ window.addEventListener("load", async () => {
 
   // initial preview (if templates exist)
   renderPreview().catch(() => {});
-});// -----------------
-// Custom Selects
-// -----------------
-const _cselMap = new Map();
-
-function initCustomSelect(sel){
-  if(!sel || _cselMap.has(sel)) return;
-  const wrap = document.createElement("div");
-  wrap.className = "csel";
-  sel.parentNode.insertBefore(wrap, sel);
-  wrap.appendChild(sel);
-  sel.classList.add("cselNative");
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "btn cselBtn input";
-  btn.innerHTML = `<span class="cselTxt"></span><span class="cselArrow">▾</span>`;
-
-  const list = document.createElement("div");
-  list.className = "cselList";
-
-  wrap.appendChild(btn);
-  wrap.appendChild(list);
-
-  function rebuild(){
-    list.innerHTML = "";
-    if(!sel.options || sel.options.length === 0){
-      const o = document.createElement("option");
-      o.value = "Default";
-      o.textContent = "Default";
-      sel.appendChild(o);
-    }
-    const cur = sel.value || (sel.options[0]?.value || "Default");
-    if(!sel.value && sel.options.length) sel.value = cur;
-
-    btn.querySelector(".cselTxt").textContent = sel.options[sel.selectedIndex]?.textContent || "Default";
-
-    Array.from(sel.options).forEach((opt)=>{
-      const it = document.createElement("button");
-      it.type = "button";
-      it.className = "cselOpt" + (opt.value === sel.value ? " active" : "");
-      it.textContent = opt.textContent || opt.value;
-      it.addEventListener("click", (e)=>{
-        e.preventDefault();
-        sel.value = opt.value;
-        sel.dispatchEvent(new Event("change"));
-        close();
-      });
-      list.appendChild(it);
-    });
-  }
-
-  function open(){ wrap.classList.add("open"); }
-  function close(){ wrap.classList.remove("open"); }
-
-  btn.addEventListener("click", (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(wrap.classList.contains("open")) close(); else open();
-  });
-
-  document.addEventListener("click", ()=> close(), true);
-  document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") close(); });
-
-  sel.addEventListener("change", rebuild);
-
-  rebuild();
-  _cselMap.set(sel, {wrap, rebuild});
-}
-
-function refreshCustomSelect(sel){
-  const obj = _cselMap.get(sel);
-  if(obj) obj.rebuild();
-}
-
-
+});
