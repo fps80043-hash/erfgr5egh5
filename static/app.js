@@ -35,36 +35,44 @@ function toast(title, msg = "", type = "ok") {
 async function runToasts() {
   toastBusy = true;
   const box = $("#toasts");
+  const ICON = { ok: "✨", warn: "⚡", bad: "⛔" };
+
   while (toastQ.length) {
     const item = toastQ.shift();
     if (!box) break;
 
     const el = document.createElement("div");
-    el.className = "toast " + item.type;
-    el.innerHTML =
-      `<div class="t1">${escapeHtml(item.title)}</div>` +
-      (item.msg ? `<div class="t2">${escapeHtml(item.msg)}</div>` : "") +
-      `<div class="tprog"><span></span></div>`;
+    el.className = "toast " + (item.type || "ok");
+
+    const icon = ICON[item.type] || "✨";
+    el.innerHTML = `
+      <div class="tTop">
+        <div class="tIcon">${icon}</div>
+        <div class="tText">
+          <div class="t1">${escapeHtml(item.title)}</div>
+          ${item.msg ? `<div class="t2">${escapeHtml(item.msg)}</div>` : ""}
+        </div>
+      </div>
+      <div class="tprog"><span></span></div>
+    `;
 
     box.appendChild(el);
-    // animate progress
+    requestAnimationFrame(() => el.classList.add("show"));
+
     const bar = el.querySelector(".tprog span");
     if (bar) {
       bar.style.width = "0%";
       requestAnimationFrame(() => (bar.style.width = "100%"));
     }
 
-    // show time depends on message size
-    const hold = 1700 + Math.min(1800, (item.msg || "").length * 18);
+    const hold = 2200 + Math.min(2200, (item.msg || "").length * 16);
     await sleep(hold);
 
-    el.style.opacity = "0";
-    el.style.transform = "translateY(-6px)";
+    el.classList.add("hide");
     await sleep(360);
     el.remove();
 
-    // small gap to avoid "double pop"
-    await sleep(220);
+    await sleep(450);
   }
   toastBusy = false;
 }
@@ -229,6 +237,7 @@ async function setPollinationsModels() {
     const j = await apiGet("/api/models/pollinations");
     if (Array.isArray(j.models) && j.models.length) models = j.models;
   } catch (_e) {}
+  if (!Array.isArray(models) || models.length === 0) models = ["Default"]; 
   models.forEach((m) => {
     const opt = document.createElement("option");
     opt.value = m;
@@ -236,6 +245,7 @@ async function setPollinationsModels() {
     sel.appendChild(opt);
   });
   sel.value = models[0] || "openai";
+  refreshCustomSelect(sel);
 }
 
 function setGroqModels() {
@@ -254,6 +264,17 @@ function setGroqModels() {
     sel.appendChild(opt);
   });
   sel.value = "llama-3.3-70b-versatile";
+
+  // fallback
+  if (sel.options.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "Default";
+    opt.textContent = "Default";
+    sel.appendChild(opt);
+    sel.value = "Default";
+  }
+
+  refreshCustomSelect(sel);
 }
 
 function setBlackboxModels() {
@@ -271,6 +292,17 @@ function setBlackboxModels() {
     sel.appendChild(opt);
   });
   sel.value = "blackboxai/deepseek/deepseek-chat:free";
+
+  // fallback
+  if (sel.options.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "Default";
+    opt.textContent = "Default";
+    sel.appendChild(opt);
+    sel.value = "Default";
+  }
+
+  refreshCustomSelect(sel);
 }
 
 async function refreshModels() {
@@ -334,29 +366,20 @@ async function chatClear() {
 // -------------------------
 // Logo burst + particles
 // -------------------------
-function spawnLogoBurst() {
+function spawnLogoStar() {
   const logo = document.querySelector(".logo");
   if (!logo) return;
-  const EM = ["💲", "💥", "💢", "⭐", "🔥"];
-  // random chance, not always same cycle
-  if (Math.random() < 0.58) return;
-  const count = 2 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < count; i++) {
-    const e = document.createElement("span");
-    e.className = "emoji";
-    e.textContent = EM[Math.floor(Math.random() * EM.length)];
-    const ang = Math.random() * Math.PI * 2;
-    const dist = 18 + Math.random() * 46;
-    const dx = Math.cos(ang) * dist;
-    const dy = Math.sin(ang) * dist - (10 + Math.random() * 10);
-    const rot = -90 + Math.random() * 180 + "deg";
-    e.style.setProperty("--dx", dx + "px");
-    e.style.setProperty("--dy", dy + "px");
-    e.style.setProperty("--rot", rot);
-    e.style.fontSize = 14 + Math.random() * 10 + "px";
-    logo.appendChild(e);
-    setTimeout(() => e.remove(), 920);
-  }
+  const e = document.createElement("span");
+  e.className = "logoStar";
+  e.textContent = "⭐";
+  const dx = (Math.random() * 90 - 45).toFixed(1) + "px";
+  const dy = (-(24 + Math.random() * 44)).toFixed(1) + "px";
+  const rot = (Math.random() * 140 - 70).toFixed(0) + "deg";
+  e.style.setProperty("--dx", dx);
+  e.style.setProperty("--dy", dy);
+  e.style.setProperty("--rot", rot);
+  logo.appendChild(e);
+  setTimeout(() => e.remove(), 1100);
 }
 
 function initParticles() {
@@ -502,9 +525,12 @@ window.addEventListener("load", async () => {
 
   // particles + logo burst
   initParticles();
-  setInterval(spawnLogoBurst, 880);
+  setInterval(spawnLogoStar, 5000);
 
   // load templates + cookie
+  // Custom-select for dropdowns
+  document.querySelectorAll("select.input").forEach(initCustomSelect);
+
   loadTpl();
   const c = localStorage.getItem("rst_cookie");
   if (c && $("#cookie")) $("#cookie").value = c;
@@ -744,4 +770,79 @@ window.addEventListener("load", async () => {
 
   // initial preview (if templates exist)
   renderPreview().catch(() => {});
-});
+});// -----------------
+// Custom Selects
+// -----------------
+const _cselMap = new Map();
+
+function initCustomSelect(sel){
+  if(!sel || _cselMap.has(sel)) return;
+  const wrap = document.createElement("div");
+  wrap.className = "csel";
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+  sel.classList.add("cselNative");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn cselBtn input";
+  btn.innerHTML = `<span class="cselTxt"></span><span class="cselArrow">▾</span>`;
+
+  const list = document.createElement("div");
+  list.className = "cselList";
+
+  wrap.appendChild(btn);
+  wrap.appendChild(list);
+
+  function rebuild(){
+    list.innerHTML = "";
+    if(!sel.options || sel.options.length === 0){
+      const o = document.createElement("option");
+      o.value = "Default";
+      o.textContent = "Default";
+      sel.appendChild(o);
+    }
+    const cur = sel.value || (sel.options[0]?.value || "Default");
+    if(!sel.value && sel.options.length) sel.value = cur;
+
+    btn.querySelector(".cselTxt").textContent = sel.options[sel.selectedIndex]?.textContent || "Default";
+
+    Array.from(sel.options).forEach((opt)=>{
+      const it = document.createElement("button");
+      it.type = "button";
+      it.className = "cselOpt" + (opt.value === sel.value ? " active" : "");
+      it.textContent = opt.textContent || opt.value;
+      it.addEventListener("click", (e)=>{
+        e.preventDefault();
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event("change"));
+        close();
+      });
+      list.appendChild(it);
+    });
+  }
+
+  function open(){ wrap.classList.add("open"); }
+  function close(){ wrap.classList.remove("open"); }
+
+  btn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(wrap.classList.contains("open")) close(); else open();
+  });
+
+  document.addEventListener("click", ()=> close(), true);
+  document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") close(); });
+
+  sel.addEventListener("change", rebuild);
+
+  rebuild();
+  _cselMap.set(sel, {wrap, rebuild});
+}
+
+function refreshCustomSelect(sel){
+  const obj = _cselMap.get(sel);
+  if(obj) obj.rebuild();
+}
+
+
