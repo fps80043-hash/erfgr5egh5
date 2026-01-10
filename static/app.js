@@ -110,6 +110,7 @@ function drainToasts(){
   const el = document.createElement("div");
   el.className = "toast " + it.type;
   el.innerHTML = `
+    <button class="x" type="button" aria-label="Close">×</button>
     <div class="ico">${toastIcon(it.type)}</div>
     <div class="twrap">
       <div class="t1">${it.title}</div>
@@ -118,7 +119,14 @@ function drainToasts(){
   `;
   box.appendChild(el);
 
-  const SHOW_MS = 2700;
+  el.querySelector('.x')?.addEventListener('click', ()=>{
+    el.remove();
+    toastBusy = false;
+    setTimeout(drainToasts, 120);
+  });
+
+
+  const SHOW_MS = 5200;
   const GAP_MS  = 520;
 
   setTimeout(()=>{

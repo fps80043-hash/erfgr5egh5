@@ -30,7 +30,7 @@ body{
 #particles{
   position:fixed; inset:0;
   z-index:0;
-  pointer-events:none;
+  pointer-events:auto;
   opacity:.9;
 }
 
@@ -453,9 +453,9 @@ code{
 .toast .t1{font-weight:1000}
 .toast .t2{color:var(--muted); font-size:13px; margin-top:2px; line-height:1.25}
 
-.toast.ok{border-color: rgba(16,185,129,.24)}
-.toast.bad{border-color: rgba(255,77,109,.26)}
-.toast.warn{border-color: rgba(255,209,102,.24)}
+.toast.ok{ border-color: rgba(34,211,238,.22); }
+.toast.bad{ border-color: rgba(244,63,94,.22); }
+.toast.warn{ border-color: rgba(245,158,11,.22); }
 
 .chatlog{
   height: 320px;
@@ -646,11 +646,11 @@ code{
 .toast .twrap{display:flex; flex-direction:column; gap:2px}
 .toast .t1{font-weight:1000; letter-spacing:.2px}
 .toast .t2{color:var(--muted); font-size:13px; line-height:1.25}
-.toast.ok{ border-color: rgba(16,185,129,.26); }
+.toast.ok{ border-color: rgba(34,211,238,.22); }
 .toast.ok .ico{ box-shadow: 0 0 18px rgba(16,185,129,.20); }
-.toast.warn{ border-color: rgba(251,191,36,.22); }
+.toast.warn{ border-color: rgba(245,158,11,.22); }
 .toast.warn .ico{ box-shadow: 0 0 18px rgba(251,191,36,.18); }
-.toast.bad{ border-color: rgba(251,113,133,.28); }
+.toast.bad{ border-color: rgba(244,63,94,.22); }
 .toast.bad .ico{ box-shadow: 0 0 18px rgba(251,113,133,.18); }
 
 /* Logo dancing letters */
@@ -767,3 +767,18 @@ code{
   #tab-ai .btn{ width:100%; }
   .toasts{ right:12px; top:68px; }
 }
+
+
+/* Toast close */
+.toast{ position:relative; }
+.toast .x{
+  position:absolute; right:10px; top:8px;
+  width:28px; height:28px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.18);
+  color:rgba(255,255,255,.9);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.toast .x:hover{ transform: scale(1.03); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.2); }

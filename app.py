@@ -665,18 +665,21 @@ def auth_register_confirm(request: Request, payload: Dict[str, Any]):
     username = (payload_obj.get("username") or "").strip()
     ph = payload_obj.get("password_hash") or ""
 
-    try:
-        con.execute(
-            "INSERT INTO users(username,password_hash,email,email_verified,created_at) VALUES(?,?,?,?,?)",
-            (username, ph, email, 1, datetime.datetime.utcnow().isoformat()),
-        )
-        con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
-        con.commit()
-    except sqlite3.IntegrityError:
-        con.close()
+    
+try:
+    con.execute(
+        "INSERT INTO users(username,password_hash,email,email_verified,created_at) VALUES(?,?,?,?,?)",
+        (username, ph, email, 1, datetime.datetime.utcnow().isoformat()),
+    )
+    con.execute("DELETE FROM email_otps WHERE id=?", (row["id"],))
+    con.commit()
+except Exception as e:
+    # SQLite / Postgres unique violations
+    if isinstance(e, sqlite3.IntegrityError) or (USE_PG and psycopg2 is not None and isinstance(e, psycopg2.IntegrityError)):
         raise HTTPException(status_code=400, detail="Username/email already exists")
-    finally:
-        con.close()
+    raise
+finally:
+    con.close()
 
     # auto-login
     con2 = db_conn()
