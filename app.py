@@ -662,6 +662,20 @@ def index(request: Request):
 def api_version():
     return {"ok": True, "version": BUILD_VERSION}
 
+from fastapi.responses import Response, FileResponse
+
+@app.head("/")
+def head_root():
+    return Response(status_code=200)
+
+@app.get("/favicon.ico")
+def favicon():
+    fp = os.path.join("static", "favicon.ico")
+    if os.path.exists(fp):
+        return FileResponse(fp)
+    return Response(status_code=204)
+
+
 # ----------------------------
 # Auth / Profile API
 # ----------------------------
