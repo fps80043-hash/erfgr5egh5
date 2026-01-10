@@ -159,6 +159,59 @@ def db_conn():
     con.row_factory = sqlite3.Row
     return con
 def db_init():
+    # Postgres (Render): do NOT touch local filesystem
+    if USE_PG:
+        con = db_conn()
+        # users
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS users(
+              id SERIAL PRIMARY KEY,
+              username TEXT UNIQUE NOT NULL,
+              password_hash TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              email TEXT,
+              email_verified INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        con.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)""")
+        # OTP store for email verification / reset
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS email_otps(
+              id SERIAL PRIMARY KEY,
+              email TEXT NOT NULL,
+              purpose TEXT NOT NULL,
+              code_hash TEXT NOT NULL,
+              payload TEXT NOT NULL,
+              expires_at TEXT NOT NULL,
+              attempts INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_otps_lookup ON email_otps(email, purpose)""")
+        # templates (one row per user)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS templates(
+              user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+              title_tpl TEXT NOT NULL,
+              desc_tpl TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+        # chat history
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              role TEXT NOT NULL,
+              content TEXT NOT NULL,
+              ts TEXT NOT NULL
+            )
+        """)
+        con.commit()
+        con.close()
+        return
+
+    # SQLite (local dev)
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
@@ -216,7 +269,6 @@ def db_init():
     """)
     con.commit()
     con.close()
-
 def cookie_secure(request: Request) -> bool:
     # Render/Proxy usually sets x-forwarded-proto=https
     proto = (request.headers.get("x-forwarded-proto") or "").lower()
