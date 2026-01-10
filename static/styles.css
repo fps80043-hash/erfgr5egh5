@@ -589,3 +589,9 @@ code{
 
 
 .name span{display:inline-block}
+
+
+/* Toast progress */
+.toast{position:relative}
+.toast .tprog{height:3px; width:100%; background:rgba(255,255,255,.14); border-radius:999px; overflow:hidden; margin-top:10px}
+.toast .tprog span{display:block; height:100%; width:0%; background:rgba(255,255,255,.92); transition:width 2.2s linear}

@@ -672,12 +672,19 @@ def auth_reset_confirm(payload: Dict[str, Any]):
 
 @app.post("/api/auth/login")
 def auth_login(request: Request, payload: Dict[str, Any]):
-    username = (payload.get("username") or "").strip()
+    ident = (payload.get("username") or "").strip()
     password = payload.get("password") or ""
+    if not ident:
+        raise HTTPException(status_code=400, detail="Login is required")
 
     con = db_conn()
-    row = con.execute("SELECT id, username, password_hash FROM users WHERE username=?", (username,)).fetchone()
+    # allow login by username or email
+    if "@" in ident:
+        row = con.execute("SELECT id, username, password_hash FROM users WHERE lower(email)=?", (ident.strip().lower(),)).fetchone()
+    else:
+        row = con.execute("SELECT id, username, password_hash FROM users WHERE username=?", (ident,)).fetchone()
     con.close()
+
     if not row or not verify_password(password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Wrong login or password")
 
