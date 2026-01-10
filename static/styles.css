@@ -65,7 +65,7 @@ body{
 }
 
 .brand{display:flex; align-items:center; gap:12px}
-.btxt .name{font-weight:1000; letter-spacing:1.2px}
+.btxt .name{font-weight:1000; letter-spacing:1.2px; font-size:20px}
 .btxt .tag{font-size:12px; color:var(--muted)}
 
 .logo{
@@ -105,9 +105,9 @@ body{
   100% {opacity:0; transform: translateY(8px) scale(.7) rotate(-18deg)}
 }
 /* MAX funny: each letter goes crazy */
-.logo .l1{animation: boing 1.05s infinite cubic-bezier(.2,.9,.2,1)}
-.logo .l2{animation: wobble 1.25s infinite ease-in-out}
-.logo .l3{animation: spinny 1.65s infinite ease-in-out}
+.logo .l1,.name .l1{animation: boing 1.05s infinite cubic-bezier(.2,.9,.2,1)}
+.logo .l2,.name .l2{animation: wobble 1.25s infinite ease-in-out}
+.logo .l3,.name .l3{animation: spinny 1.65s infinite ease-in-out}
 @keyframes boing{
   0%,100%{transform: translateY(0) rotate(0)}
   45%{transform: translateY(-6px) rotate(-6deg) scale(1.05)}
@@ -586,3 +586,6 @@ code{
   from{opacity:1; transform: translateY(0) scale(1)}
   to{opacity:0; transform: translateY(-8px) scale(.98)}
 }
+
+
+.name span{display:inline-block}
