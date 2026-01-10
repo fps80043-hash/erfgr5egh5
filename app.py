@@ -629,6 +629,21 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
 # ----------------------------
 app = FastAPI(title="R$T Web")
 
+@app.middleware("http")
+async def add_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path or ""
+    # HTML: never cache (Cloudflare/browser)
+    if path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    # Static: long cache (we use versioned filenames)
+    elif path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+
 @app.on_event("startup")
 def _startup():
     db_init()
@@ -638,7 +653,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    resp = templates.TemplateResponse("index.html", {"request": request})
+    resp.headers["Cache-Control"] = "no-store, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+@app.get("/api/version")
+def api_version():
+    return {"ok": True, "version": BUILD_VERSION}
 
 # ----------------------------
 # Auth / Profile API
