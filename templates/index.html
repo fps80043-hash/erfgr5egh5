@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>R$T — генератор объявлений</title>
-  <link rel="stylesheet" href="/static/styles.5.3.14.css" />
+  <link rel="stylesheet" href="/static/styles.5.3.15.css" />
 </head>
 <body>
   <canvas id="particles"></canvas>
@@ -266,7 +266,7 @@
               </div>
             </div>
             <div class="muted" style="margin-top:8px">
-              Баланс используется для оплаты функций. Пополнение идёт через Stripe (карта).
+              Баланс используется для оплаты функций. Пополнить можно через CryptoBot (крипта), промокод, либо вручную через администратора.
             </div>
           </div>
 
@@ -279,7 +279,7 @@
               Premium убирает лимиты и открывает чат с ИИ.
             </div>
             <div class="row" style="margin-top:10px; flex-wrap:wrap">
-              <button id="btnBuyPremium" class="btn primary">Оформить подписку</button>
+              <button id="btnBuyPremium" class="btn primary">Купить Premium за баланс</button>
             </div>
           </div>
 
@@ -325,6 +325,39 @@
                 <div id="adminTxList" style="margin-top:6px"></div>
               </div>
             </div>
+
+
+<div class="divider" style="margin-top:12px"></div>
+
+<div class="headrow" style="margin-top:10px">
+  <h4 style="margin:0">💳 Пополнения (заявки)</h4>
+  <button id="btnAdminTopupsRefresh" class="btn" style="margin-left:auto">Обновить</button>
+</div>
+<div id="adminTopupsList" class="muted" style="margin-top:8px; font-size:12px">—</div>
+
+<div class="divider" style="margin-top:12px"></div>
+
+<div class="headrow" style="margin-top:10px">
+  <h4 style="margin:0">🏷️ Промокоды</h4>
+  <button id="btnAdminPromosRefresh" class="btn" style="margin-left:auto">Список</button>
+</div>
+
+<div class="row" style="flex-wrap:wrap; margin-top:8px">
+  <div style="flex:1; min-width:140px">
+    <label class="lbl">Баланс</label>
+    <input id="adm_promo_points" class="input" placeholder="например 500" />
+  </div>
+  <div style="flex:1; min-width:140px">
+    <label class="lbl">Лимит использований</label>
+    <input id="adm_promo_max" class="input" placeholder="1" />
+  </div>
+  <div style="flex:2; min-width:180px">
+    <label class="lbl">Код (опц.)</label>
+    <input id="adm_promo_code" class="input" placeholder="FANPAY2026" />
+  </div>
+  <button id="btnAdminPromoCreate" class="btn primary">Создать</button>
+</div>
+<div id="adminPromoList" class="muted" style="margin-top:8px; font-size:12px">—</div>
           </div>
 
 
@@ -440,39 +473,86 @@
 
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
   <!-- Payment modal -->
-  <div id="payModal" class="modal" style="display:none">
-    <div class="modal-back" id="payBack"></div>
-    <div class="modal-card">
-      <div class="headrow">
-        <h3 id="payTitle">Оплата</h3>
-        <button id="btnPayClose" class="iconbtn" type="button">×</button>
-      </div>
-      <div class="seg" id="paySeg">
-        <button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
-        <button class="segbtn" data-seg="premium" type="button">Premium</button>
+<div id="payModal" class="modal" style="display:none">
+  <div class="modal-back" id="payBack"></div>
+  <div class="modal-card">
+    <div class="headrow">
+      <h3 id="payTitle">Оплата</h3>
+      <button id="btnPayClose" class="iconbtn" type="button">×</button>
+    </div>
+    <div class="seg" id="paySeg">
+      <button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
+      <button class="segbtn" data-seg="premium" type="button">Premium</button>
+    </div>
+
+    <div id="payPaneTopup" class="payPane">
+      <div class="muted" style="margin-top:6px">1) Выбери пакет баланса</div>
+      <div id="topupPacks" class="packGrid" style="margin-top:10px"></div>
+
+      <div class="divider" style="margin-top:12px"></div>
+
+      <div class="muted" style="margin-top:6px">2) Способ пополнения</div>
+      <div class="seg" id="topupSeg" style="margin-top:8px">
+        <button class="segbtn active" data-method="crypto" type="button">CryptoBot</button>
+        <button class="segbtn" data-method="promo" type="button">Промокод</button>
+        <button class="segbtn" data-method="manual" type="button">Через админа</button>
       </div>
 
-      <div id="payPaneTopup" class="payPane">
-        <div class="muted" style="margin-top:6px">Выбери пакет баланса (оплата картой через Stripe).</div>
-        <div id="topupPacks" class="packGrid" style="margin-top:10px"></div>
-        <button id="btnPayTopup" class="btn primary" style="width:100%; margin-top:12px">Перейти к оплате</button>
-        <div class="muted" style="margin-top:8px; font-size:12px">После оплаты баланс зачислится автоматически.</div>
+      <!-- Crypto -->
+      <div id="topupPaneCrypto" class="paySubPane" style="margin-top:10px">
+        <div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. После оплаты нажми «Проверить» — баланс зачислится.</div>
+        <button id="btnTopupCrypto" class="btn primary" style="width:100%; margin-top:10px">Создать инвойс</button>
+        <div id="cryptoLinkBox" class="muted" style="display:none; margin-top:10px; font-size:12px">
+          <div style="display:flex; gap:8px; align-items:center; justify-content:space-between">
+            <a id="cryptoPayUrl" target="_blank" rel="noreferrer" class="btn" style="flex:1; justify-content:center">Открыть оплату</a>
+            <button id="btnTopupCheck" class="btn">Проверить</button>
+          </div>
+          <div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
+        </div>
       </div>
 
+      <!-- Promo -->
+      <div id="topupPanePromo" class="paySubPane" style="display:none; margin-top:10px">
+        <div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
+        <input id="promoCode" class="input" placeholder="PROMO2026" style="margin-top:10px" />
+        <button id="btnPromoRedeem" class="btn primary" style="width:100%; margin-top:10px">Активировать</button>
+      </div>
+
+      <!-- Manual -->
+      <div id="topupPaneManual" class="paySubPane" style="display:none; margin-top:10px">
+        <div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
+        <button id="btnTopupManual" class="btn primary" style="width:100%; margin-top:10px">Создать заявку</button>
+        <div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
+      </div>
+    </div>
+
+    <div id="payPanePremium" class="payPane" style="display:none">
+      <div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
+      <div class="packGrid" style="margin-top:10px">
+        <button id="premPlan" class="packBtn sel" type="button">
+          <div class="p1">Premium</div>
+          <div class="p2" id="premPrice">—</div>
+        </button>
+      </div>
+      <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Купить Premium</button>
+      <div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
+    </div>
+  </div>
+</div>
       <div id="payPanePremium" class="payPane" style="display:none">
-        <div class="muted" style="margin-top:6px">Premium подписка (ежемесячно). Отменять можно в Stripe.</div>
+        <div class="muted" style="margin-top:6px">Premium покупается за баланс. Срок продлевается автоматически при покупке.</div>
         <div class="packGrid" style="margin-top:10px">
           <button id="premPlan" class="packBtn sel" type="button">
             <div class="p1">Premium</div>
             <div class="p2" id="premPrice">—</div>
           </button>
         </div>
-        <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Оформить подписку</button>
-        <div class="muted" style="margin-top:8px; font-size:12px">Подписка активирует Premium до конца оплаченного периода.</div>
+        <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Купить Premium за баланс</button>
+        <div class="muted" style="margin-top:8px; font-size:12px">Покупка активирует Premium на указанный срок.</div>
       </div>
     </div>
   </div>
 
-  <script src="/static/app.5.3.14.js"></script>
+  <script src="/static/app.5.3.15.js"></script>
 </body>
 </html>

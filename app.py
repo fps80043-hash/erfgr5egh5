@@ -42,7 +42,7 @@ except Exception:
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.14")
+BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.15")
 
 # Auth / DB
 DB_PATH = os.environ.get("DB_PATH", "data.db")
@@ -56,6 +56,456 @@ PBKDF2_ITERS = int(os.environ.get('PBKDF2_ITERS', '200000'))
 ADMIN_USERS_RAW = os.environ.get("ADMIN_USERS", "")
 ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
 ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
+
+
+
+# ----------------------------
+# Topups (Crypto Pay + Promo + Manual) + Premium by balance
+# ----------------------------
+
+def _points_to_fiat_cents(points: int) -> int:
+    cents = int(round((int(points) / float(max(BALANCE_PER_CURRENCY, 1))) * 100.0))
+    if cents < CRYPTO_PAY_MIN_FIAT_CENTS:
+        cents = CRYPTO_PAY_MIN_FIAT_CENTS
+    return max(1, cents)
+
+def _cents_to_amount_str(cents: int) -> str:
+    return f"{(int(cents) / 100.0):.2f}"
+
+def _insert_topup_row(con, user_id: int, provider: str, method: str, points: int, fiat_cents: int, fiat_currency: str, status: str, meta: Dict[str, Any]) -> int:
+    ts = _now_utc_iso()
+    if USE_PG:
+        row = con.execute(
+            "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency or None, None, None, status, 0, json.dumps(meta or {}), ts, ts),
+        ).fetchone()
+        return int(_rget(row, "id") or 0)
+    cur = con.execute(
+        "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency, None, None, status, 0, json.dumps(meta or {}), ts, ts),
+    )
+    return int(cur.lastrowid)
+
+def _credit_topup_once(con, topup_id: int, admin_id: Optional[int] = None, reason: str = "") -> bool:
+    # Returns True if balance was credited by this call (idempotent)
+    ts = _now_utc_iso()
+    if USE_PG:
+        row = con.execute(
+            "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0 RETURNING user_id, points",
+            (ts, int(topup_id)),
+        ).fetchone()
+        if not row:
+            return False
+        uid = int(_rget(row, "user_id") or 0)
+        points = int(_rget(row, "points") or 0)
+        urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+        oldb = int(_rget(urow, "balance") or 0) if urow else 0
+        con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
+        con.execute(
+            "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+            (uid, admin_id, points, reason or f"topup {topup_id}", ts),
+        )
+        return True
+
+    cur = con.execute(
+        "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0",
+        (ts, int(topup_id)),
+    )
+    if getattr(cur, "rowcount", 0) != 1:
+        return False
+    row = con.execute("SELECT user_id, points FROM topups WHERE id=?", (int(topup_id),)).fetchone()
+    uid = int(_rget(row, "user_id") or 0)
+    points = int(_rget(row, "points") or 0)
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+    oldb = int(_rget(urow, "balance") or 0) if urow else 0
+    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
+    con.execute(
+        "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+        (uid, admin_id, points, reason or f"topup {topup_id}", ts),
+    )
+    return True
+
+@app.get("/api/topup/config")
+def api_topup_config(request: Request):
+    return {
+        "ok": True,
+        "topup": {
+            "packs": TOPUP_PACKS,
+            "balance_per_currency": BALANCE_PER_CURRENCY,
+            "crypto": {
+                "enabled": cryptopay_enabled(),
+                "fiat": CRYPTO_PAY_FIAT,
+                "accepted_assets": CRYPTO_PAY_ACCEPTED_ASSETS,
+                "min_fiat_cents": CRYPTO_PAY_MIN_FIAT_CENTS,
+            },
+            "promo": {"enabled": True},
+            "manual": {"enabled": True},
+        },
+        "premium": {
+            "price_points": PREMIUM_PRICE_POINTS,
+            "period_days": PREMIUM_PERIOD_DAYS,
+        },
+    }
+
+@app.post("/api/topup/create")
+def api_topup_create(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    method = str(payload.get("method") or "").strip().lower()
+    try:
+        points = int(payload.get("points") or 0)
+    except Exception:
+        points = 0
+    if points not in TOPUP_PACKS:
+        raise HTTPException(status_code=400, detail=f"Invalid pack. Allowed: {TOPUP_PACKS}")
+
+    if method not in ("crypto", "manual"):
+        raise HTTPException(status_code=400, detail="method must be crypto or manual")
+
+    con = db_conn()
+
+    if method == "manual":
+        tid = _insert_topup_row(con, int(u["id"]), "manual", "manual", points, 0, None, "pending", {"note": "manual topup request"})
+        con.commit(); con.close()
+        return {"ok": True, "id": tid, "status": "pending", "method": "manual"}
+
+    # crypto
+    if not cryptopay_enabled():
+        con.close()
+        raise HTTPException(status_code=500, detail="Crypto Pay is not configured")
+
+    fiat_cents = _points_to_fiat_cents(points)
+    tid = _insert_topup_row(con, int(u["id"]), "cryptopay", "crypto", points, fiat_cents, CRYPTO_PAY_FIAT, "pending", {"assets": CRYPTO_PAY_ACCEPTED_ASSETS})
+    # Create invoice
+    amount_str = _cents_to_amount_str(fiat_cents)
+    desc = f"RST Balance Top-up ({points} pts)"
+    try:
+        inv = _cryptopay_call("createInvoice", {
+            "amount": amount_str,
+            "currency_type": "fiat",
+            "fiat": CRYPTO_PAY_FIAT,
+            "accepted_assets": ",".join(CRYPTO_PAY_ACCEPTED_ASSETS) if CRYPTO_PAY_ACCEPTED_ASSETS else None,
+            "description": desc,
+            "payload": str(tid),
+            "allow_comments": False,
+            "allow_anonymous": True,
+        })
+    except Exception as e:
+        # mark failed
+        ts = _now_utc_iso()
+        con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("failed", json.dumps({"err": str(e)}), ts, tid))
+        con.commit(); con.close()
+        raise
+
+    invoice_id = str(inv.get("invoice_id") or inv.get("id") or "")
+    pay_url = inv.get("web_app_invoice_url") or inv.get("bot_invoice_url") or inv.get("pay_url") or ""
+    ts = _now_utc_iso()
+    con.execute("UPDATE topups SET invoice_id=?, pay_url=?, updated_at=? WHERE id=?", (invoice_id, pay_url, ts, tid))
+    con.commit(); con.close()
+
+    return {"ok": True, "id": tid, "invoice_id": invoice_id, "pay_url": pay_url, "status": "pending", "method": "crypto", "fiat": CRYPTO_PAY_FIAT, "fiat_amount": amount_str}
+
+@app.get("/api/topup/status")
+def api_topup_status(request: Request, id: int):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT * FROM topups WHERE id=? AND user_id=?", (int(id), int(u["id"]))).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+
+    status = str(_rget(row, "status") or "")
+    provider = str(_rget(row, "provider") or "")
+    invoice_id = str(_rget(row, "invoice_id") or "")
+    pay_url = str(_rget(row, "pay_url") or "")
+    points = int(_rget(row, "points") or 0)
+
+    if provider == "cryptopay" and status in ("pending", "active") and invoice_id and cryptopay_enabled():
+        try:
+            invs = _cryptopay_call("getInvoices", {"invoice_ids": invoice_id})
+            items = invs.get("items") if isinstance(invs, dict) else None
+            inv = (items[0] if items else None) or {}
+            inv_status = str(inv.get("status") or "")
+            if inv_status and inv_status != status:
+                ts = _now_utc_iso()
+                con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", (inv_status, ts, int(id)))
+                status = inv_status
+            if inv_status == "paid":
+                credited = _credit_topup_once(con, int(id), None, f"cryptopay invoice {invoice_id}")
+                if credited:
+                    con.commit()
+                    # refresh status
+                    status = "paid"
+        except Exception:
+            pass
+
+    con.commit()
+    con.close()
+    return {"ok": True, "id": int(id), "status": status, "pay_url": pay_url, "points": points}
+
+@app.get("/api/topup/my")
+def api_topup_my(request: Request, limit: int = 20):
+    u = require_user(request)
+    limit = max(1, min(int(limit or 20), 50))
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, provider, method, points, fiat_cents, fiat_currency, status, pay_url, created_at, updated_at FROM topups WHERE user_id=? ORDER BY id DESC LIMIT ?",
+        (int(u["id"]), limit),
+    ).fetchall()
+    con.close()
+    out = []
+    for r in rows or []:
+        out.append({
+            "id": int(_rget(r, "id") or 0),
+            "provider": str(_rget(r, "provider") or ""),
+            "method": str(_rget(r, "method") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "fiat_cents": int(_rget(r, "fiat_cents") or 0),
+            "fiat_currency": str(_rget(r, "fiat_currency") or ""),
+            "status": str(_rget(r, "status") or ""),
+            "pay_url": str(_rget(r, "pay_url") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": out}
+
+@app.post("/api/topup/redeem")
+def api_topup_redeem(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    code = str(payload.get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="code required")
+    con = db_conn()
+    row = con.execute("SELECT code, points, max_uses, uses FROM promo_codes WHERE code=?", (code,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Invalid promo code")
+
+    max_uses = int(_rget(row, "max_uses") or 1)
+    uses = int(_rget(row, "uses") or 0)
+    points = int(_rget(row, "points") or 0)
+    if uses >= max_uses:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already used up")
+
+    # Ensure not redeemed by this user
+    already = con.execute("SELECT id FROM promo_redemptions WHERE code=? AND user_id=?", (code, int(u["id"]))).fetchone()
+    if already:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already redeemed")
+
+    ts = _now_utc_iso()
+    # apply
+    con.execute("INSERT INTO promo_redemptions(code, user_id, redeemed_at) VALUES(?,?,?)", (code, int(u["id"]), ts))
+    con.execute("UPDATE promo_codes SET uses=uses+1 WHERE code=?", (code,))
+    # credit balance
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    oldb = int(_rget(urow, "balance") or 0) if urow else 0
+    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, int(u["id"])))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, points, f"promo {code}", ts))
+    con.commit()
+    con.close()
+    return {"ok": True, "credited": points}
+
+@app.post("/api/subscription/buy")
+def api_subscription_buy(request: Request, payload: Dict[str, Any] = None):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT balance, premium_until FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    bal = int(_rget(row, "balance") or 0)
+    if bal < PREMIUM_PRICE_POINTS:
+        con.close()
+        raise HTTPException(status_code=400, detail="Not enough balance")
+
+    now = _now_utc()
+    cur_pu = _parse_iso(_rget(row, "premium_until") or "")
+    base = cur_pu if (cur_pu and cur_pu > now) else now
+    new_until = (base + datetime.timedelta(days=PREMIUM_PERIOD_DAYS)).isoformat()
+
+    ts = _now_utc_iso()
+    con.execute("UPDATE users SET balance=?, premium_until=? WHERE id=?", (bal - PREMIUM_PRICE_POINTS, new_until, int(u["id"])))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, -PREMIUM_PRICE_POINTS, "premium buy", ts))
+    con.commit()
+    con.close()
+    return {"ok": True, "premium_until": new_until}
+
+@app.get("/api/admin/topups")
+def api_admin_topups(request: Request, status: str = "pending", limit: int = 50):
+    admin = require_admin(request)
+    status = str(status or "pending")
+    limit = max(1, min(int(limit or 50), 200))
+    con = db_conn()
+    rows = con.execute(
+        "SELECT t.id, t.user_id, u.username, t.provider, t.method, t.points, t.status, t.created_at, t.updated_at "
+        "FROM topups t JOIN users u ON u.id=t.user_id WHERE t.status=? ORDER BY t.id DESC LIMIT ?",
+        (status, limit),
+    ).fetchall()
+    con.close()
+    items = []
+    for r in rows or []:
+        items.append({
+            "id": int(_rget(r, "id") or 0),
+            "user_id": int(_rget(r, "user_id") or 0),
+            "username": str(_rget(r, "username") or ""),
+            "provider": str(_rget(r, "provider") or ""),
+            "method": str(_rget(r, "method") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "status": str(_rget(r, "status") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": items}
+
+@app.post("/api/admin/topup/approve")
+def api_admin_topup_approve(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        tid = int(payload.get("id") or 0)
+    except Exception:
+        tid = 0
+    if tid <= 0:
+        raise HTTPException(status_code=400, detail="id required")
+    reason = str(payload.get("reason") or "manual topup").strip()
+    con = db_conn()
+    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+    provider = str(_rget(row, "provider") or "")
+    status = str(_rget(row, "status") or "")
+    if provider != "manual" or status != "pending":
+        con.close()
+        raise HTTPException(status_code=400, detail="Only pending manual topups can be approved")
+    credited = _credit_topup_once(con, tid, int(admin["id"]), reason)
+    con.commit(); con.close()
+    return {"ok": True, "credited": bool(credited)}
+
+@app.post("/api/admin/topup/reject")
+def api_admin_topup_reject(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        tid = int(payload.get("id") or 0)
+    except Exception:
+        tid = 0
+    if tid <= 0:
+        raise HTTPException(status_code=400, detail="id required")
+    reason = str(payload.get("reason") or "rejected").strip()
+    con = db_conn()
+    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+    provider = str(_rget(row, "provider") or "")
+    status = str(_rget(row, "status") or "")
+    if provider != "manual" or status != "pending":
+        con.close()
+        raise HTTPException(status_code=400, detail="Only pending manual topups can be rejected")
+    ts = _now_utc_iso()
+    con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("rejected", json.dumps({"reason": reason}), ts, tid))
+    con.commit(); con.close()
+    return {"ok": True}
+
+@app.post("/api/admin/promo/create")
+def api_admin_promo_create(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        points = int(payload.get("points") or 0)
+    except Exception:
+        points = 0
+    if points <= 0:
+        raise HTTPException(status_code=400, detail="points must be > 0")
+    try:
+        max_uses = int(payload.get("max_uses") or 1)
+    except Exception:
+        max_uses = 1
+    if max_uses <= 0:
+        max_uses = 1
+    code = str(payload.get("code") or "").strip().upper()
+    if not code:
+        code = secrets.token_urlsafe(8).replace("-", "").replace("_", "").upper()
+    ts = _now_utc_iso()
+    con = db_conn()
+    try:
+        con.execute(
+            "INSERT INTO promo_codes(code, points, max_uses, uses, created_by, created_at) VALUES(?,?,?,?,?,?)",
+            (code, points, max_uses, 0, int(admin["id"]), ts),
+        )
+        con.commit()
+    except Exception:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already exists")
+    con.close()
+    return {"ok": True, "code": code, "points": points, "max_uses": max_uses}
+
+@app.get("/api/admin/promo/list")
+def api_admin_promo_list(request: Request, limit: int = 100):
+    admin = require_admin(request)
+    limit = max(1, min(int(limit or 100), 500))
+    con = db_conn()
+    rows = con.execute("SELECT code, points, max_uses, uses, created_at FROM promo_codes ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    con.close()
+    items = []
+    for r in rows or []:
+        items.append({
+            "code": str(_rget(r, "code") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "uses": int(_rget(r, "uses") or 0),
+            "max_uses": int(_rget(r, "max_uses") or 0),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": items}
+
+async def _cryptopay_webhook_impl(request: Request, token: Optional[str] = None):
+    raw = await request.body()
+    if CRYPTO_PAY_WEBHOOK_TOKEN:
+        # if token path used, enforce match
+        if token is not None and token != CRYPTO_PAY_WEBHOOK_TOKEN:
+            raise HTTPException(status_code=403, detail="Invalid webhook token")
+    sig = (request.headers.get("crypto-pay-api-signature") or "").strip()
+    if not _cryptopay_verify_signature(raw, sig):
+        raise HTTPException(status_code=400, detail="Invalid Crypto Pay signature")
+    try:
+        data = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    upd = str(data.get("update_type") or "")
+    payload = data.get("payload") or {}
+    inv_id = str(payload.get("invoice_id") or payload.get("id") or "")
+    if not inv_id:
+        return {"ok": True}
+
+    if upd not in ("invoice_paid", "invoice_confirmed", "invoice_failed", "invoice_expired"):
+        return {"ok": True}
+
+    con = db_conn()
+    row = con.execute("SELECT id, status FROM topups WHERE provider=? AND invoice_id=?", ("cryptopay", inv_id)).fetchone()
+    if not row:
+        con.close()
+        return {"ok": True}
+    tid = int(_rget(row, "id") or 0)
+    ts = _now_utc_iso()
+
+    if upd in ("invoice_failed", "invoice_expired"):
+        con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("failed" if upd=="invoice_failed" else "expired", ts, tid))
+        con.commit(); con.close()
+        return {"ok": True}
+
+    # paid
+    con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("paid", ts, tid))
+    _credit_topup_once(con, tid, None, f"cryptopay invoice {inv_id}")
+    con.commit(); con.close()
+    return {"ok": True}
+
+@app.post("/api/pay/cryptopay/webhook")
+async def api_cryptopay_webhook(request: Request):
+    return await _cryptopay_webhook_impl(request, None)
+
+@app.post("/api/pay/cryptopay/webhook/{token}")
+async def api_cryptopay_webhook_token(request: Request, token: str):
+    return await _cryptopay_webhook_impl(request, token)
+
 
 # ----------------------------
 # Payments (Stripe)
@@ -84,6 +534,63 @@ STRIPE_PREMIUM_PRICE_ID = (os.environ.get("STRIPE_PREMIUM_PRICE_ID") or "").stri
 STRIPE_PREMIUM_PRICE_CENTS = int(os.environ.get("STRIPE_PREMIUM_PRICE_CENTS", "499") or 499)
 if STRIPE_PREMIUM_PRICE_CENTS < 50:
     STRIPE_PREMIUM_PRICE_CENTS = 499
+
+# ----------------------------
+# Top-ups (CryptoBot / Crypto Pay) + Premium by balance
+# ----------------------------
+CRYPTO_PAY_TOKEN = (os.environ.get("CRYPTO_PAY_TOKEN") or os.environ.get("CRYPTOPAY_TOKEN") or "").strip()
+CRYPTO_PAY_BASE_URL = (os.environ.get("CRYPTO_PAY_BASE_URL") or "https://pay.crypt.bot/api").strip().rstrip("/")
+CRYPTO_PAY_FIAT = (os.environ.get("CRYPTO_PAY_FIAT") or "USD").strip().upper()
+CRYPTO_PAY_ACCEPTED_ASSETS_RAW = os.environ.get("CRYPTO_PAY_ACCEPTED_ASSETS", "USDT,TON")
+CRYPTO_PAY_ACCEPTED_ASSETS = [a.strip().upper() for a in CRYPTO_PAY_ACCEPTED_ASSETS_RAW.split(",") if a.strip()]
+CRYPTO_PAY_WEBHOOK_TOKEN = (os.environ.get("CRYPTO_PAY_WEBHOOK_TOKEN") or "").strip()
+CRYPTO_PAY_MIN_FIAT_CENTS = int(os.environ.get("CRYPTO_PAY_MIN_FIAT_CENTS", "100") or 100)  # 1.00 fiat by default
+
+PREMIUM_PRICE_POINTS = int(os.environ.get("PREMIUM_PRICE_POINTS", "499") or 499)
+PREMIUM_PERIOD_DAYS = int(os.environ.get("PREMIUM_PERIOD_DAYS", "30") or 30)
+if PREMIUM_PRICE_POINTS < 1:
+    PREMIUM_PRICE_POINTS = 499
+if PREMIUM_PERIOD_DAYS < 1:
+    PREMIUM_PERIOD_DAYS = 30
+
+def cryptopay_enabled() -> bool:
+    return bool(CRYPTO_PAY_TOKEN)
+
+def _cryptopay_secret() -> bytes:
+    # Webhook signature secret = SHA256(token)
+    return hashlib.sha256((CRYPTO_PAY_TOKEN or "").encode("utf-8")).digest()
+
+def _cryptopay_headers() -> Dict[str, str]:
+    if not CRYPTO_PAY_TOKEN:
+        raise HTTPException(status_code=500, detail="Crypto Pay is not configured (CRYPTO_PAY_TOKEN)")
+    return {
+        "Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+def _cryptopay_call(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    url = f"{CRYPTO_PAY_BASE_URL}/{method.lstrip('/')}"
+    r = requests.post(url, headers=_cryptopay_headers(), data=json.dumps(params or {}), timeout=DEFAULT_TIMEOUT)
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Crypto Pay error: {r.status_code} {r.text[:300]}")
+    try:
+        j = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Crypto Pay invalid JSON response")
+    if not j.get("ok"):
+        raise HTTPException(status_code=502, detail=f"Crypto Pay not ok: {str(j)[:200]}")
+    return j.get("result") or {}
+
+def _cryptopay_verify_signature(raw_body: bytes, signature_hex: str) -> bool:
+    if not signature_hex:
+        return False
+    try:
+        mac = hmac.new(_cryptopay_secret(), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(mac, signature_hex)
+    except Exception:
+        return False
+
 
 def stripe_enabled() -> bool:
     return bool(stripe and STRIPE_SECRET_KEY)
@@ -296,6 +803,47 @@ def db_init():
             )
         """)
         con.execute("""CREATE INDEX IF NOT EXISTS idx_payments_user_created ON payments(user_id, created_at)""")
+        # Topups (Crypto / Manual)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS topups(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              provider TEXT NOT NULL,
+              method TEXT NOT NULL,
+              points INTEGER NOT NULL,
+              fiat_cents INTEGER NOT NULL DEFAULT 0,
+              fiat_currency TEXT,
+              invoice_id TEXT UNIQUE,
+              pay_url TEXT,
+              status TEXT NOT NULL,
+              credited INTEGER NOT NULL DEFAULT 0,
+              meta TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_topups_user_created ON topups(user_id, created_at)""")
+
+        # Promo codes (FanPay / manual sales)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS promo_codes(
+              code TEXT PRIMARY KEY,
+              points INTEGER NOT NULL,
+              max_uses INTEGER NOT NULL DEFAULT 1,
+              uses INTEGER NOT NULL DEFAULT 0,
+              created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+              created_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS promo_redemptions(
+              id SERIAL PRIMARY KEY,
+              code TEXT NOT NULL REFERENCES promo_codes(code) ON DELETE CASCADE,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              redeemed_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_promo_user_unique ON promo_redemptions(code, user_id)""")
 
         # OTP store for email verification / reset
         con.execute("""
@@ -931,6 +1479,456 @@ def api_balance(request: Request):
     row = con.execute("SELECT balance FROM users WHERE id=?", (u["id"],)).fetchone()
     con.close()
     return {"ok": True, "balance": int(_rget(row, "balance") or 0)}
+
+
+
+
+# ----------------------------
+# Topups (Crypto Pay + Promo + Manual) + Premium by balance
+# ----------------------------
+
+def _points_to_fiat_cents(points: int) -> int:
+    cents = int(round((int(points) / float(max(BALANCE_PER_CURRENCY, 1))) * 100.0))
+    if cents < CRYPTO_PAY_MIN_FIAT_CENTS:
+        cents = CRYPTO_PAY_MIN_FIAT_CENTS
+    return max(1, cents)
+
+def _cents_to_amount_str(cents: int) -> str:
+    return f"{(int(cents) / 100.0):.2f}"
+
+def _insert_topup_row(con, user_id: int, provider: str, method: str, points: int, fiat_cents: int, fiat_currency: str, status: str, meta: Dict[str, Any]) -> int:
+    ts = _now_utc_iso()
+    if USE_PG:
+        row = con.execute(
+            "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency or None, None, None, status, 0, json.dumps(meta or {}), ts, ts),
+        ).fetchone()
+        return int(_rget(row, "id") or 0)
+    cur = con.execute(
+        "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency, None, None, status, 0, json.dumps(meta or {}), ts, ts),
+    )
+    return int(cur.lastrowid)
+
+def _credit_topup_once(con, topup_id: int, admin_id: Optional[int] = None, reason: str = "") -> bool:
+    # Returns True if balance was credited by this call (idempotent)
+    ts = _now_utc_iso()
+    if USE_PG:
+        row = con.execute(
+            "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0 RETURNING user_id, points",
+            (ts, int(topup_id)),
+        ).fetchone()
+        if not row:
+            return False
+        uid = int(_rget(row, "user_id") or 0)
+        points = int(_rget(row, "points") or 0)
+        urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+        oldb = int(_rget(urow, "balance") or 0) if urow else 0
+        con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
+        con.execute(
+            "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+            (uid, admin_id, points, reason or f"topup {topup_id}", ts),
+        )
+        return True
+
+    cur = con.execute(
+        "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0",
+        (ts, int(topup_id)),
+    )
+    if getattr(cur, "rowcount", 0) != 1:
+        return False
+    row = con.execute("SELECT user_id, points FROM topups WHERE id=?", (int(topup_id),)).fetchone()
+    uid = int(_rget(row, "user_id") or 0)
+    points = int(_rget(row, "points") or 0)
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+    oldb = int(_rget(urow, "balance") or 0) if urow else 0
+    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
+    con.execute(
+        "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+        (uid, admin_id, points, reason or f"topup {topup_id}", ts),
+    )
+    return True
+
+@app.get("/api/topup/config")
+def api_topup_config(request: Request):
+    return {
+        "ok": True,
+        "topup": {
+            "packs": TOPUP_PACKS,
+            "balance_per_currency": BALANCE_PER_CURRENCY,
+            "crypto": {
+                "enabled": cryptopay_enabled(),
+                "fiat": CRYPTO_PAY_FIAT,
+                "accepted_assets": CRYPTO_PAY_ACCEPTED_ASSETS,
+                "min_fiat_cents": CRYPTO_PAY_MIN_FIAT_CENTS,
+            },
+            "promo": {"enabled": True},
+            "manual": {"enabled": True},
+        },
+        "premium": {
+            "price_points": PREMIUM_PRICE_POINTS,
+            "period_days": PREMIUM_PERIOD_DAYS,
+        },
+    }
+
+@app.post("/api/topup/create")
+def api_topup_create(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    method = str(payload.get("method") or "").strip().lower()
+    try:
+        points = int(payload.get("points") or 0)
+    except Exception:
+        points = 0
+    if points not in TOPUP_PACKS:
+        raise HTTPException(status_code=400, detail=f"Invalid pack. Allowed: {TOPUP_PACKS}")
+
+    if method not in ("crypto", "manual"):
+        raise HTTPException(status_code=400, detail="method must be crypto or manual")
+
+    con = db_conn()
+
+    if method == "manual":
+        tid = _insert_topup_row(con, int(u["id"]), "manual", "manual", points, 0, None, "pending", {"note": "manual topup request"})
+        con.commit(); con.close()
+        return {"ok": True, "id": tid, "status": "pending", "method": "manual"}
+
+    # crypto
+    if not cryptopay_enabled():
+        con.close()
+        raise HTTPException(status_code=500, detail="Crypto Pay is not configured")
+
+    fiat_cents = _points_to_fiat_cents(points)
+    tid = _insert_topup_row(con, int(u["id"]), "cryptopay", "crypto", points, fiat_cents, CRYPTO_PAY_FIAT, "pending", {"assets": CRYPTO_PAY_ACCEPTED_ASSETS})
+    # Create invoice
+    amount_str = _cents_to_amount_str(fiat_cents)
+    desc = f"RST Balance Top-up ({points} pts)"
+    try:
+        inv = _cryptopay_call("createInvoice", {
+            "amount": amount_str,
+            "currency_type": "fiat",
+            "fiat": CRYPTO_PAY_FIAT,
+            "accepted_assets": ",".join(CRYPTO_PAY_ACCEPTED_ASSETS) if CRYPTO_PAY_ACCEPTED_ASSETS else None,
+            "description": desc,
+            "payload": str(tid),
+            "allow_comments": False,
+            "allow_anonymous": True,
+        })
+    except Exception as e:
+        # mark failed
+        ts = _now_utc_iso()
+        con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("failed", json.dumps({"err": str(e)}), ts, tid))
+        con.commit(); con.close()
+        raise
+
+    invoice_id = str(inv.get("invoice_id") or inv.get("id") or "")
+    pay_url = inv.get("web_app_invoice_url") or inv.get("bot_invoice_url") or inv.get("pay_url") or ""
+    ts = _now_utc_iso()
+    con.execute("UPDATE topups SET invoice_id=?, pay_url=?, updated_at=? WHERE id=?", (invoice_id, pay_url, ts, tid))
+    con.commit(); con.close()
+
+    return {"ok": True, "id": tid, "invoice_id": invoice_id, "pay_url": pay_url, "status": "pending", "method": "crypto", "fiat": CRYPTO_PAY_FIAT, "fiat_amount": amount_str}
+
+@app.get("/api/topup/status")
+def api_topup_status(request: Request, id: int):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT * FROM topups WHERE id=? AND user_id=?", (int(id), int(u["id"]))).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+
+    status = str(_rget(row, "status") or "")
+    provider = str(_rget(row, "provider") or "")
+    invoice_id = str(_rget(row, "invoice_id") or "")
+    pay_url = str(_rget(row, "pay_url") or "")
+    points = int(_rget(row, "points") or 0)
+
+    if provider == "cryptopay" and status in ("pending", "active") and invoice_id and cryptopay_enabled():
+        try:
+            invs = _cryptopay_call("getInvoices", {"invoice_ids": invoice_id})
+            items = invs.get("items") if isinstance(invs, dict) else None
+            inv = (items[0] if items else None) or {}
+            inv_status = str(inv.get("status") or "")
+            if inv_status and inv_status != status:
+                ts = _now_utc_iso()
+                con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", (inv_status, ts, int(id)))
+                status = inv_status
+            if inv_status == "paid":
+                credited = _credit_topup_once(con, int(id), None, f"cryptopay invoice {invoice_id}")
+                if credited:
+                    con.commit()
+                    # refresh status
+                    status = "paid"
+        except Exception:
+            pass
+
+    con.commit()
+    con.close()
+    return {"ok": True, "id": int(id), "status": status, "pay_url": pay_url, "points": points}
+
+@app.get("/api/topup/my")
+def api_topup_my(request: Request, limit: int = 20):
+    u = require_user(request)
+    limit = max(1, min(int(limit or 20), 50))
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, provider, method, points, fiat_cents, fiat_currency, status, pay_url, created_at, updated_at FROM topups WHERE user_id=? ORDER BY id DESC LIMIT ?",
+        (int(u["id"]), limit),
+    ).fetchall()
+    con.close()
+    out = []
+    for r in rows or []:
+        out.append({
+            "id": int(_rget(r, "id") or 0),
+            "provider": str(_rget(r, "provider") or ""),
+            "method": str(_rget(r, "method") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "fiat_cents": int(_rget(r, "fiat_cents") or 0),
+            "fiat_currency": str(_rget(r, "fiat_currency") or ""),
+            "status": str(_rget(r, "status") or ""),
+            "pay_url": str(_rget(r, "pay_url") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": out}
+
+@app.post("/api/topup/redeem")
+def api_topup_redeem(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    code = str(payload.get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="code required")
+    con = db_conn()
+    row = con.execute("SELECT code, points, max_uses, uses FROM promo_codes WHERE code=?", (code,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Invalid promo code")
+
+    max_uses = int(_rget(row, "max_uses") or 1)
+    uses = int(_rget(row, "uses") or 0)
+    points = int(_rget(row, "points") or 0)
+    if uses >= max_uses:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already used up")
+
+    # Ensure not redeemed by this user
+    already = con.execute("SELECT id FROM promo_redemptions WHERE code=? AND user_id=?", (code, int(u["id"]))).fetchone()
+    if already:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already redeemed")
+
+    ts = _now_utc_iso()
+    # apply
+    con.execute("INSERT INTO promo_redemptions(code, user_id, redeemed_at) VALUES(?,?,?)", (code, int(u["id"]), ts))
+    con.execute("UPDATE promo_codes SET uses=uses+1 WHERE code=?", (code,))
+    # credit balance
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    oldb = int(_rget(urow, "balance") or 0) if urow else 0
+    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, int(u["id"])))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, points, f"promo {code}", ts))
+    con.commit()
+    con.close()
+    return {"ok": True, "credited": points}
+
+@app.post("/api/subscription/buy")
+def api_subscription_buy(request: Request, payload: Dict[str, Any] = None):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT balance, premium_until FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    bal = int(_rget(row, "balance") or 0)
+    if bal < PREMIUM_PRICE_POINTS:
+        con.close()
+        raise HTTPException(status_code=400, detail="Not enough balance")
+
+    now = _now_utc()
+    cur_pu = _parse_iso(_rget(row, "premium_until") or "")
+    base = cur_pu if (cur_pu and cur_pu > now) else now
+    new_until = (base + datetime.timedelta(days=PREMIUM_PERIOD_DAYS)).isoformat()
+
+    ts = _now_utc_iso()
+    con.execute("UPDATE users SET balance=?, premium_until=? WHERE id=?", (bal - PREMIUM_PRICE_POINTS, new_until, int(u["id"])))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, -PREMIUM_PRICE_POINTS, "premium buy", ts))
+    con.commit()
+    con.close()
+    return {"ok": True, "premium_until": new_until}
+
+@app.get("/api/admin/topups")
+def api_admin_topups(request: Request, status: str = "pending", limit: int = 50):
+    admin = require_admin(request)
+    status = str(status or "pending")
+    limit = max(1, min(int(limit or 50), 200))
+    con = db_conn()
+    rows = con.execute(
+        "SELECT t.id, t.user_id, u.username, t.provider, t.method, t.points, t.status, t.created_at, t.updated_at "
+        "FROM topups t JOIN users u ON u.id=t.user_id WHERE t.status=? ORDER BY t.id DESC LIMIT ?",
+        (status, limit),
+    ).fetchall()
+    con.close()
+    items = []
+    for r in rows or []:
+        items.append({
+            "id": int(_rget(r, "id") or 0),
+            "user_id": int(_rget(r, "user_id") or 0),
+            "username": str(_rget(r, "username") or ""),
+            "provider": str(_rget(r, "provider") or ""),
+            "method": str(_rget(r, "method") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "status": str(_rget(r, "status") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": items}
+
+@app.post("/api/admin/topup/approve")
+def api_admin_topup_approve(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        tid = int(payload.get("id") or 0)
+    except Exception:
+        tid = 0
+    if tid <= 0:
+        raise HTTPException(status_code=400, detail="id required")
+    reason = str(payload.get("reason") or "manual topup").strip()
+    con = db_conn()
+    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+    provider = str(_rget(row, "provider") or "")
+    status = str(_rget(row, "status") or "")
+    if provider != "manual" or status != "pending":
+        con.close()
+        raise HTTPException(status_code=400, detail="Only pending manual topups can be approved")
+    credited = _credit_topup_once(con, tid, int(admin["id"]), reason)
+    con.commit(); con.close()
+    return {"ok": True, "credited": bool(credited)}
+
+@app.post("/api/admin/topup/reject")
+def api_admin_topup_reject(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        tid = int(payload.get("id") or 0)
+    except Exception:
+        tid = 0
+    if tid <= 0:
+        raise HTTPException(status_code=400, detail="id required")
+    reason = str(payload.get("reason") or "rejected").strip()
+    con = db_conn()
+    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Topup not found")
+    provider = str(_rget(row, "provider") or "")
+    status = str(_rget(row, "status") or "")
+    if provider != "manual" or status != "pending":
+        con.close()
+        raise HTTPException(status_code=400, detail="Only pending manual topups can be rejected")
+    ts = _now_utc_iso()
+    con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("rejected", json.dumps({"reason": reason}), ts, tid))
+    con.commit(); con.close()
+    return {"ok": True}
+
+@app.post("/api/admin/promo/create")
+def api_admin_promo_create(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    try:
+        points = int(payload.get("points") or 0)
+    except Exception:
+        points = 0
+    if points <= 0:
+        raise HTTPException(status_code=400, detail="points must be > 0")
+    try:
+        max_uses = int(payload.get("max_uses") or 1)
+    except Exception:
+        max_uses = 1
+    if max_uses <= 0:
+        max_uses = 1
+    code = str(payload.get("code") or "").strip().upper()
+    if not code:
+        code = secrets.token_urlsafe(8).replace("-", "").replace("_", "").upper()
+    ts = _now_utc_iso()
+    con = db_conn()
+    try:
+        con.execute(
+            "INSERT INTO promo_codes(code, points, max_uses, uses, created_by, created_at) VALUES(?,?,?,?,?,?)",
+            (code, points, max_uses, 0, int(admin["id"]), ts),
+        )
+        con.commit()
+    except Exception:
+        con.close()
+        raise HTTPException(status_code=400, detail="Promo code already exists")
+    con.close()
+    return {"ok": True, "code": code, "points": points, "max_uses": max_uses}
+
+@app.get("/api/admin/promo/list")
+def api_admin_promo_list(request: Request, limit: int = 100):
+    admin = require_admin(request)
+    limit = max(1, min(int(limit or 100), 500))
+    con = db_conn()
+    rows = con.execute("SELECT code, points, max_uses, uses, created_at FROM promo_codes ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    con.close()
+    items = []
+    for r in rows or []:
+        items.append({
+            "code": str(_rget(r, "code") or ""),
+            "points": int(_rget(r, "points") or 0),
+            "uses": int(_rget(r, "uses") or 0),
+            "max_uses": int(_rget(r, "max_uses") or 0),
+            "created_at": str(_rget(r, "created_at") or ""),
+        })
+    return {"ok": True, "items": items}
+
+async def _cryptopay_webhook_impl(request: Request, token: Optional[str] = None):
+    raw = await request.body()
+    if CRYPTO_PAY_WEBHOOK_TOKEN:
+        # if token path used, enforce match
+        if token is not None and token != CRYPTO_PAY_WEBHOOK_TOKEN:
+            raise HTTPException(status_code=403, detail="Invalid webhook token")
+    sig = (request.headers.get("crypto-pay-api-signature") or "").strip()
+    if not _cryptopay_verify_signature(raw, sig):
+        raise HTTPException(status_code=400, detail="Invalid Crypto Pay signature")
+    try:
+        data = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    upd = str(data.get("update_type") or "")
+    payload = data.get("payload") or {}
+    inv_id = str(payload.get("invoice_id") or payload.get("id") or "")
+    if not inv_id:
+        return {"ok": True}
+
+    if upd not in ("invoice_paid", "invoice_confirmed", "invoice_failed", "invoice_expired"):
+        return {"ok": True}
+
+    con = db_conn()
+    row = con.execute("SELECT id, status FROM topups WHERE provider=? AND invoice_id=?", ("cryptopay", inv_id)).fetchone()
+    if not row:
+        con.close()
+        return {"ok": True}
+    tid = int(_rget(row, "id") or 0)
+    ts = _now_utc_iso()
+
+    if upd in ("invoice_failed", "invoice_expired"):
+        con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("failed" if upd=="invoice_failed" else "expired", ts, tid))
+        con.commit(); con.close()
+        return {"ok": True}
+
+    # paid
+    con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("paid", ts, tid))
+    _credit_topup_once(con, tid, None, f"cryptopay invoice {inv_id}")
+    con.commit(); con.close()
+    return {"ok": True}
+
+@app.post("/api/pay/cryptopay/webhook")
+async def api_cryptopay_webhook(request: Request):
+    return await _cryptopay_webhook_impl(request, None)
+
+@app.post("/api/pay/cryptopay/webhook/{token}")
+async def api_cryptopay_webhook_token(request: Request, token: str):
+    return await _cryptopay_webhook_impl(request, token)
 
 
 # ----------------------------
