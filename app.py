@@ -58,6 +58,35 @@ ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
 ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
 
 
+# ----------------------------
+# App (must be defined before route decorators)
+# ----------------------------
+app = FastAPI(title="R$T Web")
+
+@app.middleware("http")
+async def add_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path or ""
+    # HTML: never cache (Cloudflare/browser)
+    if path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    # Static: long cache (we use versioned filenames)
+    elif path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+@app.on_event("startup")
+def _startup():
+    db_init()
+    sync_admin_users()
+
+
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 
 # ----------------------------
 # Topups (Crypto Pay + Promo + Manual) + Premium by balance
@@ -1386,34 +1415,6 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
         "year_tag": year_tag,
         "inv_ru": inv_ru,
     }
-
-# ----------------------------
-# App
-# ----------------------------
-app = FastAPI(title="R$T Web")
-
-@app.middleware("http")
-async def add_cache_headers(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path or ""
-    # HTML: never cache (Cloudflare/browser)
-    if path == "/" or path.endswith(".html"):
-        response.headers["Cache-Control"] = "no-store, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-    # Static: long cache (we use versioned filenames)
-    elif path.startswith("/static/"):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    return response
-
-
-
-@app.on_event("startup")
-def _startup():
-    db_init()
-    sync_admin_users()
-
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
