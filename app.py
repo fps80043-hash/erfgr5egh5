@@ -31,12 +31,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
 
+# Stripe (real payments)
+try:
+    import stripe
+except Exception:
+    stripe = None
+
 # ----------------------------
 # Config
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.13")
+BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.14")
 
 # Auth / DB
 DB_PATH = os.environ.get("DB_PATH", "data.db")
@@ -50,6 +56,56 @@ PBKDF2_ITERS = int(os.environ.get('PBKDF2_ITERS', '200000'))
 ADMIN_USERS_RAW = os.environ.get("ADMIN_USERS", "")
 ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
 ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
+
+# ----------------------------
+# Payments (Stripe)
+# ----------------------------
+STRIPE_SECRET_KEY = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+STRIPE_WEBHOOK_SECRET = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+STRIPE_PUBLISHABLE_KEY = (os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip()
+STRIPE_CURRENCY = (os.environ.get("STRIPE_CURRENCY") or "eur").strip().lower()
+
+# Internal balance packs (points)
+TOPUP_PACKS_RAW = os.environ.get("TOPUP_PACKS", "100,300,500,1000")
+try:
+    TOPUP_PACKS = [int(x.strip()) for x in TOPUP_PACKS_RAW.split(",") if x.strip()]
+except Exception:
+    TOPUP_PACKS = [100, 300, 500, 1000]
+TOPUP_PACKS = [p for p in TOPUP_PACKS if p > 0]
+if not TOPUP_PACKS:
+    TOPUP_PACKS = [100, 300, 500, 1000]
+
+BALANCE_PER_CURRENCY = int(os.environ.get("BALANCE_PER_CURRENCY", "100") or 100)  # points per 1.00 currency
+if BALANCE_PER_CURRENCY <= 0:
+    BALANCE_PER_CURRENCY = 100
+
+# Premium subscription (monthly)
+STRIPE_PREMIUM_PRICE_ID = (os.environ.get("STRIPE_PREMIUM_PRICE_ID") or "").strip()
+STRIPE_PREMIUM_PRICE_CENTS = int(os.environ.get("STRIPE_PREMIUM_PRICE_CENTS", "499") or 499)
+if STRIPE_PREMIUM_PRICE_CENTS < 50:
+    STRIPE_PREMIUM_PRICE_CENTS = 499
+
+def stripe_enabled() -> bool:
+    return bool(stripe and STRIPE_SECRET_KEY)
+
+def stripe_require():
+    if not stripe:
+        raise HTTPException(status_code=500, detail="Stripe library is not installed")
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=500, detail="Stripe is not configured (STRIPE_SECRET_KEY)")
+    stripe.api_key = STRIPE_SECRET_KEY
+
+def _base_url(request: Request) -> str:
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+    if not host:
+        host = request.url.netloc
+    return f"{proto}://{host}".rstrip("/")
+
+def _points_to_cents(points: int) -> int:
+    # Example: BALANCE_PER_CURRENCY=100 => 100 points = 1.00 currency
+    cents = int(round((points / float(BALANCE_PER_CURRENCY)) * 100.0))
+    return max(50, cents)  # Stripe min is provider-dependent; keep it sane
 
 def _rget(row: Any, key: str, default: Any = None) -> Any:
     """Safe getter for sqlite3.Row / dict-like rows."""
@@ -203,6 +259,12 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance INTEGER NOT NULL DEFAULT 0")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0")
 
+        # Stripe subscription fields
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_sub_id TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_sub_status TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_sub_period_end TEXT")
+
         # balance transactions (audit log)
         con.execute("""
             CREATE TABLE IF NOT EXISTS balance_tx(
@@ -215,6 +277,25 @@ def db_init():
             )
         """)
         con.execute("""CREATE INDEX IF NOT EXISTS idx_balance_tx_user_ts ON balance_tx(user_id, ts)""")
+
+        # Payments (Stripe checkout sessions)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS payments(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              provider TEXT NOT NULL,
+              kind TEXT NOT NULL,
+              session_id TEXT UNIQUE NOT NULL,
+              amount_points INTEGER NOT NULL DEFAULT 0,
+              amount_total INTEGER NOT NULL DEFAULT 0,
+              currency TEXT NOT NULL,
+              status TEXT NOT NULL,
+              meta TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_payments_user_created ON payments(user_id, created_at)""")
 
         # OTP store for email verification / reset
         con.execute("""
@@ -290,6 +371,17 @@ def db_init():
     if "is_admin" not in cols:
         con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
 
+    # Stripe subscription fields
+    cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+    if "stripe_customer_id" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT")
+    if "stripe_sub_id" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN stripe_sub_id TEXT")
+    if "stripe_sub_status" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN stripe_sub_status TEXT")
+    if "stripe_sub_period_end" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN stripe_sub_period_end TEXT")
+
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
     # OTP store for email verification / reset
@@ -338,6 +430,25 @@ def db_init():
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_balance_tx_user_ts ON balance_tx(user_id, ts)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS payments(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          provider TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          session_id TEXT UNIQUE NOT NULL,
+          amount_points INTEGER NOT NULL DEFAULT 0,
+          amount_total INTEGER NOT NULL DEFAULT 0,
+          currency TEXT NOT NULL,
+          status TEXT NOT NULL,
+          meta TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_payments_user_created ON payments(user_id, created_at)")
 
     con.commit()
     con.close()
@@ -820,6 +931,273 @@ def api_balance(request: Request):
     row = con.execute("SELECT balance FROM users WHERE id=?", (u["id"],)).fetchone()
     con.close()
     return {"ok": True, "balance": int(_rget(row, "balance") or 0)}
+
+
+# ----------------------------
+# Payments (Stripe)
+# ----------------------------
+
+@app.get("/api/pay/config")
+def pay_config(request: Request):
+    # Frontend uses this to decide whether to show Stripe buttons
+    return {
+        "ok": True,
+        "stripe": {
+            "enabled": stripe_enabled() and bool(STRIPE_PUBLISHABLE_KEY),
+            "publishable_key": STRIPE_PUBLISHABLE_KEY,
+            "currency": STRIPE_CURRENCY,
+            "topup_packs": TOPUP_PACKS,
+            "balance_per_currency": BALANCE_PER_CURRENCY,
+            "premium": {
+                "enabled": stripe_enabled(),
+                "price_id": STRIPE_PREMIUM_PRICE_ID,
+                "price_cents": STRIPE_PREMIUM_PRICE_CENTS,
+                "interval": "month",
+            },
+        },
+    }
+
+
+@app.post("/api/pay/stripe/create")
+def stripe_create_checkout(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    stripe_require()
+
+    kind = (payload.get("kind") or "").strip().lower()
+    if kind not in ("topup", "subscription"):
+        raise HTTPException(status_code=400, detail="kind must be topup or subscription")
+
+    base = _base_url(request)
+    success_url = (payload.get("success_url") or "").strip() or (
+        base + ("/?subscribed=1" if kind == "subscription" else "/?paid=1")
+    )
+    cancel_url = (payload.get("cancel_url") or "").strip() or (base + "/?canceled=1")
+
+    created_at = _now_utc_iso()
+
+    if kind == "topup":
+        try:
+            points = int(payload.get("points") or 0)
+        except Exception:
+            points = 0
+        if points not in TOPUP_PACKS:
+            raise HTTPException(status_code=400, detail=f"Invalid pack. Allowed: {TOPUP_PACKS}")
+
+        cents = _points_to_cents(points)
+        # Store as pending in DB (idempotent by session_id, but session is not created yet)
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": STRIPE_CURRENCY,
+                    "unit_amount": cents,
+                    "product_data": {"name": f"RST Balance Top-up ({points} pts)"},
+                },
+                "quantity": 1,
+            }],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"uid": str(int(u["id"])), "kind": "topup", "points": str(points)},
+        )
+
+        con = db_conn()
+        con.execute(
+            "INSERT INTO payments(user_id,provider,kind,session_id,amount_points,amount_total,currency,status,meta,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(session_id) DO UPDATE SET updated_at=excluded.updated_at",
+            (
+                int(u["id"]),
+                "stripe",
+                "topup",
+                str(session.id),
+                int(points),
+                int(cents),
+                STRIPE_CURRENCY,
+                "pending",
+                json.dumps({"success_url": success_url, "cancel_url": cancel_url}),
+                created_at,
+                created_at,
+            ),
+        )
+        con.commit()
+        con.close()
+        return {"ok": True, "url": session.url, "id": session.id}
+
+    # subscription
+    # If PRICE_ID is not configured, we create an inline recurring price.
+    line_items = None
+    if STRIPE_PREMIUM_PRICE_ID:
+        line_items = [{"price": STRIPE_PREMIUM_PRICE_ID, "quantity": 1}]
+    else:
+        line_items = [{
+            "price_data": {
+                "currency": STRIPE_CURRENCY,
+                "unit_amount": int(STRIPE_PREMIUM_PRICE_CENTS),
+                "recurring": {"interval": "month"},
+                "product_data": {"name": "RST Premium (Monthly)"},
+            },
+            "quantity": 1,
+        }]
+
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        line_items=line_items,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"uid": str(int(u["id"])), "kind": "subscription"},
+        subscription_data={"metadata": {"uid": str(int(u["id"])), "kind": "premium"}},
+    )
+
+    con = db_conn()
+    con.execute(
+        "INSERT INTO payments(user_id,provider,kind,session_id,amount_points,amount_total,currency,status,meta,created_at,updated_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(session_id) DO UPDATE SET updated_at=excluded.updated_at",
+        (
+            int(u["id"]),
+            "stripe",
+            "subscription",
+            str(session.id),
+            0,
+            int(STRIPE_PREMIUM_PRICE_CENTS),
+            STRIPE_CURRENCY,
+            "pending",
+            json.dumps({"success_url": success_url, "cancel_url": cancel_url}),
+            created_at,
+            created_at,
+        ),
+    )
+    con.commit()
+    con.close()
+    return {"ok": True, "url": session.url, "id": session.id}
+
+
+async def _fulfill_stripe_topup(session_id: str, uid: int, points: int, amount_total: int, currency: str):
+    # Idempotent: if already paid -> do nothing
+    con = db_conn()
+    row = con.execute("SELECT status, amount_points FROM payments WHERE session_id=?", (session_id,)).fetchone()
+    if row and str(_rget(row, "status") or "") == "paid":
+        con.close()
+        return
+
+    # Update payment status
+    ts = _now_utc_iso()
+    con.execute(
+        "INSERT INTO payments(user_id,provider,kind,session_id,amount_points,amount_total,currency,status,meta,created_at,updated_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(session_id) DO UPDATE SET status=excluded.status, amount_points=excluded.amount_points, amount_total=excluded.amount_total, currency=excluded.currency, updated_at=excluded.updated_at",
+        (uid, "stripe", "topup", session_id, int(points), int(amount_total or 0), str(currency or STRIPE_CURRENCY), "paid", "{}", ts, ts),
+    )
+
+    # Credit balance
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+    if urow:
+        old_balance = int(_rget(urow, "balance") or 0)
+        new_balance = old_balance + int(points)
+        con.execute("UPDATE users SET balance=? WHERE id=?", (new_balance, uid))
+        con.execute(
+            "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+            (uid, None, int(points), f"stripe topup ({session_id})", ts),
+        )
+    con.commit()
+    con.close()
+
+
+async def _upsert_subscription_state(uid: int, customer_id: str, sub_id: str, status: str, period_end_iso: str):
+    con = db_conn()
+    con.execute(
+        "UPDATE users SET stripe_customer_id=?, stripe_sub_id=?, stripe_sub_status=?, stripe_sub_period_end=?, premium_until=? WHERE id=?",
+        (customer_id or None, sub_id or None, status or None, period_end_iso or None, period_end_iso or None, uid),
+    )
+    con.commit()
+    con.close()
+
+
+@app.post("/api/pay/stripe/webhook")
+async def stripe_webhook(request: Request):
+    stripe_require()
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Stripe webhook is not configured (STRIPE_WEBHOOK_SECRET)")
+
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature") or ""
+    try:
+        event = stripe.Webhook.construct_event(payload=payload, sig_header=sig, secret=STRIPE_WEBHOOK_SECRET)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+
+    et = event.get("type")
+
+    if et == "checkout.session.completed":
+        sess = event.get("data", {}).get("object", {}) or {}
+        meta = sess.get("metadata") or {}
+        kind = (meta.get("kind") or "").lower()
+        try:
+            uid = int(meta.get("uid") or 0)
+        except Exception:
+            uid = 0
+        session_id = str(sess.get("id") or "")
+
+        if kind == "topup" and uid > 0 and session_id:
+            try:
+                points = int(meta.get("points") or 0)
+            except Exception:
+                points = 0
+            amount_total = int(sess.get("amount_total") or 0)
+            currency = str(sess.get("currency") or STRIPE_CURRENCY)
+            await _fulfill_stripe_topup(session_id, uid, points, amount_total, currency)
+
+        if kind == "subscription" and uid > 0 and session_id:
+            sub_id = str(sess.get("subscription") or "")
+            customer_id = str(sess.get("customer") or "")
+            # Mark payment as paid (idempotent)
+            ts = _now_utc_iso()
+            con = db_conn()
+            con.execute(
+                "INSERT INTO payments(user_id,provider,kind,session_id,amount_points,amount_total,currency,status,meta,created_at,updated_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(session_id) DO UPDATE SET status=excluded.status, updated_at=excluded.updated_at",
+                (uid, "stripe", "subscription", session_id, 0, int(STRIPE_PREMIUM_PRICE_CENTS), STRIPE_CURRENCY, "paid", "{}", ts, ts),
+            )
+            con.commit(); con.close()
+
+            if sub_id:
+                try:
+                    sub = stripe.Subscription.retrieve(sub_id)
+                    status = str(getattr(sub, "status", "") or "")
+                    cpe = int(getattr(sub, "current_period_end", 0) or 0)
+                    period_end_iso = datetime.datetime.utcfromtimestamp(cpe).isoformat() if cpe else None
+                    if period_end_iso:
+                        await _upsert_subscription_state(uid, customer_id, sub_id, status, period_end_iso)
+                except Exception:
+                    pass
+
+    # Keep premium_until in sync on subscription changes
+    if et in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
+        sub = event.get("data", {}).get("object", {}) or {}
+        meta = sub.get("metadata") or {}
+        sub_id = str(sub.get("id") or "")
+        customer_id = str(sub.get("customer") or "")
+        status = str(sub.get("status") or "")
+        cpe = int(sub.get("current_period_end") or 0)
+        period_end_iso = datetime.datetime.utcfromtimestamp(cpe).isoformat() if cpe else None
+
+        uid = 0
+        try:
+            uid = int(meta.get("uid") or 0)
+        except Exception:
+            uid = 0
+        if uid <= 0 and sub_id:
+            # Fallback: find user by stored sub id
+            con = db_conn()
+            row = con.execute("SELECT id FROM users WHERE stripe_sub_id=?", (sub_id,)).fetchone()
+            con.close()
+            uid = int(_rget(row, "id") or 0) if row else 0
+
+        if uid > 0 and period_end_iso:
+            await _upsert_subscription_state(uid, customer_id, sub_id, status, period_end_iso)
+
+    return {"ok": True}
 
 @app.get("/api/admin/users")
 def admin_users(request: Request, q: str = ""):

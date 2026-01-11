@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>R$T — генератор объявлений</title>
-  <link rel="stylesheet" href="/static/styles.5.3.13.css" />
+  <link rel="stylesheet" href="/static/styles.5.3.14.css" />
 </head>
 <body>
   <canvas id="particles"></canvas>
@@ -232,7 +232,7 @@
     </div>
   </div>
   <div class="muted" style="margin-top:10px">
-    Premium снимает лимиты и открывает чат с ИИ. Купить позже подключим — пока доступны кейсы/бонусы.
+    Premium снимает лимиты и открывает чат с ИИ. Можно оформить подписку ниже или выбить Premium в бесплатном кейсе.
   </div>
 </div>
 
@@ -260,10 +260,26 @@
           <div id="balanceBox" class="card" style="margin-top:12px; display:none">
             <div class="headrow">
               <h3>💰 Баланс</h3>
-              <div class="badge" id="balanceValue" style="margin-left:auto">0</div>
+              <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
+                <div class="badge" id="balanceValue">0</div>
+                <button id="btnTopUp" class="btn">Пополнить</button>
+              </div>
             </div>
             <div class="muted" style="margin-top:8px">
-              Баланс используется для оплаты функций (платёжку подключим в следующих шагах). Пока баланс выдаётся через админ-панель.
+              Баланс используется для оплаты функций. Пополнение идёт через Stripe (карта).
+            </div>
+          </div>
+
+          <div id="premiumPayBox" class="card" style="margin-top:12px; display:none">
+            <div class="headrow">
+              <h3>💎 Premium</h3>
+              <div class="badge" id="premiumState" style="margin-left:auto">—</div>
+            </div>
+            <div class="muted" id="premiumDesc" style="margin-top:8px">
+              Premium убирает лимиты и открывает чат с ИИ.
+            </div>
+            <div class="row" style="margin-top:10px; flex-wrap:wrap">
+              <button id="btnBuyPremium" class="btn primary">Оформить подписку</button>
             </div>
           </div>
 
@@ -423,6 +439,40 @@
   </nav>
 
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
-  <script src="/static/app.5.3.13.js"></script>
+  <!-- Payment modal -->
+  <div id="payModal" class="modal" style="display:none">
+    <div class="modal-back" id="payBack"></div>
+    <div class="modal-card">
+      <div class="headrow">
+        <h3 id="payTitle">Оплата</h3>
+        <button id="btnPayClose" class="iconbtn" type="button">×</button>
+      </div>
+      <div class="seg" id="paySeg">
+        <button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
+        <button class="segbtn" data-seg="premium" type="button">Premium</button>
+      </div>
+
+      <div id="payPaneTopup" class="payPane">
+        <div class="muted" style="margin-top:6px">Выбери пакет баланса (оплата картой через Stripe).</div>
+        <div id="topupPacks" class="packGrid" style="margin-top:10px"></div>
+        <button id="btnPayTopup" class="btn primary" style="width:100%; margin-top:12px">Перейти к оплате</button>
+        <div class="muted" style="margin-top:8px; font-size:12px">После оплаты баланс зачислится автоматически.</div>
+      </div>
+
+      <div id="payPanePremium" class="payPane" style="display:none">
+        <div class="muted" style="margin-top:6px">Premium подписка (ежемесячно). Отменять можно в Stripe.</div>
+        <div class="packGrid" style="margin-top:10px">
+          <button id="premPlan" class="packBtn sel" type="button">
+            <div class="p1">Premium</div>
+            <div class="p2" id="premPrice">—</div>
+          </button>
+        </div>
+        <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Оформить подписку</button>
+        <div class="muted" style="margin-top:8px; font-size:12px">Подписка активирует Premium до конца оплаченного периода.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.5.3.14.js"></script>
 </body>
 </html>
