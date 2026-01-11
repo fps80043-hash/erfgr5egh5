@@ -36,12 +36,32 @@ from jose import jwt, JWTError
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
+BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.13")
+
 # Auth / DB
 DB_PATH = os.environ.get("DB_PATH", "data.db")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 JWT_ALG = "HS256"
 SESSION_COOKIE = "rst_session"
 PBKDF2_ITERS = int(os.environ.get('PBKDF2_ITERS', '200000'))
+
+
+# Admins (comma-separated usernames in env)
+ADMIN_USERS_RAW = os.environ.get("ADMIN_USERS", "")
+ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
+ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
+
+def _rget(row: Any, key: str, default: Any = None) -> Any:
+    """Safe getter for sqlite3.Row / dict-like rows."""
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except Exception:
+        return default
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
@@ -180,6 +200,21 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS credits_ai INTEGER NOT NULL DEFAULT 1")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TEXT")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS case_next_at TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance INTEGER NOT NULL DEFAULT 0")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0")
+
+        # balance transactions (audit log)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS balance_tx(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+              delta INTEGER NOT NULL,
+              reason TEXT,
+              ts TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_balance_tx_user_ts ON balance_tx(user_id, ts)""")
 
         # OTP store for email verification / reset
         con.execute("""
@@ -239,6 +274,22 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN email TEXT")
     if "email_verified" not in cols:
         con.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+
+    # Migrations: credits/premium/case/balance/admin
+    cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+    if "credits_analyze" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN credits_analyze INTEGER NOT NULL DEFAULT 3")
+    if "credits_ai" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN credits_ai INTEGER NOT NULL DEFAULT 1")
+    if "premium_until" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN premium_until TEXT")
+    if "case_next_at" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN case_next_at TEXT")
+    if "balance" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL DEFAULT 0")
+    if "is_admin" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
     # OTP store for email verification / reset
@@ -274,6 +325,20 @@ def db_init():
           FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS balance_tx(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          admin_id INTEGER,
+          delta INTEGER NOT NULL,
+          reason TEXT,
+          ts TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_balance_tx_user_ts ON balance_tx(user_id, ts)")
+
     con.commit()
     con.close()
 def cookie_secure(request: Request) -> bool:
@@ -324,14 +389,14 @@ def user_limits(uid: int) -> Dict[str, Any]:
     con.close()
     if not row:
         return {"credits_analyze": 0, "credits_ai": 0, "premium_until": None, "premium": False, "case_next_at": None}
-    pu = _parse_iso(row.get("premium_until") or "")
+    pu = _parse_iso(_rget(row, "premium_until") or "")
     premium = bool(pu and _now_utc() < pu)
     return {
-        "credits_analyze": int(row.get("credits_analyze") or 0),
-        "credits_ai": int(row.get("credits_ai") or 0),
-        "premium_until": (row.get("premium_until") or None),
+        "credits_analyze": int(_rget(row, "credits_analyze") or 0),
+        "credits_ai": int(_rget(row, "credits_ai") or 0),
+        "premium_until": (_rget(row, "premium_until") or None),
         "premium": premium,
-        "case_next_at": (row.get("case_next_at") or None),
+        "case_next_at": (_rget(row, "case_next_at") or None),
     }
 
 def require_user(request: Request) -> Dict[str, Any]:
@@ -369,6 +434,45 @@ def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
     if not uid or not username:
         return None
     return {"id": uid, "username": username}
+def sync_admin_users():
+    """Mark usernames from ADMIN_USERS as admins (non-destructive)."""
+    if not ADMIN_USERS_LC:
+        return
+    con = db_conn()
+    for uname in ADMIN_USERS_LC:
+        con.execute("UPDATE users SET is_admin=1 WHERE lower(username)=?", (uname,))
+    con.commit()
+    con.close()
+
+def get_user_row(uid: int) -> Optional[Dict[str, Any]]:
+    con = db_conn()
+    row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE id=?", (uid,)).fetchone()
+    con.close()
+    if not row:
+        return None
+    return {
+        "id": int(_rget(row, "id") or 0),
+        "username": str(_rget(row, "username") or ""),
+        "email": str(_rget(row, "email") or ""),
+        "balance": int(_rget(row, "balance") or 0),
+        "is_admin": int(_rget(row, "is_admin") or 0),
+    }
+
+def require_admin(request: Request) -> Dict[str, Any]:
+    u = require_user(request)
+    # DB flag first
+    con = db_conn()
+    row = con.execute("SELECT is_admin FROM users WHERE id=?", (u["id"],)).fetchone()
+    con.close()
+    is_admin = int(_rget(row, "is_admin") or 0) == 1
+    # fallback: env list
+    if not is_admin and (u["username"] or "").lower() in ADMIN_USERS_LC:
+        is_admin = True
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Admin required")
+    return u
+
+
 
 # ----------------------------
 # Template helpers
@@ -647,6 +751,7 @@ async def add_cache_headers(request: Request, call_next):
 @app.on_event("startup")
 def _startup():
     db_init()
+    sync_admin_users()
 
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -684,12 +789,163 @@ def auth_me(request: Request):
     u = get_current_user(request)
     if not u:
         return {"ok": True, "user": None}
+
     con = db_conn()
-    row = con.execute("SELECT email FROM users WHERE id=?", (u["id"],)).fetchone()
+    row = con.execute("SELECT email, balance, is_admin FROM users WHERE id=?", (u["id"],)).fetchone()
+    # env fallback: allow making new users admins without restart
+    db_admin = int(_rget(row, "is_admin") or 0) if row else 0
+    env_admin = ((u["username"] or "").lower() in ADMIN_USERS_LC)
+    is_admin = 1 if (db_admin == 1 or env_admin) else 0
+    if env_admin and db_admin != 1:
+        try:
+            con.execute("UPDATE users SET is_admin=1 WHERE id=?", (u["id"],))
+            con.commit()
+        except Exception:
+            pass
     con.close()
-    return {"ok": True, "user": {"username": u["username"], "email": (row["email"] if row else "")}}
 
+    lim = user_limits(int(u["id"]))
+    return {"ok": True, "user": {
+        "username": u["username"],
+        "email": (_rget(row, "email") if row else ""),
+        "balance": int(_rget(row, "balance") or 0),
+        "is_admin": is_admin,
+        "limits": lim,
+    }}
 
+@app.get("/api/balance")
+def api_balance(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT balance FROM users WHERE id=?", (u["id"],)).fetchone()
+    con.close()
+    return {"ok": True, "balance": int(_rget(row, "balance") or 0)}
+
+@app.get("/api/admin/users")
+def admin_users(request: Request, q: str = ""):
+    require_admin(request)
+    q = (q or "").strip().lower()
+    con = db_conn()
+    if q:
+        like = f"%{q}%"
+        rows = con.execute(
+            "SELECT id, username, email, balance, is_admin FROM users WHERE lower(username) LIKE ? OR lower(email) LIKE ? ORDER BY id DESC LIMIT 25",
+            (like, like),
+        ).fetchall()
+    else:
+        rows = con.execute(
+            "SELECT id, username, email, balance, is_admin FROM users ORDER BY id DESC LIMIT 25"
+        ).fetchall()
+    con.close()
+    out = []
+    for r in rows or []:
+        out.append({
+            "id": int(_rget(r, "id") or 0),
+            "username": str(_rget(r, "username") or ""),
+            "email": str(_rget(r, "email") or ""),
+            "balance": int(_rget(r, "balance") or 0),
+            "is_admin": int(_rget(r, "is_admin") or 0),
+        })
+    return {"ok": True, "users": out}
+
+@app.get("/api/admin/user")
+def admin_user(request: Request, ident: str = ""):
+    require_admin(request)
+    ident = (ident or "").strip()
+    if not ident:
+        raise HTTPException(status_code=400, detail="ident is required")
+    con = db_conn()
+    row = None
+    if ident.isdigit():
+        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE id=?", (int(ident),)).fetchone()
+    if not row and "@" in ident:
+        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE lower(email)=?", (ident.lower(),)).fetchone()
+    if not row:
+        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE lower(username)=?", (ident.lower(),)).fetchone()
+    con.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True, "user": {
+        "id": int(_rget(row, "id") or 0),
+        "username": str(_rget(row, "username") or ""),
+        "email": str(_rget(row, "email") or ""),
+        "balance": int(_rget(row, "balance") or 0),
+        "is_admin": int(_rget(row, "is_admin") or 0),
+    }}
+
+@app.get("/api/admin/tx")
+def admin_tx(request: Request, user_id: int):
+    require_admin(request)
+    uid = int(user_id or 0)
+    if uid <= 0:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, admin_id, delta, reason, ts FROM balance_tx WHERE user_id=? ORDER BY id DESC LIMIT 25",
+        (uid,),
+    ).fetchall()
+    con.close()
+    tx = []
+    for r in rows or []:
+        tx.append({
+            "id": int(_rget(r, "id") or 0),
+            "admin_id": int(_rget(r, "admin_id") or 0) if _rget(r, "admin_id") is not None else None,
+            "delta": int(_rget(r, "delta") or 0),
+            "reason": str(_rget(r, "reason") or ""),
+            "ts": str(_rget(r, "ts") or ""),
+        })
+    return {"ok": True, "tx": tx}
+
+@app.post("/api/admin/balance_adjust")
+def admin_balance_adjust(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    ident = (payload.get("ident") or "").strip()
+    user_id = int(payload.get("user_id") or 0)
+    delta = int(payload.get("delta") or 0)
+    reason = (payload.get("reason") or "").strip()
+    if delta == 0:
+        raise HTTPException(status_code=400, detail="delta must be non-zero")
+    if abs(delta) > 1_000_000_000:
+        raise HTTPException(status_code=400, detail="delta is too large")
+    if len(reason) > 140:
+        raise HTTPException(status_code=400, detail="reason is too long")
+    if user_id <= 0:
+        if not ident:
+            raise HTTPException(status_code=400, detail="user_id or ident is required")
+        # resolve ident
+        con = db_conn()
+        row = None
+        if ident.isdigit():
+            row = con.execute("SELECT id FROM users WHERE id=?", (int(ident),)).fetchone()
+        if not row and "@" in ident:
+            row = con.execute("SELECT id FROM users WHERE lower(email)=?", (ident.lower(),)).fetchone()
+        if not row:
+            row = con.execute("SELECT id FROM users WHERE lower(username)=?", (ident.lower(),)).fetchone()
+        con.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        user_id = int(_rget(row, "id") or 0)
+
+    con = db_conn()
+    row = con.execute("SELECT balance FROM users WHERE id=?", (user_id,)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    old_balance = int(_rget(row, "balance") or 0)
+    new_balance = old_balance + delta
+    if new_balance < 0:
+        new_balance = 0
+    applied_delta = new_balance - old_balance
+
+    con.execute("UPDATE users SET balance=? WHERE id=?", (new_balance, user_id))
+    con.execute(
+        "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+        (user_id, int(admin["id"]), int(applied_delta), reason, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+
+    return {"ok": True, "user_id": user_id, "old_balance": old_balance, "new_balance": new_balance, "applied_delta": applied_delta}
 @app.post("/api/auth/register_start")
 def auth_register_start(payload: Dict[str, Any]):
     username = (payload.get("username") or "").strip()
@@ -804,7 +1060,7 @@ def auth_register_confirm(request: Request, payload: Dict[str, Any]):
         raise HTTPException(status_code=500, detail="User creation failed")
 
     token = make_token(int(urow["id"]), urow["username"])
-    jr = JSONResponse({"ok": True, "user": {"username": urow["username"], "email": (urow.get("email") or email)}})
+    jr = JSONResponse({"ok": True, "user": {"username": urow["username"], "email": (_rget(urow, "email") or email)}})
     jr.set_cookie(
         SESSION_COOKIE,
         token,
@@ -1045,7 +1301,7 @@ def _case_token_read(token: str) -> Optional[Dict[str, Any]]:
 def _apply_premium(uid: int, delta: datetime.timedelta):
     con = db_conn()
     row = con.execute("SELECT premium_until FROM users WHERE id=?", (uid,)).fetchone()
-    cur = _parse_iso((row.get("premium_until") if row else "") or "")
+    cur = _parse_iso((_rget(row, "premium_until") if row else "") or "")
     base = cur if (cur and _now_utc() < cur) else _now_utc()
     new_until = (base + delta).isoformat()
     con.execute("UPDATE users SET premium_until=? WHERE id=?", (new_until, uid))

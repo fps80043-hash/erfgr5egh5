@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>R$T — генератор объявлений</title>
-  <link rel="stylesheet" href="/static/styles.5.3.12.css" />
+  <link rel="stylesheet" href="/static/styles.5.3.13.css" />
 </head>
 <body>
   <canvas id="particles"></canvas>
@@ -256,7 +256,63 @@
 </div>
 
           
-          <div id="authBox">
+          
+          <div id="balanceBox" class="card" style="margin-top:12px; display:none">
+            <div class="headrow">
+              <h3>💰 Баланс</h3>
+              <div class="badge" id="balanceValue" style="margin-left:auto">0</div>
+            </div>
+            <div class="muted" style="margin-top:8px">
+              Баланс используется для оплаты функций (платёжку подключим в следующих шагах). Пока баланс выдаётся через админ-панель.
+            </div>
+          </div>
+
+          <div id="adminBox" class="card" style="margin-top:12px; display:none">
+            <div class="headrow">
+              <h3>🛠️ Админ-панель</h3>
+              <div class="muted" style="margin-left:auto">Баланс / пользователи</div>
+            </div>
+
+            <div class="row" style="flex-wrap:wrap">
+              <div style="flex:1; min-width:220px">
+                <label class="lbl">Поиск (username / email / id)</label>
+                <input id="adminIdent" class="input" placeholder="Kirill_123 или mail@example.com или 1" />
+              </div>
+              <button id="btnAdminFind" class="btn">Найти</button>
+            </div>
+
+            <div id="adminUserCard" style="display:none; margin-top:8px">
+              <div class="divider"></div>
+              <div class="facts">
+                <div class="fact"><span>ID</span><b id="adm_id">—</b></div>
+                <div class="fact"><span>Логин</span><b id="adm_username">—</b></div>
+                <div class="fact"><span>Email</span><b id="adm_email">—</b></div>
+                <div class="fact"><span>Баланс</span><b id="adm_balance">—</b></div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="row" style="flex-wrap:wrap">
+                <div style="flex:1; min-width:180px">
+                  <label class="lbl">Сумма (+ / -)</label>
+                  <input id="adm_delta" class="input" placeholder="Например: 100 или -50" />
+                </div>
+                <div style="flex:2; min-width:220px">
+                  <label class="lbl">Причина (опционально)</label>
+                  <input id="adm_reason" class="input" placeholder="Например: выдача за покупку / компенсация" />
+                </div>
+                <button id="btnAdminApply" class="btn primary">Применить</button>
+              </div>
+
+              <div class="muted" id="adminTxBox" style="margin-top:10px; display:none">
+                <b>Последние операции:</b>
+                <div id="adminTxList" style="margin-top:6px"></div>
+              </div>
+            </div>
+          </div>
+
+
+<div id="authBox">
             <div class="authTabs">
               <button class="pill active" data-auth="login">Вход</button>
               <button class="pill" data-auth="register">Регистрация</button>
@@ -367,6 +423,6 @@
   </nav>
 
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
-  <script src="/static/app.5.3.12.js"></script>
+  <script src="/static/app.5.3.13.js"></script>
 </body>
 </html>
