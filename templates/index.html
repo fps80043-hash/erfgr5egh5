@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>R$T — генератор объявлений</title>
+  <title>R$T — RBX Tool Seller</title>
   <link rel="stylesheet" href="/static/styles.5.3.15.css" />
 </head>
 <body>
@@ -13,8 +13,8 @@
   <header class="top">
     <div class="brand">
       <div class="logo" aria-label="R$T logo">
-  <span class="logoChar c1">R</span><span class="logoChar c2">$</span><span class="logoChar c3">T</span>
-</div>
+        <span class="logoChar c1">R</span><span class="logoChar c2">$</span><span class="logoChar c3">T</span>
+      </div>
       <div class="btxt">
         <div class="name" aria-label="R$T logo"><span class="l1">R</span><span class="l2">$</span><span class="l3">T</span></div>
         <div class="tag">RBX Tool Seller</div>
@@ -22,17 +22,134 @@
     </div>
 
     <nav class="nav" aria-label="Навигация">
-      <button class="navbtn active" data-tab="main"><span>⚡</span><b>Генератор</b></button>
-      <button class="navbtn" data-tab="ai"><span>✨</span><b>AI</b></button>
-      <button class="navbtn" data-tab="help"><span>❓</span><b>Справка</b></button>
-      <button class="navbtn" data-tab="profile"><span>👤</span><b>Профиль</b></button>
+      <button class="navbtn active tilt" data-tab="home"><span>🏠</span><b>Главная</b></button>
+      <button class="navbtn tilt" data-tab="tools"><span>🧰</span><b>Инструменты</b></button>
+      <button class="navbtn tilt" data-tab="shop"><span>🛒</span><b>Магазин</b></button>
+      <button class="navbtn tilt" data-tab="profile"><span>👤</span><b>Профиль</b></button>
     </nav>
-    <div class="topspacer" aria-hidden="true"></div>
+
+    <div class="topright">
+      <div id="topBalanceBox" class="topBalance" style="display:none">
+        <button id="btnTopBalance" class="btn mini primary tilt" type="button">
+          <span style="opacity:.9">💰</span>
+          <span id="topBalanceValue">0</span>
+        </button>
+      </div>
+    </div>
   </header>
 
   <main class="wrap">
-    <!-- MAIN -->
-    <section class="pane active" id="tab-main">
+    <section class="pane active" id="tab-home">
+
+      <div class="gridHome">
+        <div class="card hero tilt">
+          <div class="heroTop">
+            <div>
+              <h1>R$T — RBX Tool Seller</h1>
+              <p class="muted">Площадка с инструментами для описаний, AI и магазином Premium. Быстро, удобно, красиво.</p>
+            </div>
+            <div class="heroBadges">
+              <span class="badge">BLACK • PURPLE</span>
+              <span class="badge">MINIMAL • NEON</span>
+            </div>
+          </div>
+
+          <div class="heroGrid">
+            <div class="heroItem">
+              <div class="hIco">⚡</div>
+              <div>
+                <div class="hT">Генератор описаний</div>
+                <div class="muted">Анализ аккаунта и шаблоны — результат одним кликом.</div>
+              </div>
+            </div>
+            <div class="heroItem">
+              <div class="hIco">✨</div>
+              <div>
+                <div class="hT">AI + чат</div>
+                <div class="muted">Быстрая генерация под стиль площадки.</div>
+              </div>
+            </div>
+            <div class="heroItem">
+              <div class="hIco">🎁</div>
+              <div>
+                <div class="hT">Кейс с призами</div>
+                <div class="muted">Прокрутка как в CS — выбей генерации или Premium.</div>
+              </div>
+            </div>
+            <div class="heroItem">
+              <div class="hIco">💳</div>
+              <div>
+                <div class="hT">Баланс и Premium</div>
+                <div class="muted">Оплата за баланс, пополнение через CryptoBot/промокод/админа.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="heroCtas">
+            <button class="btn primary tilt" type="button" data-goto="tools" id="btnGoTools">Открыть инструменты</button>
+            <button class="btn tilt" type="button" data-goto="shop" id="btnGoShop">Перейти в магазин</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>ℹ️ Что это за сайт?</h2>
+          <div class="muted">
+            <p>1) Авторизуйся → 2) выбери инструмент → 3) используй баланс или Premium для снятия ограничений.</p>
+            <p>Баланс отображается справа сверху. Если не вошёл — не покажется.</p>
+          </div>
+
+          <details class="rawbox" style="margin-top:10px">
+            <summary>Показать справку</summary>
+            <div class="muted" style="margin-top:10px">
+              <p><b>CryptoBot</b> — оплату можно открывать в браузере или в Telegram. После оплаты нажми «Проверить».</p>
+              <p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно.</p>
+              <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment).</p>
+              <p><b>Cookie</b> нигде не сохраняется сервером. Используется только для чтения данных.</p>
+            </div>
+          </details>
+
+          <div class="divider"></div>
+          <h3>👨‍💻 Разработчик</h3>
+          <p class="muted">TG: <b>@E6JLAHOC</b></p>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="pane" id="tab-tools">
+
+      <div class="grid1">
+        <div class="card">
+          <h2>🧰 Инструменты</h2>
+          <p class="muted">Выбирай инструмент — всё на одном сайте. Стиль: чёрный + фиолетовый, минимализм с неоном.</p>
+
+          <div class="toolTiles">
+            <button class="tile tilt active" data-tool="gen" id="toolTileGen" type="button">
+              <div class="tIco">⚡</div>
+              <div class="tName">Генератор описания</div>
+              <div class="tSub muted">Анализ cookie → шаблон → результат</div>
+            </button>
+            <button class="tile tilt" data-tool="ai" id="toolTileAI" type="button">
+              <div class="tIco">✨</div>
+              <div class="tName">AI</div>
+              <div class="tSub muted">Генерация + чат (Premium)</div>
+            </button>
+            <button class="tile ghost" type="button" disabled>
+              <div class="tIco">🧪</div>
+              <div class="tName">Checker</div>
+              <div class="tSub muted">в разработке</div>
+            </button>
+            <button class="tile ghost" type="button" disabled>
+              <div class="tIco">🌀</div>
+              <div class="tName">Refresher</div>
+              <div class="tSub muted">в разработке</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="toolPaneGen" class="toolPane">
+
       <div class="grid">
         <div class="card">
           <h2>🔐 Вход по cookie</h2>
@@ -94,10 +211,11 @@
           <div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
         </div>
       </div>
-    </section>
+    
+      </div>
 
-    <!-- AI -->
-    <section class="pane" id="tab-ai">
+      <div id="toolPaneAI" class="toolPane" style="display:none">
+
       <div class="grid1">
         <div class="card">
           <h2>✨ AI генератор</h2>
@@ -175,30 +293,103 @@
           <div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
         </div>
       </div>
+    
+      </div>
+
     </section>
 
-    <!-- HELP -->
-    <section class="pane" id="tab-help">
-      <div class="grid1">
-        <div class="card">
-          <h2>❓ Справка</h2>
-          <div class="muted">
-            <p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно/таймауты.</p>
-            <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment). В РФ может понадобиться VPN.</p>
-            <p><b>Почта (Brevo)</b> — для регистрации и сброса пароля нужны <code>BREVO_API_KEY</code> и <code>BREVO_SENDER_EMAIL</code> (отправитель должен быть подтверждён в Brevo).</p>
-            <p><b>Cookie</b> нигде не сохраняется сервером. Мы не делаем “опасных” запросов к настройкам — только чтение данных для расчётов.</p>
+    <section class="pane" id="tab-shop">
+
+      <div class="gridShop">
+        <div class="card tilt">
+          <h2>🛒 Магазин</h2>
+          <p class="muted">Premium, пополнение баланса и бесплатный кейс. Баланс всегда виден справа сверху.</p>
+
+          <div class="shopCtas">
+            <button id="btnTopUpShop" class="btn primary tilt" type="button">Пополнить баланс</button>
+            <button id="btnOpenPremiumShop" class="btn tilt" type="button">Premium</button>
+          </div>
+        </div>
+
+        <div id="caseBox" class="card" style="margin-top:12px; display:none">
+  <div class="headrow">
+    <h3>🎁 Кейс с призами</h3>
+    <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
+      <button id="btnCasePrizes" class="btn mini tilt" type="button">🎯 Призы</button>
+      <div class="muted" id="caseHint">—</div>
+    </div>
+  </div>
+
+  <div class="caseReelCard" style="margin-top:10px">
+    <div class="caseViewport">
+      <div class="caseMarker"></div>
+      <div id="caseReel" class="caseReel"></div>
+    </div>
+    <div class="muted" id="caseResult" style="margin-top:8px; font-size:12px">—</div>
+  </div>
+
+  <div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
+    <button id="btnCaseChallenge" class="btn">Получить капчу</button>
+    <div style="flex:1; min-width:220px">
+      <label class="lbl">Ответ капчи</label>
+      <input id="caseAnswer" class="input" placeholder="Например: 7" />
+    </div>
+    <button id="btnCaseOpen" class="btn primary">Открыть кейс</button>
+  </div>
+
+  <div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 генерации (AI+анализ), Premium 6/12/24ч, 2/3/7 дней.</div>
+</div>
+
+        <div id="premiumPayBox" class="card" style="margin-top:12px; display:none">
+            <div class="headrow">
+              <h3>💎 Premium</h3>
+              <div class="badge" id="premiumState" style="margin-left:auto">—</div>
+            </div>
+            <div class="muted" id="premiumDesc" style="margin-top:8px">
+              Premium убирает лимиты и открывает чат с ИИ.
+            </div>
+            <div class="row" style="margin-top:10px; flex-wrap:wrap">
+              <button id="btnBuyPremium" class="btn primary">Купить Premium за баланс</button>
+            </div>
           </div>
 
-          <div class="divider"></div>
+        <div class="card">
+          <h3>📦 Товары</h3>
+          <div class="productGrid">
+            <div class="productCard tilt">
+              <div class="pIcon">💎</div>
+              <div class="pMeta">
+                <div class="pName">Premium</div>
+                <div class="muted">Снимает лимиты, открывает чат, приоритет.</div>
+              </div>
+              <button class="btn primary mini tilt" type="button" id="btnOpenPremium2">Купить</button>
+            </div>
 
-          <h3>👨‍💻 Разработчик</h3>
-          <p class="muted">TG: <b>@E6JLAHOC</b></p>
+            <div class="productCard ghost">
+              <div class="pIcon">🧪</div>
+              <div class="pMeta">
+                <div class="pName">Checker</div>
+                <div class="muted">В разработке</div>
+              </div>
+              <button class="btn mini" disabled type="button">Soon</button>
+            </div>
+
+            <div class="productCard ghost">
+              <div class="pIcon">🌀</div>
+              <div class="pMeta">
+                <div class="pName">Refresher</div>
+                <div class="muted">В разработке</div>
+              </div>
+              <button class="btn mini" disabled type="button">Soon</button>
+            </div>
+          </div>
         </div>
       </div>
+
     </section>
 
-    <!-- PROFILE -->
     <section class="pane" id="tab-profile">
+
       <div class="grid1">
         <div class="card">
           <div class="headrow">
@@ -236,25 +427,6 @@
   </div>
 </div>
 
-
-<div id="caseBox" class="card" style="margin-top:12px; display:none">
-  <div class="headrow">
-    <h3>🎁 Бесплатный кейс</h3>
-    <div class="muted" id="caseHint" style="margin-left:auto">—</div>
-  </div>
-
-  <div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
-    <button id="btnCaseChallenge" class="btn">Получить капчу</button>
-    <div style="flex:1; min-width:220px">
-      <label class="lbl">Ответ капчи</label>
-      <input id="caseAnswer" class="input" placeholder="Например: 7" />
-    </div>
-    <button id="btnCaseOpen" class="btn primary">Открыть кейс</button>
-  </div>
-
-  <div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 AI-запроса, Premium 6/12/24ч, 2/3/7 дней.</div>
-</div>
-
           
           
           <div id="balanceBox" class="card" style="margin-top:12px; display:none">
@@ -270,18 +442,7 @@
             </div>
           </div>
 
-          <div id="premiumPayBox" class="card" style="margin-top:12px; display:none">
-            <div class="headrow">
-              <h3>💎 Premium</h3>
-              <div class="badge" id="premiumState" style="margin-left:auto">—</div>
-            </div>
-            <div class="muted" id="premiumDesc" style="margin-top:8px">
-              Premium убирает лимиты и открывает чат с ИИ.
-            </div>
-            <div class="row" style="margin-top:10px; flex-wrap:wrap">
-              <button id="btnBuyPremium" class="btn primary">Купить Premium за баланс</button>
-            </div>
-          </div>
+          
 
           <div id="adminBox" class="card" style="margin-top:12px; display:none">
             <div class="headrow">
@@ -326,7 +487,6 @@
               </div>
             </div>
 
-
 <div class="divider" style="margin-top:12px"></div>
 
 <div class="headrow" style="margin-top:10px">
@@ -359,7 +519,6 @@
 </div>
 <div id="adminPromoList" class="muted" style="margin-top:8px; font-size:12px">—</div>
           </div>
-
 
 <div id="authBox">
             <div class="authTabs">
@@ -442,6 +601,15 @@
           </div>
 
           <div id="profileTools" style="display:none">
+          <div class="divider"></div>
+
+          <h3>📁 Профиль</h3>
+          <div class="row">
+            <button id="btnShowSavedTemplates" class="btn tilt">Мои шаблоны</button>
+            <button id="btnShowTx" class="btn tilt">История транзакций</button>
+          </div>
+          <p class="muted">Шаблоны сохраняются локально (в браузере). История транзакций — из базы.</p>
+
             <div class="divider"></div>
 
             <h3>🔄 Шаблоны</h3>
@@ -460,18 +628,65 @@
           </div>
         </div>
       </div>
+    
     </section>
-
   </main>
 
+
   <nav class="bottomnav" aria-label="Навигация снизу">
-    <button class="btab active" data-tab="main"><span>⚡</span><small>Главная</small></button>
-    <button class="btab" data-tab="ai"><span>✨</span><small>AI</small></button>
-    <button class="btab" data-tab="help"><span>❓</span><small>Помощь</small></button>
+    <button class="btab active" data-tab="home"><span>🏠</span><small>Главная</small></button>
+    <button class="btab" data-tab="tools"><span>🧰</span><small>Инструменты</small></button>
+    <button class="btab" data-tab="shop"><span>🛒</span><small>Магазин</small></button>
     <button class="btab" data-tab="profile"><span>👤</span><small>Профиль</small></button>
   </nav>
 
+
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Case prizes modal -->
+  <div id="casePrizesModal" class="modal" style="display:none">
+    <div class="modal-back" id="casePrizesBack"></div>
+    <div class="modal-card">
+      <div class="headrow">
+        <h3>🎯 Призы кейса</h3>
+        <button id="btnCasePrizesClose" class="iconbtn" type="button">×</button>
+      </div>
+      <div class="muted" style="margin-top:6px">Шансы приблизительные. Кейс бесплатный, раз в 72 часа.</div>
+      <div class="divider"></div>
+      <div class="prizeList" id="casePrizesList"></div>
+    </div>
+  </div>
+
+
+  <!-- Saved templates modal -->
+  <div id="savedTemplatesModal" class="modal" style="display:none">
+    <div class="modal-back" id="savedTemplatesBack"></div>
+    <div class="modal-card">
+      <div class="headrow">
+        <h3>📁 Мои шаблоны</h3>
+        <button id="btnSavedTemplatesClose" class="iconbtn" type="button">×</button>
+      </div>
+      <div class="muted" style="margin-top:6px">Сохраняются в браузере (LocalStorage).</div>
+      <div class="divider"></div>
+      <div id="savedTemplatesList" class="prizeList"></div>
+    </div>
+  </div>
+
+  <!-- Transactions modal -->
+  <div id="txModal" class="modal" style="display:none">
+    <div class="modal-back" id="txBack"></div>
+    <div class="modal-card">
+      <div class="headrow">
+        <h3>📜 История транзакций</h3>
+        <button id="btnTxClose" class="iconbtn" type="button">×</button>
+      </div>
+      <div class="muted" style="margin-top:6px">Последние изменения баланса.</div>
+      <div class="divider"></div>
+      <div id="txList" class="prizeList"></div>
+    </div>
+  </div>
+
+
   <!-- Payment modal -->
 <div id="payModal" class="modal" style="display:none">
   <div class="modal-back" id="payBack"></div>
@@ -500,12 +715,13 @@
 
       <!-- Crypto -->
       <div id="topupPaneCrypto" class="paySubPane" style="margin-top:10px">
-        <div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. После оплаты нажми «Проверить» — баланс зачислится.</div>
-        <button id="btnTopupCrypto" class="btn primary" style="width:100%; margin-top:10px">Создать инвойс</button>
+        <div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. Можно открыть в браузере или в Telegram. После оплаты нажми «Проверить» — баланс зачислится.</div>
+        <button id="btnTopupCrypto" class="btn primary tilt" style="width:100%; margin-top:10px">Создать инвойс</button>
         <div id="cryptoLinkBox" class="muted" style="display:none; margin-top:10px; font-size:12px">
-          <div style="display:flex; gap:8px; align-items:center; justify-content:space-between">
-            <a id="cryptoPayUrl" target="_blank" rel="noreferrer" class="btn" style="flex:1; justify-content:center">Открыть оплату</a>
-            <button id="btnTopupCheck" class="btn">Проверить</button>
+          <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+            <a id="cryptoPayUrl" target="_blank" rel="noreferrer" class="btn tilt" style="flex:1; justify-content:center; min-width:160px">Открыть оплату</a>
+            <a id="cryptoTgUrl" target="_blank" rel="noreferrer" class="btn tilt" style="flex:1; justify-content:center; min-width:160px">Открыть в Telegram</a>
+            <button id="btnTopupCheck" class="btn tilt" style="min-width:120px">Проверить</button>
           </div>
           <div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
         </div>
@@ -515,13 +731,13 @@
       <div id="topupPanePromo" class="paySubPane" style="display:none; margin-top:10px">
         <div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
         <input id="promoCode" class="input" placeholder="PROMO2026" style="margin-top:10px" />
-        <button id="btnPromoRedeem" class="btn primary" style="width:100%; margin-top:10px">Активировать</button>
+        <button id="btnPromoRedeem" class="btn primary tilt" style="width:100%; margin-top:10px">Активировать</button>
       </div>
 
       <!-- Manual -->
       <div id="topupPaneManual" class="paySubPane" style="display:none; margin-top:10px">
         <div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
-        <button id="btnTopupManual" class="btn primary" style="width:100%; margin-top:10px">Создать заявку</button>
+        <button id="btnTopupManual" class="btn primary tilt" style="width:100%; margin-top:10px">Создать заявку</button>
         <div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
       </div>
     </div>
@@ -529,29 +745,16 @@
     <div id="payPanePremium" class="payPane" style="display:none">
       <div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
       <div class="packGrid" style="margin-top:10px">
-        <button id="premPlan" class="packBtn sel" type="button">
+        <button id="premPlan" class="packBtn sel tilt" type="button">
           <div class="p1">Premium</div>
           <div class="p2" id="premPrice">—</div>
         </button>
       </div>
-      <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Купить Premium</button>
+      <button id="btnPayPremium" class="btn primary tilt" style="width:100%; margin-top:12px">Купить Premium</button>
       <div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
     </div>
   </div>
 </div>
-      <div id="payPanePremium" class="payPane" style="display:none">
-        <div class="muted" style="margin-top:6px">Premium покупается за баланс. Срок продлевается автоматически при покупке.</div>
-        <div class="packGrid" style="margin-top:10px">
-          <button id="premPlan" class="packBtn sel" type="button">
-            <div class="p1">Premium</div>
-            <div class="p2" id="premPrice">—</div>
-          </button>
-        </div>
-        <button id="btnPayPremium" class="btn primary" style="width:100%; margin-top:12px">Купить Premium за баланс</button>
-        <div class="muted" style="margin-top:8px; font-size:12px">Покупка активирует Premium на указанный срок.</div>
-      </div>
-    </div>
-  </div>
 
   <script src="/static/app.5.3.15.js"></script>
 </body>
