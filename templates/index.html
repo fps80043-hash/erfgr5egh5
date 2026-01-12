@@ -406,19 +406,47 @@
     </section>
 
     <section class="pane" id="tab-shop">
+  <div class="card">
+    <h2>🛒 Магазин</h2>
+    <p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
 
-      <div class="gridShop">
-        <div class="card tilt">
-          <h2>🛒 Магазин</h2>
-          <p class="muted">Premium, пополнение баланса и бесплатный кейс. Баланс всегда виден справа сверху.</p>
-
-          <div class="shopCtas">
-            <button id="btnTopUpShop" class="btn primary tilt" type="button">Пополнить баланс</button>
-            <button id="btnOpenPremiumShop" class="btn tilt" type="button">Premium</button>
+    <div class="productGrid">
+      <div class="productCard tilt" id="prodTopup">
+        <div class="productTop">
+          <div class="productIco">💳</div>
+          <div>
+            <div class="productName">Пополнение баланса</div>
+            <div class="productDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
           </div>
         </div>
+        <div class="productActions">
+          <button id="btnTopUpShop" class="btn primary" type="button">Пополнить</button>
+        </div>
+      </div>
 
-        <div id="caseBox" class="card" style="margin-top:12px; display:none">
+      <div class="productCard tilt" id="prodPremium">
+        <div class="productTop">
+          <div class="productIco">👑</div>
+          <div>
+            <div class="productName">Premium</div>
+            <div class="productDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
+          </div>
+        </div>
+        <div class="productActions">
+          <button id="btnOpenPremiumShop" class="btn" type="button">Открыть</button>
+          <button id="btnBuyPremium" class="btn primary" type="button">Купить</button>
+        </div>
+      </div>
+
+      <div class="productCard tilt" id="prodCase">
+        <div class="productTop">
+          <div class="productIco">🎁</div>
+          <div>
+            <div class="productName">Кейс с призами</div>
+            <div class="productDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
+          </div>
+        </div>
+        <div id="caseBox" class="card" style="margin-top:0px;">
   <div class="headrow">
     <h3>🎁 Кейс с призами</h3>
     <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
@@ -447,7 +475,7 @@
   <div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 генерации (AI+анализ), Premium 6/12/24ч, 2/3/7 дней.</div>
 </div>
 
-        <div id="premiumPayBox" class="card" style="margin-top:12px; display:none">
+        <div id="premiumPayBox" class="card" style="margin-top:0px;">
             <div class="headrow">
               <h3>💎 Premium</h3>
               <div class="badge" id="premiumState" style="margin-left:auto">—</div>
@@ -461,41 +489,13 @@
           </div>
 
         <div class="card">
-          <h3>📦 Товары</h3>
-          <div class="productGrid">
-            <div class="productCard tilt">
-              <div class="pIcon">💎</div>
-              <div class="pMeta">
-                <div class="pName">Premium</div>
-                <div class="muted">Снимает лимиты, открывает чат, приоритет.</div>
-              </div>
-              <button class="btn primary mini tilt" type="button" id="btnOpenPremium2">Купить</button>
-            </div>
 
-            <div class="productCard ghost">
-              <div class="pIcon">🧪</div>
-              <div class="pMeta">
-                <div class="pName">Checker</div>
-                <div class="muted">В разработке</div>
-              </div>
-              <button class="btn mini" disabled type="button">Soon</button>
-            </div>
-
-            <div class="productCard ghost">
-              <div class="pIcon">🌀</div>
-              <div class="pMeta">
-                <div class="pName">Refresher</div>
-                <div class="muted">В разработке</div>
-              </div>
-              <button class="btn mini" disabled type="button">Soon</button>
-            </div>
-          </div>
-        </div>
       </div>
+    </div>
+  </div>
+</section>
 
-    </section>
-
-    <section class="pane" id="tab-profile">
+<section class="pane" id="tab-profile">
 
       <div class="grid1">
         <div class="card">
@@ -737,24 +737,7 @@
       </div>
     
     </section>
-<<<<<<< HEAD
-  </main>
-=======
-  
-
-<section id="homeFooter" class="homeFooter">
-  <div class="glassCard">
-    <div class="h">Что дальше?</div>
-    <div class="p">Открой Инструменты → выбери модуль → работай быстрее. В магазине — Premium и кейс с призами.</div>
-  </div>
-  <div class="glassCard">
-    <div class="h">Обновления</div>
-    <div class="p">UI становится удобнее: быстрые модули, баланс сверху, аккуратные уведомления, стабильная оплата.</div>
-  </div>
-</section>
 </main>
-
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
 
 
   <nav class="bottomnav" aria-label="Навигация снизу">

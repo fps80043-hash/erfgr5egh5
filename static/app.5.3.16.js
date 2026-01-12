@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 function showTab(_t){}
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
 
 function closeAllSelects(except=null){
   document.querySelectorAll(".cselect.open").forEach(w=>{
@@ -135,10 +132,6 @@ function drainToasts(){
 
   const MAX_VISIBLE = 2;
 
-<<<<<<< HEAD
-  // show while we have room
-=======
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
   while(box.children.length < MAX_VISIBLE){
     const it = toastQ.shift();
     if(!it) break;
@@ -154,26 +147,12 @@ function drainToasts(){
       </div>
     `;
     box.appendChild(el);
-<<<<<<< HEAD
-
-    // CSS transition hook
-    requestAnimationFrame(() => el.classList.add("show"));
-
-    const SHOW_MS = 2500;
-
-    const hide = ()=>{ el.classList.remove("show"); };
-
-    const cleanup = ()=>{
-      if(el && el.parentNode) el.parentNode.removeChild(el);
-      // continue draining after remove
-=======
     requestAnimationFrame(() => el.classList.add("show"));
 
     const SHOW_MS = 2500;
     const hide = ()=>{ el.classList.remove("show"); };
     const cleanup = ()=>{
       if(el && el.parentNode) el.parentNode.removeChild(el);
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
       setTimeout(drainToasts, 80);
     };
 
@@ -399,10 +378,13 @@ const DEFAULT_DESC = `✨ Аккаунт готов к игре!
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function initTilt(){
+  // Touch devices: skip tilt to avoid broken taps
+  if(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+
   const els = $$(".tilt");
   els.forEach(el=>{
-    // Skip disabled
     if(el.matches(":disabled")) return;
+
     const set = (e)=>{
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / Math.max(1, r.width);
@@ -414,17 +396,29 @@ function initTilt(){
       el.style.setProperty("--rx", rx.toFixed(2) + "deg");
       el.style.setProperty("--ry", ry.toFixed(2) + "deg");
     };
-    el.addEventListener("mousemove", set);
-    el.addEventListener("mouseenter", set);
+
+    el.addEventListener("mouseenter", (e)=>{
+      el.style.transition = "transform 140ms ease, box-shadow 160ms ease, border-color 160ms ease";
+      set(e);
+    });
+
+    el.addEventListener("mousemove", (e)=>{
+      // quick, but still smooth
+      el.style.transition = "transform 70ms linear";
+      set(e);
+    });
+
     el.addEventListener("mouseleave", ()=>{
+      // smooth return (prevents jerky re-hover)
+      el.style.transition = "transform 280ms ease";
       el.style.setProperty("--rx", "0deg");
       el.style.setProperty("--ry", "0deg");
+      el.style.setProperty("--mx", "50%");
+      el.style.setProperty("--my", "50%");
     });
   });
 }
 
-// -------------------------
-// Toasts (queue + delay)
 // -------------------------
 
 function escapeHtml(s) {
@@ -1756,13 +1750,9 @@ $("#btnCaseChallenge")?.addEventListener("click", async () => {
   }
 });
 
-<<<<<<< HEAD
-$("#btnCaseOpen")?.addEventListener("click", async () => {
-=======
 $("#btnCaseOpen")?.addEventListener("click", async ()=>{
   if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
 
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
   if(caseSpinning) return;
   try{
     const answer = ($("#caseAnswer")?.value || "").trim();
@@ -1817,9 +1807,6 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
   }
 });
 
-<<<<<<< HEAD
-});
-=======
 
 // --- Hotfix: Pay modal always closable (click backdrop) ---
 (function payModalBackdropHotfix(){
@@ -1838,4 +1825,3 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
   };
   document.addEventListener("pointerdown", onBackdrop, true);
 })();
->>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
