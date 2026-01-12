@@ -1046,3 +1046,158 @@ code{
 
 /* Mobile nav spacing */
 .bottomnav{padding-bottom: env(safe-area-inset-bottom, 0px);}
+
+
+
+/* =========================
+   Codex A refresh (cold tech)
+   ========================= */
+:root{
+  --bg0:#050611;
+  --bg1:#070818;
+  --bg2:#0a0c22;
+  --a1:#6b76ff;
+  --a2:#39c5ff;
+  --stroke: rgba(155, 172, 255, .18);
+  --stroke2: rgba(155, 172, 255, .28);
+  --glass: rgba(10, 12, 20, .58);
+  --glass2: rgba(10, 12, 20, .42);
+  --shadow: 0 18px 60px rgba(0,0,0,.55);
+  --shadow2: 0 14px 44px rgba(0,0,0,.46);
+}
+
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)) , var(--glass);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow2);
+}
+
+.badge.cold{
+  background: rgba(107,118,255,.14);
+  border: 1px solid rgba(107,118,255,.28);
+  color: rgba(220,230,255,.95);
+}
+
+.toolsLanding{padding-top:8px}
+.gridTools{display:grid; gap:14px}
+.toolsIntro p{margin-top:8px}
+
+.toolsTopbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)), rgba(9,10,18,.55);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 36px rgba(0,0,0,.45);
+  position: sticky;
+  top: 72px;
+  z-index: 10;
+}
+
+.toolsTB{min-width:0}
+.toolsT{font-weight:800; letter-spacing:.2px}
+.toolsS{font-size:12px}
+
+.toolGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 960px){
+  .toolGrid{grid-template-columns: repeat(2, minmax(0, 1fr));}
+}
+@media (max-width: 560px){
+  .toolGrid{grid-template-columns: 1fr;}
+  .toolsTopbar{top: 64px;}
+}
+
+.toolCard{
+  text-align:left;
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(155, 172, 255, .16);
+  background:
+    radial-gradient(900px 380px at 20% 0%, rgba(107,118,255,.16), transparent 62%),
+    radial-gradient(800px 360px at 90% 10%, rgba(57,197,255,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  box-shadow: 0 14px 44px rgba(0,0,0,.55);
+  transition: transform .18s ease, border-color .18s ease, filter .18s ease;
+  position:relative;
+  overflow:hidden;
+}
+
+.toolCard:before{
+  content:"";
+  position:absolute; inset:-1px;
+  background: radial-gradient(700px 240px at var(--mx,50%) var(--my,50%), rgba(107,118,255,.18), transparent 55%);
+  opacity:.0;
+  transition: opacity .18s ease;
+  pointer-events:none;
+}
+.toolCard:hover{border-color: rgba(155, 172, 255, .28); transform: translateY(-2px)}
+.toolCard:hover:before{opacity:1}
+
+.toolCard .tTop{display:flex; gap:12px; align-items:flex-start}
+.toolCard .tIco{
+  width:42px; height:42px;
+  display:grid; place-items:center;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(155,172,255,.18);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  font-size: 20px;
+}
+.toolCard .tName{font-weight:800}
+.toolCard .tSub{font-size:12px; margin-top:4px}
+.toolCard .tFoot{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+
+.pillTag{
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(155,172,255,.18);
+  background: rgba(10,12,20,.38);
+  color: rgba(230,235,255,.86);
+}
+
+.toolCard.soon{
+  filter: saturate(.9) brightness(.96);
+}
+.ribbon{
+  position:absolute;
+  top: 12px;
+  right: -34px;
+  transform: rotate(25deg);
+  padding: 6px 44px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .8px;
+  background: rgba(107,118,255,.22);
+  border: 1px solid rgba(107,118,255,.32);
+  color: rgba(235,240,255,.95);
+  box-shadow: 0 12px 32px rgba(0,0,0,.35);
+}
+
+.soonBox{
+  position:relative;
+  border-radius: 18px;
+  border: 1px solid rgba(155,172,255,.16);
+  background: rgba(10,12,20,.38);
+  padding: 14px;
+  overflow:hidden;
+}
+.soonGlow{
+  position:absolute;
+  inset:-1px;
+  background: radial-gradient(700px 220px at 10% 0%, rgba(107,118,255,.22), transparent 60%),
+              radial-gradient(600px 200px at 90% 30%, rgba(57,197,255,.18), transparent 58%);
+  opacity:.75;
+  pointer-events:none;
+}
+.soonTitle{font-weight:900; position:relative}
+

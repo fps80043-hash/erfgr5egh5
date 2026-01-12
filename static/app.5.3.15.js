@@ -779,19 +779,77 @@ function setTab(name) {
   $$(".pane").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
   $$(".navbtn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".btab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+
+  // Tools UX: always return to landing when opening tools tab
+  if (name === "tools" && typeof toolsBack === "function") {
+    toolsBack(true);
+  }
 }
 
-let currentTool = "gen";
+let currentTool = null;
+
+const TOOL_META = {
+  gen: { title: "Генерация описания", sub: "Cookie → анализ → шаблон → результат" },
+  chat:{ title: "AI чат", sub: "Отдельный чат с моделью (Premium)" },
+  ai:  { title: "AI генератор", sub: "Сгенерирует новый заголовок и описание" },
+  checker: { title: "Checker", sub: "Проверка аккаунтов / данных", soon: true },
+  refresher: { title: "Refresher", sub: "Обновление/рефреш данных", soon: true },
+  bulk: { title: "Bulk tools", sub: "Пакетные операции", soon: true },
+};
+
 function setTool(name){
   currentTool = name;
-  const g = $("#toolPaneGen");
-  const a = $("#toolPaneAI");
-  if(g) g.style.display = (name === "gen") ? "block" : "none";
-  if(a) a.style.display = (name === "ai") ? "block" : "none";
-  $$(".toolTiles .tile").forEach(t=>{
-    t.classList.toggle("active", t.dataset.tool === name);
+  const panes = {
+    gen: $("#toolPaneGen"),
+    ai: $("#toolPaneAI"),
+    chat: $("#toolPaneChat"),
+    soon: $("#toolPaneSoon"),
+  };
+  Object.entries(panes).forEach(([k, el]) => {
+    if (!el) return;
+    el.style.display = (k === name) ? "block" : "none";
   });
 }
+
+function toolsOpen(name){
+  const meta = TOOL_META[name] || { title: "Инструмент", sub: "" };
+  const landing = $("#toolsLanding");
+  const topbar = $("#toolsTopbar");
+  if (landing) landing.style.display = "none";
+  if (topbar) topbar.style.display = "flex";
+
+  const t = $("#toolsTitle");
+  const s = $("#toolsSub");
+  if (t) t.textContent = meta.title || "—";
+  if (s) s.textContent = meta.sub || "";
+
+  if (meta.soon) {
+    const st = $("#soonTitle");
+    const sd = $("#soonDesc");
+    if (st) st.textContent = meta.title || "—";
+    if (sd) sd.textContent = meta.sub || "—";
+    setTool("soon");
+    return;
+  }
+
+  setTool(name);
+  // scroll to top of tools pane for clean UX
+  const pane = $("#tab-tools");
+  if (pane) pane.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function toolsBack(silent=false){
+  const landing = $("#toolsLanding");
+  const topbar = $("#toolsTopbar");
+  if (landing) landing.style.display = "block";
+  if (topbar) topbar.style.display = "none";
+  setTool(null); // hide all
+  // hide panes
+  $$(".toolPane").forEach(p => p.style.display = "none");
+  currentTool = null;
+  if (!silent) toast("Инструменты", "Выбери модуль", "ok");
+}
+
 
 
 // -------------------------
@@ -1156,14 +1214,21 @@ window.addEventListener("load", async () => {
   // header balance button
   $("#btnTopBalance")?.addEventListener("click", ()=>openPayModal("topup"));
 
-  // tools switcher
-  $$(".toolTiles .tile").forEach(t=>{
-    if(!t.dataset.tool) return;
-    t.addEventListener("click", ()=>setTool(t.dataset.tool));
+  // tools switcher (codex UX)
+  $$(".toolCard").forEach(btn=>{
+    const name = btn.dataset.tool;
+    if(!name) return;
+    btn.addEventListener("click", ()=>{
+      toolsOpen(name);
+    });
   });
-  setTool(currentTool);
 
-  // tilt effects
+  $("#btnToolsBack")?.addEventListener("click", ()=>toolsBack(true));
+  $("#btnSoonBack")?.addEventListener("click", ()=>toolsBack(true));
+
+  // show landing by default
+  toolsBack(true);
+// tilt effects
   initTilt();
   buildCaseUI();
 
