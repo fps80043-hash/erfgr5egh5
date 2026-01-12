@@ -58,35 +58,6 @@ ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
 ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
 
 
-# ----------------------------
-# App (must be defined before route decorators)
-# ----------------------------
-app = FastAPI(title="R$T Web")
-
-@app.middleware("http")
-async def add_cache_headers(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path or ""
-    # HTML: never cache (Cloudflare/browser)
-    if path == "/" or path.endswith(".html"):
-        response.headers["Cache-Control"] = "no-store, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-    # Static: long cache (we use versioned filenames)
-    elif path.startswith("/static/"):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    return response
-
-
-@app.on_event("startup")
-def _startup():
-    db_init()
-    sync_admin_users()
-
-
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
 
 # ----------------------------
 # Topups (Crypto Pay + Promo + Manual) + Premium by balance
@@ -1416,6 +1387,34 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
         "inv_ru": inv_ru,
     }
 
+# ----------------------------
+# App
+# ----------------------------
+app = FastAPI(title="R$T Web")
+
+@app.middleware("http")
+async def add_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path or ""
+    # HTML: never cache (Cloudflare/browser)
+    if path == "/" or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    # Static: long cache (we use versioned filenames)
+    elif path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+
+@app.on_event("startup")
+def _startup():
+    db_init()
+    sync_admin_users()
+
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     resp = templates.TemplateResponse("index.html", {"request": request})
@@ -2250,6 +2249,37 @@ def admin_user(request: Request, ident: str = ""):
         "is_admin": int(_rget(row, "is_admin") or 0),
     }}
 
+
+@app.get("/api/user/tx")
+def api_user_tx(request: Request, limit: int = 50):
+    """Returns current user's balance transaction history."""
+    u = require_user(request)
+    uid = int(u["id"])
+    try:
+        limit_i = int(limit)
+    except Exception:
+        limit_i = 50
+    limit_i = max(1, min(limit_i, 100))
+
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, delta, reason, ts, admin_id FROM balance_tx WHERE user_id=? ORDER BY id DESC LIMIT ?",
+        (uid, limit_i),
+    ).fetchall()
+    con.close()
+
+    items = []
+    for r in rows:
+        items.append({
+            "id": _rget(r, "id"),
+            "delta": _rget(r, "delta"),
+            "reason": _rget(r, "reason") or "",
+            "ts": _rget(r, "ts"),
+            "admin_id": _rget(r, "admin_id"),
+        })
+    return {"ok": True, "items": items}
+
+
 @app.get("/api/admin/tx")
 def admin_tx(request: Request, user_id: int):
     require_admin(request)
@@ -2643,7 +2673,7 @@ CASE_COOLDOWN_HOURS = 72
 
 CASE_PRIZES = [
     ("GEN10", 450),   # +10 анализов
-    ("AI3",   350),   # +3 AI generate
+    ("AI3",   350),   # +3 генерации (AI+анализ)
     ("P6H",   100),
     ("P12H",  50),
     ("P24H",  25),
@@ -2761,7 +2791,8 @@ def api_case_open(request: Request, payload: Dict[str, Any]):
     if prize == "GEN10":
         con.execute("UPDATE users SET credits_analyze=credits_analyze+10 WHERE id=?", (uid,))
     elif prize == "AI3":
-        con.execute("UPDATE users SET credits_ai=credits_ai+3 WHERE id=?", (uid,))
+        # +3 генерации (AI + анализ)
+        con.execute("UPDATE users SET credits_ai=credits_ai+3, credits_analyze=credits_analyze+3 WHERE id=?", (uid,))
     elif prize == "P6H":
         con.close()
         _apply_premium(uid, datetime.timedelta(hours=6))
