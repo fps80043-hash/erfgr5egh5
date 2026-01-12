@@ -1825,3 +1825,5 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
   };
   document.addEventListener("pointerdown", onBackdrop, true);
 })();
+
+});
