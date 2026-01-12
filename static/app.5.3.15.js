@@ -247,11 +247,23 @@ function closePayModal(){
 function setCryptoLink(payUrl, hintText){
   const box = $("#cryptoLinkBox");
   const link = $("#cryptoPayUrl");
+  const tg = $("#cryptoTgUrl");
   const hint = $("#cryptoHint");
   if(box) box.style.display = payUrl ? "block" : "none";
   if(link) link.href = payUrl || "#";
+
+  // Open inside Telegram via share URL (works on desktop/mobile)
+  let tgUrl = "#";
+  try{
+    if(payUrl){
+      tgUrl = "https://t.me/share/url?url=" + encodeURIComponent(payUrl) + "&text=" + encodeURIComponent("Оплатить инвойс CryptoBot");
+    }
+  }catch(_e){}
+  if(tg) tg.href = tgUrl;
+
   if(hint) hint.textContent = hintText || "—";
 }
+
 
 async function startCryptoTopup(){
   if(!selectedPack) return toast("Пополнение", "Выбери пакет", "warn");
@@ -342,6 +354,31 @@ const DEFAULT_DESC = `✨ Аккаунт готов к игре!
 — Рекомендация: сменить почту/пароль после покупки`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function initTilt(){
+  const els = $$(".tilt");
+  els.forEach(el=>{
+    // Skip disabled
+    if(el.matches(":disabled")) return;
+    const set = (e)=>{
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left) / Math.max(1, r.width);
+      const y = (e.clientY - r.top) / Math.max(1, r.height);
+      const ry = (x - 0.5) * 10;   // deg
+      const rx = -(y - 0.5) * 8;  // deg
+      el.style.setProperty("--mx", (x*100).toFixed(2) + "%");
+      el.style.setProperty("--my", (y*100).toFixed(2) + "%");
+      el.style.setProperty("--rx", rx.toFixed(2) + "deg");
+      el.style.setProperty("--ry", ry.toFixed(2) + "deg");
+    };
+    el.addEventListener("mousemove", set);
+    el.addEventListener("mouseenter", set);
+    el.addEventListener("mouseleave", ()=>{
+      el.style.setProperty("--rx", "0deg");
+      el.style.setProperty("--ry", "0deg");
+    });
+  });
+}
 
 // -------------------------
 // Toasts (queue + delay)
@@ -744,6 +781,19 @@ function setTab(name) {
   $$(".btab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
 }
 
+let currentTool = "gen";
+function setTool(name){
+  currentTool = name;
+  const g = $("#toolPaneGen");
+  const a = $("#toolPaneAI");
+  if(g) g.style.display = (name === "gen") ? "block" : "none";
+  if(a) a.style.display = (name === "ai") ? "block" : "none";
+  $$(".toolTiles .tile").forEach(t=>{
+    t.classList.toggle("active", t.dataset.tool === name);
+  });
+}
+
+
 // -------------------------
 // Auth UI
 // -------------------------
@@ -795,6 +845,11 @@ async function refreshMe() {
     if (limitsBox) limitsBox.style.display = "block";
     if (balBox) balBox.style.display = "block";
     if (balVal) balVal.textContent = String(currentUser.balance ?? 0);
+
+    const topBalBox = $("#topBalanceBox");
+    const topBalVal = $("#topBalanceValue");
+    if (topBalBox) topBalBox.style.display = "flex";
+    if (topBalVal) topBalVal.textContent = String(currentUser.balance ?? 0);
     if (premPayBox) premPayBox.style.display = "block";
     if (adminBox) adminBox.style.display = (currentUser.is_admin ? "block" : "none");
     if (currentUser.is_admin){
@@ -873,6 +928,9 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
     if (limitsBox) limitsBox.style.display = "none";
 
     if (balBox) balBox.style.display = "none";
+
+    const topBalBox = $("#topBalanceBox");
+    if (topBalBox) topBalBox.style.display = "none";
     if (premPayBox) premPayBox.style.display = "none";
     if (adminBox) adminBox.style.display = "none";
     if (adminUserCard) adminUserCard.style.display = "none";
@@ -1085,6 +1143,33 @@ window.addEventListener("load", async () => {
   // nav
   $$(".navbtn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
   $$(".btab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+  // home CTAs
+  $("#btnGoTools")?.addEventListener("click", ()=>setTab("tools"));
+  $("#btnGoShop")?.addEventListener("click", ()=>setTab("shop"));
+
+  // shop CTAs
+  $("#btnTopUpShop")?.addEventListener("click", ()=>openPayModal("topup"));
+  $("#btnOpenPremiumShop")?.addEventListener("click", ()=>openPayModal("premium"));
+  $("#btnOpenPremium2")?.addEventListener("click", ()=>openPayModal("premium"));
+
+  // header balance button
+  $("#btnTopBalance")?.addEventListener("click", ()=>openPayModal("topup"));
+
+  // tools switcher
+  $$(".toolTiles .tile").forEach(t=>{
+    if(!t.dataset.tool) return;
+    t.addEventListener("click", ()=>setTool(t.dataset.tool));
+  });
+  setTool(currentTool);
+
+  // tilt effects
+  initTilt();
+  buildCaseUI();
+
+  // profile modals
+  $("#btnShowSavedTemplates")?.addEventListener("click", openSavedTemplates);
+  $("#btnShowTx")?.addEventListener("click", openTxModal);
 
   // particles + logo burst
   initParticles();
@@ -1357,12 +1442,162 @@ window.addEventListener("load", async () => {
   await refreshMe();
 
   // initial preview (if templates exist)
-  renderPreview().catch(() => {});
-});
-
-
-// --- Case (profile) ---
+  renderPreview().catch(// --- Case (shop) ---
 let caseToken = "";
+let caseSpinning = false;
+
+const CASE_ITEMS = [
+  { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:450 },
+  { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:350 },
+  { key:"P6H",   label:"Premium 6 часов", icon:"💎", weight:100 },
+  { key:"P12H",  label:"Premium 12 часов", icon:"💎", weight:50 },
+  { key:"P24H",  label:"Premium 24 часа", icon:"💎", weight:25 },
+  { key:"P2D",   label:"Premium 2 дня", icon:"💎", weight:12 },
+  { key:"P3D",   label:"Premium 3 дня", icon:"💎", weight:8 },
+  { key:"P7D",   label:"Premium 7 дней", icon:"💎", weight:5 },
+];
+
+function buildCaseUI(){
+  // prizes modal list
+  const list = $("#casePrizesList");
+  if(list){
+    list.innerHTML = "";
+    const total = CASE_ITEMS.reduce((s,x)=>s+x.weight,0);
+    CASE_ITEMS.forEach(it=>{
+      const row = document.createElement("div");
+      row.className = "prizeRow";
+      const pct = ((it.weight/total)*100).toFixed(1) + "%";
+      row.innerHTML = `
+        <div class="prIco">${it.icon}</div>
+        <div>
+          <div class="prT">${it.label}</div>
+          <div class="muted" style="font-size:12px">${it.key}</div>
+        </div>
+        <div class="prW">${pct}</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  // reel
+  const reel = $("#caseReel");
+  if(reel){
+    reel.innerHTML = "";
+    const seq = [];
+    // Build long sequence for smooth spin
+    for(let i=0;i<7;i++){
+      CASE_ITEMS.forEach(it=>seq.push(it));
+    }
+    // Extra random tail
+    for(let i=0;i<18;i++){
+      seq.push(CASE_ITEMS[Math.floor(Math.random()*CASE_ITEMS.length)]);
+    }
+    seq.forEach((it)=>{
+      const d = document.createElement("div");
+      d.className = "casePrize" + (it.key.startsWith("P") ? " prem" : "");
+      d.dataset.prize = it.key;
+      d.textContent = it.label;
+      reel.appendChild(d);
+    });
+  }
+
+  // modal open/close
+  $("#btnCasePrizes")?.addEventListener("click", ()=>openCasePrizes());
+  $("#btnCasePrizesClose")?.addEventListener("click", ()=>closeCasePrizes());
+  $("#casePrizesBack")?.addEventListener("click", ()=>closeCasePrizes());
+  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeCasePrizes(); });
+}
+
+function openCasePrizes(){
+  const m = $("#casePrizesModal");
+  if(m) m.style.display = "flex";
+}
+
+function closeCasePrizes(){
+  const m = $("#casePrizesModal");
+  if(m) m.style.display = "none";
+}
+
+function openSavedTemplates(){
+  const m = $("#savedTemplatesModal");
+  const list = $("#savedTemplatesList");
+  if(list){
+    const titleTpl = (localStorage.getItem("rst_title_tpl") || $("#tplTitle")?.value || "").trim();
+    const descTpl  = (localStorage.getItem("rst_desc_tpl")  || $("#tplDesc")?.value || "").trim();
+    list.innerHTML = "";
+
+    const make = (name, val)=>{
+      const row = document.createElement("div");
+      row.className = "prizeRow";
+      row.innerHTML = `
+        <div class="prIco">📄</div>
+        <div style="flex:1">
+          <div class="prT">${escapeHtml(name)}</div>
+          <pre class="rawbox" style="margin:8px 0 0 0; white-space:pre-wrap">${escapeHtml(val || "—")}</pre>
+        </div>
+      `;
+      return row;
+    };
+    list.appendChild(make("Шаблон заголовка", titleTpl));
+    list.appendChild(make("Шаблон описания", descTpl));
+  }
+  if(m) m.style.display = "flex";
+}
+function closeSavedTemplates(){
+  const m = $("#savedTemplatesModal");
+  if(m) m.style.display = "none";
+}
+
+async function openTxModal(){
+  const m = $("#txModal");
+  const list = $("#txList");
+  if(list) list.innerHTML = "";
+  if(m) m.style.display = "flex";
+  if(!currentUser){
+    if(list) list.innerHTML = '<div class="muted">Сначала войди в аккаунт.</div>';
+    return;
+  }
+  try{
+    const j = await apiGet("/api/user/tx?limit=50");
+    const items = j.items || [];
+    if(!items.length){
+      if(list) list.innerHTML = '<div class="muted">Пока пусто.</div>';
+      return;
+    }
+    if(list){
+      list.innerHTML = "";
+      items.forEach(it=>{
+        const row = document.createElement("div");
+        row.className = "prizeRow";
+        const d = Number(it.delta || 0);
+        const sign = d >= 0 ? "+" : "";
+        const ts = it.ts ? new Date(it.ts).toLocaleString() : "—";
+        row.innerHTML = `
+          <div class="prIco">${d>=0?"💚":"🟥"}</div>
+          <div style="flex:1">
+            <div class="prT">${sign}${d}</div>
+            <div class="muted" style="font-size:12px">${escapeHtml(it.reason || "")}</div>
+          </div>
+          <div class="prW">${escapeHtml(ts)}</div>
+        `;
+        list.appendChild(row);
+      });
+    }
+  }catch(e){
+    if(list) list.innerHTML = '<div class="muted">Ошибка: ' + escapeHtml(e.message || "—") + '</div>';
+  }
+}
+function closeTxModal(){
+  const m = $("#txModal");
+  if(m) m.style.display = "none";
+}
+
+// modal close binds
+$("#btnSavedTemplatesClose")?.addEventListener("click", closeSavedTemplates);
+$("#savedTemplatesBack")?.addEventListener("click", closeSavedTemplates);
+$("#btnTxClose")?.addEventListener("click", closeTxModal);
+$("#txBack")?.addEventListener("click", closeTxModal);
+
 
 async function caseStatus(){
   const st = await apiGet("/api/case/status").catch(()=>null);
@@ -1376,28 +1611,74 @@ async function caseStatus(){
   return st;
 }
 
+function caseSpinTo(prizeKey){
+  const reel = $("#caseReel");
+  const vp = reel?.parentElement;
+  if(!reel || !vp) return;
+  const cards = Array.from(reel.querySelectorAll(".casePrize"));
+  // pick a late occurrence of prize
+  const idxs = cards.map((c,i)=>c.dataset.prize===prizeKey?i:-1).filter(i=>i>=0);
+  const pick = idxs.filter(i=>i>12);
+  const idx = (pick.length ? pick[Math.floor(Math.random()*pick.length)] : (idxs[0] ?? 0));
+  const card = cards[idx];
+  const vpRect = vp.getBoundingClientRect();
+  const cRect = card.getBoundingClientRect();
+  // compute current left of card relative to reel by using offsetLeft
+  const targetLeft = card.offsetLeft;
+  const target = targetLeft - (vpRect.width/2 - card.offsetWidth/2);
+
+  // kick
+  reel.style.transition = "none";
+  reel.style.transform = "translateX(0px)";
+  void reel.offsetWidth; // reflow
+  reel.style.transition = "transform 3.1s cubic-bezier(.08,.82,.12,1)";
+  reel.style.transform = `translateX(${-Math.max(0,target)}px)`;
+}
+
 $("#btnCaseChallenge")?.addEventListener("click", async () => {
   try{
     const ch = await apiGet("/api/case/challenge");
     caseToken = ch.token || "";
     toast("Кейс", `Капча: ${ch.a} + ${ch.b} = ?`, "inf");
+    $("#caseResult") && ($("#caseResult").textContent = "Капча получена — введи ответ и крути 🎰");
   }catch(e){
     toast("Кейс", e.message || "Ошибка", "bad");
   }
 });
 
 $("#btnCaseOpen")?.addEventListener("click", async () => {
+  if(caseSpinning) return;
   try{
     const answer = ($("#caseAnswer")?.value || "").trim();
     if(!caseToken){
       toast("Кейс", "Сначала получи капчу", "warn");
       return;
     }
+    if(!answer){
+      toast("Кейс", "Введи ответ капчи", "warn");
+      return;
+    }
+
+    caseSpinning = true;
+    const resBox = $("#caseResult");
+    if(resBox) resBox.textContent = "Крутим…";
+
+    // During request, give a tiny fake movement
+    const reel = $("#caseReel");
+    if(reel){
+      reel.style.transition = "transform .35s ease";
+      reel.style.transform = "translateX(-160px)";
+    }
+
     const r = await apiPost("/api/case/open", { token: caseToken, answer });
     caseToken = "";
+
+    // animate to final prize
+    caseSpinTo(r.prize);
+
     const map = {
       GEN10: "+10 анализов",
-      AI3: "+3 AI-запроса",
+      AI3: "+3 генерации (AI+анализ)",
       P6H: "Premium на 6 часов",
       P12H: "Premium на 12 часов",
       P24H: "Premium на 24 часа",
@@ -1405,11 +1686,17 @@ $("#btnCaseOpen")?.addEventListener("click", async () => {
       P3D: "Premium на 3 дня",
       P7D: "Premium на 7 дней",
     };
-    toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
-    await refreshMe();
-    await caseStatus().catch(()=>{});
+
+    setTimeout(async ()=>{
+      if(resBox) resBox.textContent = "Выигрыш: " + (map[r.prize] || r.prize);
+      toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
+      caseSpinning = false;
+      await refreshMe();
+      await caseStatus().catch(()=>{});
+    }, 3200);
+
   }catch(e){
+    caseSpinning = false;
     toast("Кейс", e.message || "Ошибка", "bad");
   }
 });
-

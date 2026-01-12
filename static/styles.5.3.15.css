@@ -897,3 +897,152 @@ code{
   .modal{ padding: 12px; }
   .modal-card{ border-radius: 24px; }
 }
+
+
+/* ====== v5.4 UI refresh (black+purple minimal neon) ====== */
+.topright{display:flex; justify-content:flex-end; align-items:center}
+.topBalance{display:flex; gap:10px; align-items:center}
+.topBalance .btn{padding:10px 14px}
+
+.gridHome{display:grid; grid-template-columns: 1.25fr .75fr; gap:16px}
+@media (max-width: 980px){ .gridHome{grid-template-columns:1fr} }
+
+.hero h1{margin:0 0 8px 0; font-size:34px; letter-spacing:.4px}
+.heroTop{display:flex; gap:14px; align-items:flex-start; justify-content:space-between}
+.heroBadges{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+.heroGrid{display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; margin-top:14px}
+@media (max-width: 720px){ .heroGrid{grid-template-columns:1fr} }
+.heroItem{display:flex; gap:10px; align-items:flex-start; padding:12px; border:1px solid var(--line); border-radius:14px; background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));}
+.heroItem .hIco{font-size:20px; filter: drop-shadow(0 10px 18px rgba(124,92,255,.25));}
+.heroItem .hT{font-weight:800}
+.heroCtas{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
+
+.toolTiles{display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-top:14px}
+@media (max-width: 980px){ .toolTiles{grid-template-columns: repeat(2, minmax(0,1fr));} }
+.tile{
+  text-align:left;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  color:var(--text);
+  cursor:pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.tile .tIco{font-size:20px}
+.tile .tName{font-weight:900; margin-top:8px}
+.tile .tSub{font-size:12px; margin-top:2px}
+.tile.active{border-color: rgba(124,92,255,.55); box-shadow: 0 18px 50px rgba(124,92,255,.14);}
+.tile.ghost{opacity:.55; cursor:not-allowed}
+.tile:hover{transform: translateY(-2px)}
+
+.gridShop{display:grid; grid-template-columns: 1fr; gap:16px}
+.shopCtas{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+.productGrid{display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin-top:10px}
+@media (max-width: 980px){ .productGrid{grid-template-columns:1fr} }
+.productCard{
+  display:flex; gap:12px; align-items:center;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
+.productCard .pIcon{font-size:22px; width:38px; height:38px; display:grid; place-items:center;
+  border-radius:12px; border:1px solid rgba(124,92,255,.35);
+  background: radial-gradient(60% 60% at 30% 20%, rgba(124,92,255,.25), rgba(0,0,0,0));
+}
+.productCard .pName{font-weight:900}
+.productCard.ghost{opacity:.55}
+
+.caseViewport{
+  position:relative;
+  overflow:hidden;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background: rgba(0,0,0,.25);
+  height:86px;
+}
+.caseMarker{
+  position:absolute;
+  left:50%;
+  top:0;
+  width:2px;
+  height:100%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(124,92,255,.9), transparent);
+  box-shadow: 0 0 22px rgba(124,92,255,.65);
+  z-index:2;
+}
+.caseReel{
+  position:absolute;
+  left:0; top:0;
+  height:100%;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  will-change: transform;
+  transform: translateX(0);
+}
+.casePrize{
+  min-width:160px;
+  height:60px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.casePrize.prem{border-color: rgba(124,92,255,.35)}
+.casePrize.small{min-width:140px}
+
+.prizeList{display:grid; gap:8px}
+.prizeRow{
+  display:flex; gap:10px; align-items:center;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
+.prizeRow .prIco{width:34px; height:34px; border-radius:12px; display:grid; place-items:center;
+  border:1px solid rgba(124,92,255,.35);
+  background: radial-gradient(60% 60% at 30% 20%, rgba(124,92,255,.22), rgba(0,0,0,0));
+}
+.prizeRow .prT{font-weight:900}
+.prizeRow .prW{margin-left:auto; font-size:12px; color:var(--muted)}
+
+/* Tilt / 3D hover (codex-like) */
+.tilt{
+  transform-style: preserve-3d;
+  perspective: 700px;
+}
+.tilt::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background: radial-gradient(320px 160px at var(--mx,50%) var(--my,20%), rgba(124,92,255,.14), transparent 60%);
+  opacity:0;
+  transition: opacity .18s ease;
+}
+.tilt:hover::after{opacity:1}
+.tilt:hover{
+  transform: translateY(-2px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+}
+
+.navbtn.tilt{position:relative}
+.btn.tilt{position:relative}
+.tile.tilt{position:relative}
+.productCard.tilt{position:relative}
+.hero.tilt{position:relative}
+.packBtn.tilt{position:relative}
+
+/* Make panes behave inside tools section */
+.toolPane .grid, .toolPane .grid1 { margin-top: 16px; }
+
+/* Mobile nav spacing */
+.bottomnav{padding-bottom: env(safe-area-inset-bottom, 0px);}
