@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1768219290" rel="stylesheet"/>
+<link href="/static/styles.css?v=1768231390" rel="stylesheet"/>
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -348,6 +348,25 @@
 <div class="card">
 <h2>🛒 Магазин</h2>
 <p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
+<div class="shopControls">
+  <div class="shopSearch">
+    <input class="input" id="shopSearch" list="shopHints" placeholder="Поиск товара… (например: prem, кейс, баланс)"/>
+    <datalist id="shopHints">
+      <option value="Пополнение баланса"></option>
+      <option value="Premium"></option>
+      <option value="Кейс"></option>
+      <option value="Кейс с призами"></option>
+    </datalist>
+  </div>
+  <div class="shopSort">
+    <select class="input" id="shopSort">
+      <option value="default">Сортировка: по умолчанию</option>
+      <option value="name_asc">Имя: A → Z</option>
+      <option value="name_desc">Имя: Z → A</option>
+    </select>
+  </div>
+</div>
+
 <div class="productGrid">
 <div class="productCard tilt" id="prodTopup">
 <div class="productTop">
@@ -743,6 +762,6 @@
 </div>
 </div>
 </div>
-<script src="/static/app.js?v=1768219290"></script>
+<script src="/static/app.js?v=1768231390"></script>
 </body>
 </html>

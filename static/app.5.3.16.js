@@ -1259,6 +1259,44 @@ window.addEventListener("load", async () => {
   $("#btnOpenPremiumShop")?.addEventListener("click", ()=>openPayModal("premium"));
   $("#btnOpenPremium2")?.addEventListener("click", ()=>openPayModal("premium"));
 
+// shop: search + sort with hints
+const initShopSearchSort = ()=>{
+  const input = $("#shopSearch");
+  const sel = $("#shopSort");
+  const grid = document.querySelector("#tab-shop .productGrid");
+  if(!input || !sel || !grid) return;
+  const cards = Array.from(grid.querySelectorAll(".productCard"));
+  const meta = cards.map(el=>{
+    const name = (el.querySelector(".productName")?.textContent || "").trim();
+    const desc = (el.querySelector(".productDesc")?.textContent || "").trim();
+    return { el, name, desc, key:(name+" "+desc).toLowerCase() };
+  });
+  const apply = ()=>{
+    const q = (input.value||"").trim().toLowerCase();
+    // filter
+    meta.forEach(m=>{
+      const ok = !q || m.key.includes(q);
+      m.el.style.display = ok ? "" : "none";
+    });
+    // sort visible
+    const mode = sel.value || "default";
+    const vis = meta.filter(m=>m.el.style.display !== "none");
+    if(mode === "name_asc"){
+      vis.sort((a,b)=>a.name.localeCompare(b.name, "ru"));
+    } else if(mode === "name_desc"){
+      vis.sort((a,b)=>b.name.localeCompare(a.name, "ru"));
+    }
+    // re-append in order
+    if(mode !== "default"){
+      vis.forEach(m=>grid.appendChild(m.el));
+    }
+  };
+  input.addEventListener("input", apply);
+  sel.addEventListener("change", apply);
+  apply();
+};
+initShopSearchSort();
+
   // header balance button
   $("#btnTopBalance")?.addEventListener("click", ()=>openPayModal("topup"));
 
@@ -1276,6 +1314,24 @@ window.addEventListener("load", async () => {
 
   // show landing by default
   toolsBack(true);
+
+
+// --- Case data (moved up to avoid TDZ) ---
+let caseToken = "";
+let caseSpinning = false;
+
+const CASE_ITEMS = [
+  { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:450 },
+  { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:350 },
+  { key:"P6H",   label:"Premium 6 часов", icon:"💎", weight:100 },
+  { key:"P12H",  label:"Premium 12 часов", icon:"💎", weight:50 },
+  { key:"P24H",  label:"Premium 24 часа", icon:"💎", weight:25 },
+  { key:"P2D",   label:"Premium 2 дня", icon:"💎", weight:12 },
+  { key:"P3D",   label:"Premium 3 дня", icon:"💎", weight:8 },
+  { key:"P7D",   label:"Premium 7 дней", icon:"💎", weight:5 },
+];
+
+
 // tilt effects
   initTilt();
   buildCaseUI();
@@ -1558,20 +1614,6 @@ window.addEventListener("load", async () => {
   renderPreview().catch(() => {});
 
 // --- Case (shop) ---
-let caseToken = "";
-let caseSpinning = false;
-
-const CASE_ITEMS = [
-  { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:450 },
-  { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:350 },
-  { key:"P6H",   label:"Premium 6 часов", icon:"💎", weight:100 },
-  { key:"P12H",  label:"Premium 12 часов", icon:"💎", weight:50 },
-  { key:"P24H",  label:"Premium 24 часа", icon:"💎", weight:25 },
-  { key:"P2D",   label:"Premium 2 дня", icon:"💎", weight:12 },
-  { key:"P3D",   label:"Premium 3 дня", icon:"💎", weight:8 },
-  { key:"P7D",   label:"Premium 7 дней", icon:"💎", weight:5 },
-];
-
 function buildCaseUI(){
   // prizes modal list
   const list = $("#casePrizesList");
@@ -1838,3 +1880,18 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
 })();
 
 });
+
+
+/* productCardGlowVars */
+(function(){
+  const onMove = (e)=>{
+    const card = e.target.closest?.(".productCard");
+    if(!card) return;
+    const r = card.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / Math.max(1,r.width))*100;
+    const y = ((e.clientY - r.top) / Math.max(1,r.height))*100;
+    card.style.setProperty("--mx", x.toFixed(2)+"%");
+    card.style.setProperty("--my", y.toFixed(2)+"%");
+  };
+  document.addEventListener("pointermove", onMove, {passive:true});
+})();
