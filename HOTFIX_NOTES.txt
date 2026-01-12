@@ -1,0 +1,6 @@
+Hotfix v2:
+- index.html now references /static/app.js and /static/styles.css with cache-bust query.
+- app.js/styles.css copied from latest versioned (5.3.16) to avoid cache/version mismatch.
+- verified no git conflict markers in these files.
+cache_bust_v=1768219290
+checks={'index': False, 'app.js': False, 'styles.css': False}

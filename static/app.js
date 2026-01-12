@@ -1,3 +1,4 @@
+function showTab(_t){}
 
 function closeAllSelects(except=null){
   document.querySelectorAll(".cselect.open").forEach(w=>{
@@ -101,7 +102,7 @@ function toastIcon(type){
 
 function toast(title, msg="", type="ok"){
   const now = Date.now();
-  const COOLDOWN_MS = 1500;
+  const COOLDOWN_MS = 800;
   if(now - toastLastAt < COOLDOWN_MS){
     toastNext = {title, msg, type};
     if(!toastCooldownTimer){
@@ -112,6 +113,7 @@ function toast(title, msg="", type="ok"){
           const t = toastNext; toastNext = null;
           toastLastAt = Date.now();
           toastQ.push(t);
+          while(toastQ.length > 2) toastQ.shift();
           if(!toastBusy) drainToasts();
         }
       }, wait);
@@ -120,51 +122,243 @@ function toast(title, msg="", type="ok"){
   }
   toastLastAt = now;
   toastQ.push({title, msg, type});
+  while(toastQ.length > 2) toastQ.shift();
   if(!toastBusy) drainToasts();
 }
 
 function drainToasts(){
   const box = document.getElementById("toasts");
-  if(!box){ toastQ.length = 0; toastBusy = false; return; }
-  const it = toastQ.shift();
-  if(!it){ toastBusy = false; return; }
-  toastBusy = true;
+  if(!box){ toastQ.length = 0; return; }
 
-  const el = document.createElement("div");
-  el.className = "toast " + it.type;
-  el.innerHTML = `
-    <button class="x" type="button" aria-label="Close">×</button>
-    <div class="ico">${toastIcon(it.type)}</div>
-    <div class="twrap">
-      <div class="t1">${it.title}</div>
-      ${it.msg ? `<div class="t2">${it.msg}</div>` : ``}
-    </div>
-  `;
-  box.appendChild(el);
+  const MAX_VISIBLE = 2;
 
-  el.querySelector('.x')?.addEventListener('click', ()=>{
-    el.remove();
-    toastBusy = false;
-    setTimeout(drainToasts, 140);
+  while(box.children.length < MAX_VISIBLE){
+    const it = toastQ.shift();
+    if(!it) break;
+
+    const el = document.createElement("div");
+    el.className = "toast " + it.type;
+    el.innerHTML = `
+      <button class="x" type="button" aria-label="Close">×</button>
+      <div class="ico">${toastIcon(it.type)}</div>
+      <div class="twrap">
+        <div class="t1">${it.title}</div>
+        ${it.msg ? `<div class="t2">${it.msg}</div>` : ``}
+      </div>
+    `;
+    box.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+
+    const SHOW_MS = 2500;
+    const hide = ()=>{ el.classList.remove("show"); };
+    const cleanup = ()=>{
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+      setTimeout(drainToasts, 80);
+    };
+
+    el.querySelector(".x")?.addEventListener("click", (e)=>{
+      e.preventDefault();
+      hide();
+      setTimeout(cleanup, 220);
+    });
+
+    setTimeout(hide, SHOW_MS);
+    setTimeout(cleanup, SHOW_MS + 260);
+  }
+}
+
+let currentUser = null;
+
+// Payments (Topups + Premium by balance)
+let topupCfg = null;
+let selectedPack = null;
+let currentPaySeg = "topup";
+let currentTopupMethod = "crypto";
+let currentTopupId = null;
+
+function moneyFmt(amount, currency){
+  try{
+    const cur = (currency || "usd").toUpperCase();
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: cur }).format(amount);
+  }catch(_e){
+    return String(amount) + " " + (currency || "");
+  }
+}
+
+async function loadTopupConfig(){
+  try{
+    const j = await apiGet("/api/topup/config");
+    topupCfg = j;
+  }catch(_e){
+    topupCfg = null;
+  }
+}
+
+function setPaySeg(seg){
+  currentPaySeg = seg;
+  $$("#paySeg .segbtn").forEach(b=>b.classList.toggle("active", b.dataset.seg === seg));
+  const p1 = $("#payPaneTopup");
+  const p2 = $("#payPanePremium");
+  if(p1) p1.style.display = (seg === "topup") ? "block" : "none";
+  if(p2) p2.style.display = (seg === "premium") ? "block" : "none";
+}
+
+function setTopupMethod(method){
+  currentTopupMethod = method;
+  $$("#topupSeg .segbtn").forEach(b=>b.classList.toggle("active", b.dataset.method === method));
+  const pC = $("#topupPaneCrypto");
+  const pP = $("#topupPanePromo");
+  const pM = $("#topupPaneManual");
+  if(pC) pC.style.display = (method === "crypto") ? "block" : "none";
+  if(pP) pP.style.display = (method === "promo") ? "block" : "none";
+  if(pM) pM.style.display = (method === "manual") ? "block" : "none";
+}
+
+function renderPacks(){
+  const grid = $("#topupPacks");
+  if(!grid) return;
+  grid.innerHTML = "";
+  selectedPack = null;
+
+  const packs = topupCfg?.topup?.packs || [];
+  const rate = Number(topupCfg?.topup?.balance_per_currency || 100);
+  const fiat = topupCfg?.topup?.crypto?.fiat || "USD";
+
+  packs.forEach((points, idx)=>{
+    const cost = (Number(points) / Math.max(rate, 1));
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "packBtn" + (idx===0 ? " sel" : "");
+    btn.innerHTML = `<div class="p1">${points} баланса</div><div class="p2">≈ ${moneyFmt(cost, fiat)}</div>`;
+    btn.addEventListener("click", ()=>{
+      selectedPack = Number(points);
+      $$("#topupPacks .packBtn").forEach(x=>x.classList.remove("sel"));
+      btn.classList.add("sel");
+    });
+    grid.appendChild(btn);
+    if(idx===0) selectedPack = Number(points);
   });
 
+  // premium price
+  const premPrice = $("#premPrice");
+  if(premPrice){
+    const pts = Number(topupCfg?.premium?.price_points || 0);
+    const days = Number(topupCfg?.premium?.period_days || 30);
+    premPrice.textContent = pts ? (`${pts} баланса / ${days} дней`) : "—";
+  }
+}
 
-  const SHOW_MS = 2500;
-  const GAP_MS  = 520;
+function openPayModal(seg="topup"){
+  const m = $("#payModal");
+  if(!m) return;
+  m.style.display = "flex";
+  setPaySeg(seg);
+  renderPacks();
+  setTopupMethod(currentTopupMethod || "crypto");
+  setCryptoLink(null, null);
+  currentTopupId = null;
+  const mh = $("#manualHint"); if(mh) mh.textContent = "—";
+}
 
-  setTimeout(()=>{
-    el.style.opacity = "0";
-    el.style.transform = "translateY(-6px)";
-  }, SHOW_MS);
+function closePayModal(){
+  const m = $("#payModal");
+  if(!m) return;
+  m.style.display = "none";
+}
 
-  setTimeout(()=>{
-    el.remove();
-    setTimeout(drainToasts, GAP_MS);
-  }, SHOW_MS + 280);
+function setCryptoLink(payUrl, hintText){
+  const box = $("#cryptoLinkBox");
+  const link = $("#cryptoPayUrl");
+  const tg = $("#cryptoTgUrl");
+  const hint = $("#cryptoHint");
+  if(box) box.style.display = payUrl ? "block" : "none";
+  if(link) link.href = payUrl || "#";
+
+  // Open inside Telegram via share URL (works on desktop/mobile)
+  let tgUrl = "#";
+  try{
+    if(payUrl){
+      tgUrl = "https://t.me/share/url?url=" + encodeURIComponent(payUrl) + "&text=" + encodeURIComponent("Оплатить инвойс CryptoBot");
+    }
+  }catch(_e){}
+  if(tg) tg.href = tgUrl;
+
+  if(hint) hint.textContent = hintText || "—";
 }
 
 
-let currentUser = null;
+async function startCryptoTopup(){
+  if(!selectedPack) return toast("Пополнение", "Выбери пакет", "warn");
+  try{
+    const j = await apiPost("/api/topup/create", { method: "crypto", points: selectedPack });
+    currentTopupId = j.id;
+    if(j.pay_url){
+      setCryptoLink(j.pay_url, "Инвойс создан. Оплати и нажми «Проверить».");
+      try{ window.open(j.pay_url, "_blank"); }catch(_e){}
+      toast("Пополнение", "Открыл оплату в новой вкладке", "ok");
+    }else{
+      toast("Пополнение", "Инвойс создан", "ok");
+    }
+  }catch(e){
+    toast("Пополнение", e.message || "Ошибка", "bad");
+  }
+}
+
+async function checkTopup(){
+  if(!currentTopupId) return toast("Пополнение", "Сначала создай инвойс", "warn");
+  try{
+    const j = await apiGet("/api/topup/status?id=" + encodeURIComponent(String(currentTopupId)));
+    if(j.status === "paid"){
+      toast("Пополнение", "Оплата подтверждена, баланс зачислен ✅", "ok");
+      setCryptoLink($("#cryptoPayUrl")?.href || "", "Оплачено ✅");
+      await refreshMe();
+    }else{
+      toast("Пополнение", "Статус: " + (j.status || "pending"), "warn");
+    }
+  }catch(e){
+    toast("Пополнение", e.message || "Ошибка", "bad");
+  }
+}
+
+async function startManualTopup(){
+  if(!selectedPack) return toast("Пополнение", "Выбери пакет", "warn");
+  try{
+    const j = await apiPost("/api/topup/create", { method: "manual", points: selectedPack });
+    const hint = $("#manualHint");
+    if(hint) hint.textContent = `Заявка #${j.id} создана. Ждём админа.`;
+    toast("Пополнение", "Заявка создана", "ok");
+  }catch(e){
+    toast("Пополнение", e.message || "Ошибка", "bad");
+  }
+}
+
+async function redeemPromo(){
+  const inp = $("#promoCode");
+  const code = (inp?.value || "").trim();
+  if(!code) return toast("Промокод", "Введи код", "warn");
+  try{
+    const j = await apiPost("/api/topup/redeem", { code });
+    toast("Промокод", `Зачислено: +${j.credited}`, "ok");
+    if(inp) inp.value = "";
+    await refreshMe();
+    closePayModal();
+  }catch(e){
+    toast("Промокод", e.message || "Ошибка", "bad");
+  }
+}
+
+async function buyPremiumBalance(){
+  try{
+    await apiPost("/api/subscription/buy", {});
+    toast("Premium", "Premium активирован ✅", "ok");
+    await refreshMe();
+    closePayModal();
+  }catch(e){
+    toast("Premium", e.message || "Ошибка", "bad");
+  }
+}
+
+
 
 const DEFAULT_TITLE = "⭐ ТОП {year_tag} | {donate_tag} ДОНАТА";
 const DEFAULT_DESC = `✨ Аккаунт готов к игре!
@@ -183,8 +377,48 @@ const DEFAULT_DESC = `✨ Аккаунт готов к игре!
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// -------------------------
-// Toasts (queue + delay)
+function initTilt(){
+  // Touch devices: skip tilt to avoid broken taps
+  if(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+
+  const els = $$(".tilt");
+  els.forEach(el=>{
+    if(el.matches(":disabled")) return;
+
+    const set = (e)=>{
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left) / Math.max(1, r.width);
+      const y = (e.clientY - r.top) / Math.max(1, r.height);
+      const ry = (x - 0.5) * 10;   // deg
+      const rx = -(y - 0.5) * 8;  // deg
+      el.style.setProperty("--mx", (x*100).toFixed(2) + "%");
+      el.style.setProperty("--my", (y*100).toFixed(2) + "%");
+      el.style.setProperty("--rx", rx.toFixed(2) + "deg");
+      el.style.setProperty("--ry", ry.toFixed(2) + "deg");
+    };
+
+    el.addEventListener("mouseenter", (e)=>{
+      el.style.transition = "transform 140ms ease, box-shadow 160ms ease, border-color 160ms ease";
+      set(e);
+    });
+
+    el.addEventListener("mousemove", (e)=>{
+      // quick, but still smooth
+      el.style.transition = "transform 70ms linear";
+      set(e);
+    });
+
+    el.addEventListener("mouseleave", ()=>{
+      // smooth return (prevents jerky re-hover)
+      el.style.transition = "transform 280ms ease";
+      el.style.setProperty("--rx", "0deg");
+      el.style.setProperty("--ry", "0deg");
+      el.style.setProperty("--mx", "50%");
+      el.style.setProperty("--my", "50%");
+    });
+  });
+}
+
 // -------------------------
 
 function escapeHtml(s) {
@@ -582,7 +816,78 @@ function setTab(name) {
   $$(".pane").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
   $$(".navbtn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".btab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+
+  // Tools UX: always return to landing when opening tools tab
+  if (name === "tools" && typeof toolsBack === "function") {
+    toolsBack(true);
+  }
 }
+
+let currentTool = null;
+
+const TOOL_META = {
+  gen: { title: "Генерация описания", sub: "Cookie → анализ → шаблон → результат" },
+  chat:{ title: "AI чат", sub: "Отдельный чат с моделью (Premium)" },
+  ai:  { title: "AI генератор", sub: "Сгенерирует новый заголовок и описание" },
+  checker: { title: "Checker", sub: "Проверка аккаунтов / данных", soon: true },
+  refresher: { title: "Refresher", sub: "Обновление/рефреш данных", soon: true },
+  bulk: { title: "Bulk tools", sub: "Пакетные операции", soon: true },
+};
+
+function setTool(name){
+  currentTool = name;
+  const panes = {
+    gen: $("#toolPaneGen"),
+    ai: $("#toolPaneAI"),
+    chat: $("#toolPaneChat"),
+    soon: $("#toolPaneSoon"),
+  };
+  Object.entries(panes).forEach(([k, el]) => {
+    if (!el) return;
+    el.style.display = (k === name) ? "block" : "none";
+  });
+}
+
+function toolsOpen(name){
+  const meta = TOOL_META[name] || { title: "Инструмент", sub: "" };
+  const landing = $("#toolsLanding");
+  const topbar = $("#toolsTopbar");
+  if (landing) landing.style.display = "none";
+  if (topbar) topbar.style.display = "flex";
+
+  const t = $("#toolsTitle");
+  const s = $("#toolsSub");
+  if (t) t.textContent = meta.title || "—";
+  if (s) s.textContent = meta.sub || "";
+
+  if (meta.soon) {
+    const st = $("#soonTitle");
+    const sd = $("#soonDesc");
+    if (st) st.textContent = meta.title || "—";
+    if (sd) sd.textContent = meta.sub || "—";
+    setTool("soon");
+    return;
+  }
+
+  setTool(name);
+  // scroll to top of tools pane for clean UX
+  const pane = $("#tab-tools");
+  if (pane) pane.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function toolsBack(silent=false){
+  const landing = $("#toolsLanding");
+  const topbar = $("#toolsTopbar");
+  if (landing) landing.style.display = "block";
+  if (topbar) topbar.style.display = "none";
+  setTool(null); // hide all
+  // hide panes
+  $$(".toolPane").forEach(p => p.style.display = "none");
+  currentTool = null;
+  if (!silent) toast("Инструменты", "Выбери модуль", "ok");
+}
+
+
 
 // -------------------------
 // Auth UI
@@ -614,8 +919,18 @@ async function refreshMe() {
   const lo = $("#btnLogout");
   const caseBox = $("#caseBox");
   const limitsBox = $("#limitsBox");
+  const balBox = $("#balanceBox");
+  const balVal = $("#balanceValue");
+  const premPayBox = $("#premiumPayBox");
+  const premState = $("#premiumState");
+  const premDesc = $("#premiumDesc");
+  const btnTopUp = $("#btnTopUp");
+  const btnBuyPremium = $("#btnBuyPremium");
+  const adminBox = $("#adminBox");
+  const adminUserCard = $("#adminUserCard");
 
   if (currentUser) {
+    if(!topupCfg) await loadTopupConfig();
     const extra = currentUser.email ? ` • ${currentUser.email}` : "";
     if (st) st.textContent = `${currentUser.username}${extra}`;
     if (authBox) authBox.style.display = "none";
@@ -623,6 +938,23 @@ async function refreshMe() {
     if (lo) lo.style.display = "inline-flex";
     if (caseBox) caseBox.style.display = "block";
     if (limitsBox) limitsBox.style.display = "block";
+    if (balBox) balBox.style.display = "block";
+    if (balVal) balVal.textContent = String(currentUser.balance ?? 0);
+
+    const topBalBox = $("#topBalanceBox");
+    const topBalVal = $("#topBalanceValue");
+    if (topBalBox) topBalBox.style.display = "flex";
+    if (topBalVal) topBalVal.textContent = String(currentUser.balance ?? 0);
+    if (premPayBox) premPayBox.style.display = "block";
+    if (adminBox) adminBox.style.display = (currentUser.is_admin ? "block" : "none");
+    if (currentUser.is_admin){
+      const tbox = $("#adminTopupsList");
+      const pbox = $("#adminPromoList");
+      if(tbox && (tbox.textContent || "").trim() === "—") adminTopupsRefresh();
+      if(pbox && (pbox.textContent || "").trim() === "—") adminPromosRefresh();
+    }
+    if (!currentUser.is_admin && adminUserCard) adminUserCard.style.display = "none";
+
 
     const lim = currentUser.limits || null;
     if (lim) {
@@ -660,6 +992,24 @@ async function refreshMe() {
         if (chatBox) chatBox.style.display = "flex";
         if (btnSend) btnSend.disabled = false;
       }
+
+// Payment CTA state (topups + premium)
+const cryptoOk = !!(topupCfg?.topup?.crypto?.enabled);
+const promoOk  = !!(topupCfg?.topup?.promo?.enabled);
+const manualOk = !!(topupCfg?.topup?.manual?.enabled);
+const anyTopup = cryptoOk || promoOk || manualOk;
+const premPricePts = Number(topupCfg?.premium?.price_points || 0);
+
+if(premState) premState.textContent = prem ? "ACTIVE" : "FREE";
+if(premDesc){
+  if(prem){
+    premDesc.textContent = lim.premium_until ? ("Premium активен до: " + new Date(lim.premium_until).toLocaleString()) : "Premium активен";
+  }else{
+    premDesc.textContent = premPricePts ? ("Premium стоит " + premPricePts + " баланса. Можно купить прямо здесь.") : "Premium можно купить за баланс.";
+  }
+}
+if(btnTopUp) btnTopUp.disabled = !anyTopup;
+if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(currentUser.balance || 0) < premPricePts);
     }
 
     // refresh case hint
@@ -672,6 +1022,14 @@ async function refreshMe() {
     if (caseBox) caseBox.style.display = "none";
     if (limitsBox) limitsBox.style.display = "none";
 
+    if (balBox) balBox.style.display = "none";
+
+    const topBalBox = $("#topBalanceBox");
+    if (topBalBox) topBalBox.style.display = "none";
+    if (premPayBox) premPayBox.style.display = "none";
+    if (adminBox) adminBox.style.display = "none";
+    if (adminUserCard) adminUserCard.style.display = "none";
+
     // also hide chat input if logged out
     const chatBox = $("#chatBox");
     const btnSend = $("#btnChatSend");
@@ -680,6 +1038,199 @@ async function refreshMe() {
   }
 }
 
+
+// -------------------------
+// Admin: balance management
+// -------------------------
+let adminSelected = null;
+
+function renderAdminTx(tx){
+  const box = $("#adminTxBox");
+  const list = $("#adminTxList");
+  if(!box || !list) return;
+  if(!tx || tx.length === 0){
+    box.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  box.style.display = "block";
+  list.innerHTML = tx.map(t=>{
+    const when = t.ts ? new Date(t.ts).toLocaleString() : "";
+    const delta = (t.delta >= 0 ? "+" : "") + String(t.delta);
+    const reason = t.reason ? escapeHtml(t.reason) : "—";
+    return `<div style="display:flex; gap:10px; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.06)">
+      <span class="mono" style="opacity:.9">${when}</span>
+      <span class="mono" style="opacity:.95">${delta}</span>
+      <span style="flex:1; text-align:right; opacity:.85">${reason}</span>
+    </div>`;
+  }).join("");
+}
+
+async function adminLoadTx(userId){
+  try{
+    const j = await apiGet(`/api/admin/tx?user_id=${encodeURIComponent(userId)}`);
+    renderAdminTx(j.tx || []);
+  }catch(_e){
+    renderAdminTx([]);
+  }
+}
+
+async function adminFind(){
+  const ident = ($("#adminIdent")?.value || "").trim();
+  if(!ident) return toast("Админ", "Введите username/email/id", "warn");
+  try{
+    const j = await apiGet(`/api/admin/user?ident=${encodeURIComponent(ident)}`);
+    adminSelected = j.user;
+    const card = $("#adminUserCard");
+    if(card) card.style.display = "block";
+    $("#adm_id").textContent = adminSelected.id;
+    $("#adm_username").textContent = adminSelected.username;
+    $("#adm_email").textContent = adminSelected.email || "—";
+    $("#adm_balance").textContent = String(adminSelected.balance ?? 0);
+    await adminLoadTx(adminSelected.id);
+    toast("Админ", "Пользователь найден", "ok");
+  }catch(e){
+    adminSelected = null;
+    const card = $("#adminUserCard");
+    if(card) card.style.display = "none";
+    toast("Админ", e.message, "bad");
+  }
+}
+
+async function adminApply(){
+  if(!adminSelected) return toast("Админ", "Сначала найди пользователя", "warn");
+  const deltaRaw = ($("#adm_delta")?.value || "").trim();
+  if(!deltaRaw) return toast("Админ", "Введите сумму", "warn");
+  const delta = parseInt(deltaRaw, 10);
+  if(!Number.isFinite(delta) || delta === 0) return toast("Админ", "Сумма должна быть числом (не 0)", "warn");
+  const reason = ($("#adm_reason")?.value || "").trim();
+
+  try{
+    const j = await apiPost("/api/admin/balance_adjust", {
+      user_id: adminSelected.id,
+      delta,
+      reason
+    });
+    // update UI
+    adminSelected.balance = j.new_balance;
+    $("#adm_balance").textContent = String(j.new_balance);
+    $("#adm_delta").value = "";
+    // if admin changed himself, refresh balance badge
+    await refreshMe();
+    await adminLoadTx(adminSelected.id);
+    toast("Баланс обновлён", `${j.old_balance} → ${j.new_balance} (${(j.applied_delta>=0?"+":"") + j.applied_delta})`, "ok");
+  }catch(e){
+    toast("Ошибка", e.message, "bad");
+  }
+}
+
+
+async function adminTopupsRefresh(){
+  const box = $("#adminTopupsList");
+  if(!box) return;
+  box.textContent = "Загрузка…";
+  try{
+    const j = await apiGet("/api/admin/topups?status=pending&limit=100");
+    const items = j.items || [];
+    if(items.length === 0){
+      box.textContent = "Заявок нет";
+      return;
+    }
+    box.innerHTML = items.map(it=>{
+      const when = it.created_at ? new Date(it.created_at).toLocaleString() : "";
+      const who = escapeHtml(it.username || ("#" + it.user_id));
+      return `<div style="display:flex; gap:10px; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="flex:1; min-width:0">
+          <div style="font-weight:700">${who}</div>
+          <div class="muted" style="font-size:12px">#${it.id} • ${it.points} баланса • ${when}</div>
+        </div>
+        <div style="display:flex; gap:8px">
+          <button class="btn" data-act="approve" data-id="${it.id}">✅</button>
+          <button class="btn" data-act="reject" data-id="${it.id}">✖️</button>
+        </div>
+      </div>`;
+    }).join("");
+    // bind
+    box.querySelectorAll("button[data-act]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const id = btn.dataset.id;
+        const act = btn.dataset.act;
+        try{
+          if(act === "approve"){
+            await apiPost("/api/admin/topup/approve", { id: Number(id) });
+            toast("Админ", "Зачислено ✅", "ok");
+          }else{
+            await apiPost("/api/admin/topup/reject", { id: Number(id) });
+            toast("Админ", "Отклонено", "warn");
+          }
+          await adminTopupsRefresh();
+          await refreshMe();
+        }catch(e){
+          toast("Админ", e.message || "Ошибка", "bad");
+        }
+      });
+    });
+  }catch(e){
+    box.textContent = "Ошибка загрузки";
+  }
+}
+
+async function adminPromosRefresh(){
+  const box = $("#adminPromoList");
+  if(!box) return;
+  box.textContent = "Загрузка…";
+  try{
+    const j = await apiGet("/api/admin/promo/list?limit=100");
+    const items = j.items || [];
+    if(items.length === 0){
+      box.textContent = "Промокодов нет";
+      return;
+    }
+    box.innerHTML = items.map(p=>{
+      const left = (Number(p.max_uses||0) - Number(p.uses||0));
+      const when = p.created_at ? new Date(p.created_at).toLocaleString() : "";
+      return `<div style="display:flex; gap:10px; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="flex:1; min-width:0">
+          <div class="mono" style="font-weight:800">${escapeHtml(p.code)}</div>
+          <div class="muted" style="font-size:12px">${p.points} баланса • осталось: ${left}/${p.max_uses} • ${when}</div>
+        </div>
+        <button class="btn" data-copy="${escapeHtml(p.code)}">Копировать</button>
+      </div>`;
+    }).join("");
+    box.querySelectorAll("button[data-copy]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const code = btn.dataset.copy || "";
+        const ok = await copyText(code);
+        toast(ok ? "Скопировано" : "Ошибка", ok ? "Промокод в буфере" : "Не удалось скопировать", ok ? "ok" : "bad");
+      });
+    });
+  }catch(e){
+    box.textContent = "Ошибка загрузки";
+  }
+}
+
+async function adminPromoCreate(){
+  const ptsRaw = ($("#adm_promo_points")?.value || "").trim();
+  const maxRaw = ($("#adm_promo_max")?.value || "").trim();
+  const codeRaw = ($("#adm_promo_code")?.value || "").trim();
+  const points = parseInt(ptsRaw, 10);
+  const max_uses = maxRaw ? parseInt(maxRaw, 10) : 1;
+  if(!Number.isFinite(points) || points <= 0) return toast("Промокод", "Введите баланс (>0)", "warn");
+  try{
+    const j = await apiPost("/api/admin/promo/create", {
+      points,
+      max_uses: Number.isFinite(max_uses) && max_uses > 0 ? max_uses : 1,
+      code: codeRaw || undefined,
+    });
+    toast("Промокод", `Создан: ${j.code}`, "ok");
+    $("#adm_promo_code").value = j.code;
+    await adminPromosRefresh();
+  }catch(e){
+    toast("Промокод", e.message || "Ошибка", "bad");
+  }
+}
+
+
 // -------------------------
 // Boot
 // -------------------------
@@ -687,6 +1238,40 @@ window.addEventListener("load", async () => {
   // nav
   $$(".navbtn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
   $$(".btab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+  // home CTAs
+  $("#btnGoTools")?.addEventListener("click", ()=>setTab("tools"));
+  $("#btnGoShop")?.addEventListener("click", ()=>setTab("shop"));
+
+  // shop CTAs
+  $("#btnTopUpShop")?.addEventListener("click", ()=>openPayModal("topup"));
+  $("#btnOpenPremiumShop")?.addEventListener("click", ()=>openPayModal("premium"));
+  $("#btnOpenPremium2")?.addEventListener("click", ()=>openPayModal("premium"));
+
+  // header balance button
+  $("#btnTopBalance")?.addEventListener("click", ()=>openPayModal("topup"));
+
+  // tools switcher 
+  $$(".toolCard").forEach(btn=>{
+    const name = btn.dataset.tool;
+    if(!name) return;
+    btn.addEventListener("click", ()=>{
+      toolsOpen(name);
+    });
+  });
+
+  $("#btnToolsBack")?.addEventListener("click", ()=>toolsBack(true));
+  $("#btnSoonBack")?.addEventListener("click", ()=>toolsBack(true));
+
+  // show landing by default
+  toolsBack(true);
+// tilt effects
+  initTilt();
+  buildCaseUI();
+
+  // profile modals
+  $("#btnShowSavedTemplates")?.addEventListener("click", openSavedTemplates);
+  $("#btnShowTx")?.addEventListener("click", openTxModal);
 
   // particles + logo burst
   initParticles();
@@ -932,15 +1517,191 @@ window.addEventListener("load", async () => {
   $("#btnChatPull")?.addEventListener("click", () => chatPull().catch((e) => toast("Ошибка", e.message, "bad")));
   $("#btnChatClear")?.addEventListener("click", () => chatClear().catch((e) => toast("Ошибка", e.message, "bad")));
 
+  // Admin panel
+  $("#btnAdminFind")?.addEventListener("click", adminFind);
+  $("#adminIdent")?.addEventListener("keydown", (e)=>{ if(e.key === "Enter") adminFind(); });
+  $("#btnAdminApply")?.addEventListener("click", adminApply);
+  $("#btnAdminTopupsRefresh")?.addEventListener("click", adminTopupsRefresh);
+  $("#btnAdminPromosRefresh")?.addEventListener("click", adminPromosRefresh);
+  $("#btnAdminPromoCreate")?.addEventListener("click", adminPromoCreate);
+
+  // Payments
+  await loadTopupConfig();
+  $("#btnTopUp")?.addEventListener("click", () => openPayModal("topup"));
+  $("#btnBuyPremium")?.addEventListener("click", () => openPayModal("premium"));
+  $("#btnPayClose")?.addEventListener("click", closePayModal);
+  $("#payBack")?.addEventListener("click", closePayModal);
+  $$("#paySeg .segbtn").forEach(b=>b.addEventListener("click", ()=>setPaySeg(b.dataset.seg)));
+  // Topup methods
+  $$("#topupSeg .segbtn").forEach(b=>b.addEventListener("click", ()=>setTopupMethod(b.dataset.method)));
+  $("#btnTopupCrypto")?.addEventListener("click", startCryptoTopup);
+  $("#btnTopupCheck")?.addEventListener("click", checkTopup);
+  $("#btnPromoRedeem")?.addEventListener("click", redeemPromo);
+  $("#btnTopupManual")?.addEventListener("click", startManualTopup);
+  $("#btnPayPremium")?.addEventListener("click", buyPremiumBalance);
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePayModal(); });
+
   await refreshMe();
 
   // initial preview (if templates exist)
   renderPreview().catch(() => {});
-});
 
-
-// --- Case (profile) ---
+// --- Case (shop) ---
 let caseToken = "";
+let caseSpinning = false;
+
+const CASE_ITEMS = [
+  { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:450 },
+  { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:350 },
+  { key:"P6H",   label:"Premium 6 часов", icon:"💎", weight:100 },
+  { key:"P12H",  label:"Premium 12 часов", icon:"💎", weight:50 },
+  { key:"P24H",  label:"Premium 24 часа", icon:"💎", weight:25 },
+  { key:"P2D",   label:"Premium 2 дня", icon:"💎", weight:12 },
+  { key:"P3D",   label:"Premium 3 дня", icon:"💎", weight:8 },
+  { key:"P7D",   label:"Premium 7 дней", icon:"💎", weight:5 },
+];
+
+function buildCaseUI(){
+  // prizes modal list
+  const list = $("#casePrizesList");
+  if(list){
+    list.innerHTML = "";
+    const total = CASE_ITEMS.reduce((s,x)=>s+x.weight,0);
+    CASE_ITEMS.forEach(it=>{
+      const row = document.createElement("div");
+      row.className = "prizeRow";
+      const pct = ((it.weight/total)*100).toFixed(1) + "%";
+      row.innerHTML = `
+        <div class="prIco">${it.icon}</div>
+        <div>
+          <div class="prT">${it.label}</div>
+          <div class="muted" style="font-size:12px">${it.key}</div>
+        </div>
+        <div class="prW">${pct}</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  // reel
+  const reel = $("#caseReel");
+  if(reel){
+    reel.innerHTML = "";
+    const seq = [];
+    // Build long sequence for smooth spin
+    for(let i=0;i<7;i++){
+      CASE_ITEMS.forEach(it=>seq.push(it));
+    }
+    // Extra random tail
+    for(let i=0;i<18;i++){
+      seq.push(CASE_ITEMS[Math.floor(Math.random()*CASE_ITEMS.length)]);
+    }
+    seq.forEach((it)=>{
+      const d = document.createElement("div");
+      d.className = "casePrize" + (it.key.startsWith("P") ? " prem" : "");
+      d.dataset.prize = it.key;
+      d.textContent = it.label;
+      reel.appendChild(d);
+    });
+  }
+
+  // modal open/close
+  $("#btnCasePrizes")?.addEventListener("click", ()=>openCasePrizes());
+  $("#btnCasePrizesClose")?.addEventListener("click", ()=>closeCasePrizes());
+  $("#casePrizesBack")?.addEventListener("click", ()=>closeCasePrizes());
+  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeCasePrizes(); });
+}
+
+function openCasePrizes(){
+  const m = $("#casePrizesModal");
+  if(m) m.style.display = "flex";
+}
+
+function closeCasePrizes(){
+  const m = $("#casePrizesModal");
+  if(m) m.style.display = "none";
+}
+
+function openSavedTemplates(){
+  const m = $("#savedTemplatesModal");
+  const list = $("#savedTemplatesList");
+  if(list){
+    const titleTpl = (localStorage.getItem("rst_title_tpl") || $("#tplTitle")?.value || "").trim();
+    const descTpl  = (localStorage.getItem("rst_desc_tpl")  || $("#tplDesc")?.value || "").trim();
+    list.innerHTML = "";
+
+    const make = (name, val)=>{
+      const row = document.createElement("div");
+      row.className = "prizeRow";
+      row.innerHTML = `
+        <div class="prIco">📄</div>
+        <div style="flex:1">
+          <div class="prT">${escapeHtml(name)}</div>
+          <pre class="rawbox" style="margin:8px 0 0 0; white-space:pre-wrap">${escapeHtml(val || "—")}</pre>
+        </div>
+      `;
+      return row;
+    };
+    list.appendChild(make("Шаблон заголовка", titleTpl));
+    list.appendChild(make("Шаблон описания", descTpl));
+  }
+  if(m) m.style.display = "flex";
+}
+function closeSavedTemplates(){
+  const m = $("#savedTemplatesModal");
+  if(m) m.style.display = "none";
+}
+
+async function openTxModal(){
+  const m = $("#txModal");
+  const list = $("#txList");
+  if(list) list.innerHTML = "";
+  if(m) m.style.display = "flex";
+  if(!currentUser){
+    if(list) list.innerHTML = '<div class="muted">Сначала войди в аккаунт.</div>';
+    return;
+  }
+  try{
+    const j = await apiGet("/api/user/tx?limit=50");
+    const items = j.items || [];
+    if(!items.length){
+      if(list) list.innerHTML = '<div class="muted">Пока пусто.</div>';
+      return;
+    }
+    if(list){
+      list.innerHTML = "";
+      items.forEach(it=>{
+        const row = document.createElement("div");
+        row.className = "prizeRow";
+        const d = Number(it.delta || 0);
+        const sign = d >= 0 ? "+" : "";
+        const ts = it.ts ? new Date(it.ts).toLocaleString() : "—";
+        row.innerHTML = `
+          <div class="prIco">${d>=0?"💚":"🟥"}</div>
+          <div style="flex:1">
+            <div class="prT">${sign}${d}</div>
+            <div class="muted" style="font-size:12px">${escapeHtml(it.reason || "")}</div>
+          </div>
+          <div class="prW">${escapeHtml(ts)}</div>
+        `;
+        list.appendChild(row);
+      });
+    }
+  }catch(e){
+    if(list) list.innerHTML = '<div class="muted">Ошибка: ' + escapeHtml(e.message || "—") + '</div>';
+  }
+}
+function closeTxModal(){
+  const m = $("#txModal");
+  if(m) m.style.display = "none";
+}
+
+// modal close binds
+$("#btnSavedTemplatesClose")?.addEventListener("click", closeSavedTemplates);
+$("#savedTemplatesBack")?.addEventListener("click", closeSavedTemplates);
+$("#btnTxClose")?.addEventListener("click", closeTxModal);
+$("#txBack")?.addEventListener("click", closeTxModal);
+
 
 async function caseStatus(){
   const st = await apiGet("/api/case/status").catch(()=>null);
@@ -954,28 +1715,76 @@ async function caseStatus(){
   return st;
 }
 
+function caseSpinTo(prizeKey){
+  const reel = $("#caseReel");
+  const vp = reel?.parentElement;
+  if(!reel || !vp) return;
+  const cards = Array.from(reel.querySelectorAll(".casePrize"));
+  // pick a late occurrence of prize
+  const idxs = cards.map((c,i)=>c.dataset.prize===prizeKey?i:-1).filter(i=>i>=0);
+  const pick = idxs.filter(i=>i>12);
+  const idx = (pick.length ? pick[Math.floor(Math.random()*pick.length)] : (idxs[0] ?? 0));
+  const card = cards[idx];
+  const vpRect = vp.getBoundingClientRect();
+  const cRect = card.getBoundingClientRect();
+  // compute current left of card relative to reel by using offsetLeft
+  const targetLeft = card.offsetLeft;
+  const target = targetLeft - (vpRect.width/2 - card.offsetWidth/2);
+
+  // kick
+  reel.style.transition = "none";
+  reel.style.transform = "translateX(0px)";
+  void reel.offsetWidth; // reflow
+  reel.style.transition = "transform 3.1s cubic-bezier(.08,.82,.12,1)";
+  reel.style.transform = `translateX(${-Math.max(0,target)}px)`;
+}
+
 $("#btnCaseChallenge")?.addEventListener("click", async () => {
   try{
     const ch = await apiGet("/api/case/challenge");
     caseToken = ch.token || "";
     toast("Кейс", `Капча: ${ch.a} + ${ch.b} = ?`, "inf");
+    $("#caseResult") && ($("#caseResult").textContent = "Капча получена — введи ответ и крути 🎰");
   }catch(e){
     toast("Кейс", e.message || "Ошибка", "bad");
   }
 });
 
-$("#btnCaseOpen")?.addEventListener("click", async () => {
+$("#btnCaseOpen")?.addEventListener("click", async ()=>{
+  if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
+
+  if(caseSpinning) return;
   try{
     const answer = ($("#caseAnswer")?.value || "").trim();
     if(!caseToken){
       toast("Кейс", "Сначала получи капчу", "warn");
       return;
     }
+    if(!answer){
+      toast("Кейс", "Введи ответ капчи", "warn");
+      return;
+    }
+
+    caseSpinning = true;
+    const resBox = $("#caseResult");
+    if(resBox) resBox.textContent = "Крутим…";
+
+    // During request, give a tiny fake movement
+    const reel = $("#caseReel");
+    if(reel){
+      reel.style.transition = "transform .35s ease";
+      reel.style.transform = "translateX(-160px)";
+    }
+
     const r = await apiPost("/api/case/open", { token: caseToken, answer });
     caseToken = "";
+
+    // animate to final prize
+    caseSpinTo(r.prize);
+
     const map = {
       GEN10: "+10 анализов",
-      AI3: "+3 AI-запроса",
+      AI3: "+3 генерации (AI+анализ)",
       P6H: "Premium на 6 часов",
       P12H: "Premium на 12 часов",
       P24H: "Premium на 24 часа",
@@ -983,11 +1792,36 @@ $("#btnCaseOpen")?.addEventListener("click", async () => {
       P3D: "Premium на 3 дня",
       P7D: "Premium на 7 дней",
     };
-    toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
-    await refreshMe();
-    await caseStatus().catch(()=>{});
+
+    setTimeout(async ()=>{
+      if(resBox) resBox.textContent = "Выигрыш: " + (map[r.prize] || r.prize);
+      toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
+      caseSpinning = false;
+      await refreshMe();
+      await caseStatus().catch(()=>{});
+    }, 3200);
+
   }catch(e){
+    caseSpinning = false;
     toast("Кейс", e.message || "Ошибка", "bad");
   }
 });
 
+
+// --- Hotfix: Pay modal always closable (click backdrop) ---
+(function payModalBackdropHotfix(){
+  const onBackdrop = (e)=>{
+    const m = document.getElementById("payModal");
+    if(!m) return;
+    if(!m.classList.contains("open")) return;
+    // if the modal itself is the overlay container, close when clicking directly on it
+    if(e.target === m) {
+      try{ closePayModal(); }catch(_e){}
+    }
+    // also close if clicked element explicitly marked as backdrop
+    if(e.target && (e.target.classList?.contains("modalBackdrop") || e.target.dataset?.backdrop === "1")){
+      try{ closePayModal(); }catch(_e){}
+    }
+  };
+  document.addEventListener("pointerdown", onBackdrop, true);
+})();
