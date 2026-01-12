@@ -101,7 +101,7 @@ function toastIcon(type){
 
 function toast(title, msg="", type="ok"){
   const now = Date.now();
-  const COOLDOWN_MS = 1500;
+  const COOLDOWN_MS = 800;
   if(now - toastLastAt < COOLDOWN_MS){
     toastNext = {title, msg, type};
     if(!toastCooldownTimer){
@@ -112,6 +112,7 @@ function toast(title, msg="", type="ok"){
           const t = toastNext; toastNext = null;
           toastLastAt = Date.now();
           toastQ.push(t);
+          while(toastQ.length > 2) toastQ.shift();
           if(!toastBusy) drainToasts();
         }
       }, wait);
@@ -120,52 +121,55 @@ function toast(title, msg="", type="ok"){
   }
   toastLastAt = now;
   toastQ.push({title, msg, type});
+  while(toastQ.length > 2) toastQ.shift();
   if(!toastBusy) drainToasts();
 }
 
 function drainToasts(){
   const box = document.getElementById("toasts");
-  if(!box){ toastQ.length = 0; toastBusy = false; return; }
-  const it = toastQ.shift();
-  if(!it){ toastBusy = false; return; }
-  toastBusy = true;
+  if(!box){ toastQ.length = 0; return; }
 
-  const el = document.createElement("div");
-  el.className = "toast " + it.type;
-  el.innerHTML = `
-    <button class="x" type="button" aria-label="Close">×</button>
-    <div class="ico">${toastIcon(it.type)}</div>
-    <div class="twrap">
-      <div class="t1">${it.title}</div>
-      ${it.msg ? `<div class="t2">${it.msg}</div>` : ``}
-    </div>
-  `;
-  box.appendChild(el);
+  const MAX_VISIBLE = 2;
 
-  // CSS transition hook (fix: toasts were stuck invisible)
-  requestAnimationFrame(() => el.classList.add("show"));
+  // show while we have room
+  while(box.children.length < MAX_VISIBLE){
+    const it = toastQ.shift();
+    if(!it) break;
 
-  const SHOW_MS = 2500;
+    const el = document.createElement("div");
+    el.className = "toast " + it.type;
+    el.innerHTML = `
+      <button class="x" type="button" aria-label="Close">×</button>
+      <div class="ico">${toastIcon(it.type)}</div>
+      <div class="twrap">
+        <div class="t1">${it.title}</div>
+        ${it.msg ? `<div class="t2">${it.msg}</div>` : ``}
+      </div>
+    `;
+    box.appendChild(el);
 
-  const cleanup = ()=>{
-    if(el && el.parentNode) el.parentNode.removeChild(el);
-    toastBusy = false;
-    setTimeout(drainToasts, 180);
-  };
+    // CSS transition hook
+    requestAnimationFrame(() => el.classList.add("show"));
 
-  const hide = ()=>{
-    el.classList.remove("show");
-    el.classList.add("hide");
-  };
+    const SHOW_MS = 2500;
 
-  el.querySelector('.x')?.addEventListener('click', (e)=>{
-    e.preventDefault();
-    hide();
-    setTimeout(cleanup, 220);
-  });
+    const hide = ()=>{ el.classList.remove("show"); };
 
-  setTimeout(hide, SHOW_MS);
-  setTimeout(cleanup, SHOW_MS + 260);
+    const cleanup = ()=>{
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+      // continue draining after remove
+      setTimeout(drainToasts, 80);
+    };
+
+    el.querySelector(".x")?.addEventListener("click", (e)=>{
+      e.preventDefault();
+      hide();
+      setTimeout(cleanup, 220);
+    });
+
+    setTimeout(hide, SHOW_MS);
+    setTimeout(cleanup, SHOW_MS + 260);
+  }
 }
 
 let currentUser = null;
@@ -1530,7 +1534,9 @@ window.addEventListener("load", async () => {
   await refreshMe();
 
   // initial preview (if templates exist)
-  renderPreview().catch(// --- Case (shop) ---
+  renderPreview().catch(() => {});
+
+// --- Case (shop) ---
 let caseToken = "";
 let caseSpinning = false;
 
@@ -1787,4 +1793,6 @@ $("#btnCaseOpen")?.addEventListener("click", async () => {
     caseSpinning = false;
     toast("Кейс", e.message || "Ошибка", "bad");
   }
+});
+
 });
