@@ -118,37 +118,114 @@
 
     <section class="pane" id="tab-tools">
 
-      <div class="grid1">
-        <div class="card">
-          <h2>🧰 Инструменты</h2>
-          <p class="muted">Выбирай инструмент — всё на одном сайте. Стиль: чёрный + фиолетовый, минимализм с неоном.</p>
 
-          <div class="toolTiles">
-            <button class="tile tilt active" data-tool="gen" id="toolTileGen" type="button">
-              <div class="tIco">⚡</div>
-              <div class="tName">Генератор описания</div>
-              <div class="tSub muted">Анализ cookie → шаблон → результат</div>
+      <div id="toolsLanding" class="toolsLanding">
+        <div class="gridTools">
+          <div class="card toolsIntro">
+            <div class="headrow">
+              <h2>🧰 Инструменты</h2>
+              <span class="badge cold">CODEX • A</span>
+            </div>
+            <p class="muted">Нажми на модуль — откроется отдельная рабочая область. Никакой каши, только нужное.</p>
+          </div>
+
+          <div class="toolGrid">
+            <button class="toolCard tilt" data-tool="gen" type="button">
+              <div class="tTop">
+                <div class="tIco">✍️</div>
+                <div class="tMeta">
+                  <div class="tName">Генерация описания</div>
+                  <div class="tSub muted">Cookie → анализ → шаблон → результат</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">быстро</span>
+                <span class="pillTag">шаблоны</span>
+              </div>
             </button>
-            <button class="tile tilt" data-tool="ai" id="toolTileAI" type="button">
-              <div class="tIco">✨</div>
-              <div class="tName">AI</div>
-              <div class="tSub muted">Генерация + чат (Premium)</div>
+
+            <button class="toolCard tilt" data-tool="chat" type="button">
+              <div class="tTop">
+                <div class="tIco">💬</div>
+                <div class="tMeta">
+                  <div class="tName">AI чат</div>
+                  <div class="tSub muted">Общение с моделью (Premium)</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">контекст</span>
+                <span class="pillTag">premium</span>
+              </div>
             </button>
-            <button class="tile ghost" type="button" disabled>
-              <div class="tIco">🧪</div>
-              <div class="tName">Checker</div>
-              <div class="tSub muted">в разработке</div>
+
+            <button class="toolCard tilt" data-tool="ai" type="button">
+              <div class="tTop">
+                <div class="tIco">✨</div>
+                <div class="tMeta">
+                  <div class="tName">AI генератор</div>
+                  <div class="tSub muted">Новый заголовок и описание под стиль</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">pollinations</span>
+                <span class="pillTag">groq</span>
+              </div>
             </button>
-            <button class="tile ghost" type="button" disabled>
-              <div class="tIco">🌀</div>
-              <div class="tName">Refresher</div>
-              <div class="tSub muted">в разработке</div>
+
+            <button class="toolCard tilt soon" data-tool="checker" type="button">
+              <div class="ribbon">SOON</div>
+              <div class="tTop">
+                <div class="tIco">🔍</div>
+                <div class="tMeta">
+                  <div class="tName">Checker</div>
+                  <div class="tSub muted">Проверка аккаунтов / данных</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">в разработке</span>
+              </div>
+            </button>
+
+            <button class="toolCard tilt soon" data-tool="refresher" type="button">
+              <div class="ribbon">SOON</div>
+              <div class="tTop">
+                <div class="tIco">🔄</div>
+                <div class="tMeta">
+                  <div class="tName">Refresher</div>
+                  <div class="tSub muted">Обновление/рефреш данных</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">в разработке</span>
+              </div>
+            </button>
+
+            <button class="toolCard tilt soon" data-tool="bulk" type="button">
+              <div class="ribbon">SOON</div>
+              <div class="tTop">
+                <div class="tIco">📦</div>
+                <div class="tMeta">
+                  <div class="tName">Bulk tools</div>
+                  <div class="tSub muted">Пакетные операции</div>
+                </div>
+              </div>
+              <div class="tFoot">
+                <span class="pillTag">в разработке</span>
+              </div>
             </button>
           </div>
         </div>
       </div>
 
-      <div id="toolPaneGen" class="toolPane">
+      <div id="toolsTopbar" class="toolsTopbar" style="display:none">
+        <button id="btnToolsBack" class="iconbtn tilt" type="button">←</button>
+        <div class="toolsTB">
+          <div class="toolsT" id="toolsTitle">—</div>
+          <div class="muted toolsS" id="toolsSub">—</div>
+        </div>
+      </div>
+
+<div id="toolPaneGen" class="toolPane">
 
       <div class="grid">
         <div class="card">
@@ -214,7 +291,8 @@
     
       </div>
 
-      <div id="toolPaneAI" class="toolPane" style="display:none">
+      
+<div id="toolPaneAI" class="toolPane" style="display:none">
 
       <div class="grid1">
         <div class="card">
@@ -269,12 +347,21 @@
             <pre id="aiRaw" class="raw"></pre>
           </details>
 
-          <div class="divider"></div>
+                  </div>
+      </div>
+    
+      </div>
 
-          <h2>💬 Чат</h2>
-          <p class="muted">Можно писать модели напрямую. Ползунок отключает контекст аккаунта/шаблонов.</p>
+    
 
-          <div class="row">
+      <div id="toolPaneChat" class="toolPane" style="display:none">
+
+      <div class="grid1">
+        <div class="card">
+          <h2>💬 AI чат</h2>
+          <p class="muted">Отдельный чат. В Premium — без ограничений. Ползунок «Контекст» добавляет данные аккаунта/шаблонов.</p>
+
+<div class="row">
             <label class="lbl" style="margin:0">Контекст</label>
             <label class="switch">
               <input id="chatCtx" type="checkbox" checked>
@@ -293,7 +380,28 @@
           <div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
         </div>
       </div>
-    
+
+      </div>
+
+
+      <div id="toolPaneSoon" class="toolPane" style="display:none">
+
+      <div class="grid1">
+        <div class="card">
+          <h2>🛠️ В разработке</h2>
+          <p class="muted">Этот инструмент появится чуть позже. Сейчас можно пользоваться генератором, AI и чатом.</p>
+          <div class="soonBox">
+            <div class="soonGlow"></div>
+            <div>
+              <div class="soonTitle" id="soonTitle">—</div>
+              <div class="muted" id="soonDesc" style="margin-top:6px">—</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <button class="btn primary tilt" id="btnSoonBack" type="button">← Назад к инструментам</button>
+        </div>
+      </div>
+
       </div>
 
     </section>
