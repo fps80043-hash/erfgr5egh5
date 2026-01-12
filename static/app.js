@@ -1,5 +1,3 @@
-function showTab(_t){}
-
 function closeAllSelects(except=null){
   document.querySelectorAll(".cselect.open").forEach(w=>{
     if(except && w === except) return;
@@ -252,6 +250,8 @@ function openPayModal(seg="topup"){
   const m = $("#payModal");
   if(!m) return;
   m.style.display = "flex";
+  m.classList.add("open");
+  requestAnimationFrame(()=>m.classList.add("vis"));
   setPaySeg(seg);
   renderPacks();
   setTopupMethod(currentTopupMethod || "crypto");
@@ -263,8 +263,11 @@ function openPayModal(seg="topup"){
 function closePayModal(){
   const m = $("#payModal");
   if(!m) return;
-  m.style.display = "none";
+  m.classList.remove("vis");
+  m.classList.remove("open");
+  setTimeout(()=>{ m.style.display = "none"; }, 180);
 }
+
 
 function setCryptoLink(payUrl, hintText){
   const box = $("#cryptoLinkBox");
@@ -821,6 +824,12 @@ function setTab(name) {
   if (name === "tools" && typeof toolsBack === "function") {
     toolsBack(true);
   }
+
+  if(name === "profile"){
+    refreshMe().catch(()=>{});
+    txPull && txPull().catch(()=>{});
+  }
+
 }
 
 let currentTool = null;
@@ -1238,6 +1247,8 @@ window.addEventListener("load", async () => {
   // nav
   $$(".navbtn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
   $$(".btab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+  $("#btnScrollCase")?.addEventListener("click", ()=>{ const el = $("#caseBox"); if(el) el.scrollIntoView({behavior:"smooth", block:"start"}); });
 
   // home CTAs
   $("#btnGoTools")?.addEventListener("click", ()=>setTab("tools"));
@@ -1813,7 +1824,7 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
   const onBackdrop = (e)=>{
     const m = document.getElementById("payModal");
     if(!m) return;
-    if(!m.classList.contains("open")) return;
+    if(m.style.display === "none") return;
     // if the modal itself is the overlay container, close when clicking directly on it
     if(e.target === m) {
       try{ closePayModal(); }catch(_e){}

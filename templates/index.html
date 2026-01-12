@@ -1,868 +1,748 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>R$T — RBX Tool Seller</title>
-  <link rel="stylesheet" href="/static/styles.css?v=1768219290" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>R$T — RBX Tool Seller</title>
+<link href="/static/styles.css?v=1768219290" rel="stylesheet"/>
 </head>
 <body>
-  <canvas id="particles"></canvas>
-  <div class="veil"></div>
-
-  <header class="top">
-    <div class="brand">
-      <div class="logo" aria-label="R$T logo">
-        <span class="logoChar c1">R</span><span class="logoChar c2">$</span><span class="logoChar c3">T</span>
-      </div>
-      <div class="btxt">
-        <div class="name" aria-label="R$T logo"><span class="l1">R</span><span class="l2">$</span><span class="l3">T</span></div>
-        <div class="tag">RBX Tool Seller</div>
-      </div>
-    </div>
-
-    <nav class="nav" aria-label="Навигация">
-      <button class="navbtn active tilt" data-tab="home"><span>🏠</span><b>Главная</b></button>
-      <button class="navbtn tilt" data-tab="tools"><span>🧰</span><b>Инструменты</b></button>
-      <button class="navbtn tilt" data-tab="shop"><span>🛒</span><b>Магазин</b></button>
-      <button class="navbtn tilt" data-tab="profile"><span>👤</span><b>Профиль</b></button>
-    </nav>
-
-    <div class="topright">
-      <div id="topBalanceBox" class="topBalance" style="display:none">
-        <button id="btnTopBalance" class="btn mini primary tilt" type="button">
-          <span style="opacity:.9">💰</span>
-          <span id="topBalanceValue">0</span>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <section class="pane active" id="tab-home">
-
-      <div class="gridHome">
-        <div class="card hero tilt">
-          <div class="heroTop">
-            <div>
-              <h1>R$T — RBX Tool Seller</h1>
-              <p class="muted">Площадка с инструментами для описаний, AI и магазином Premium. Быстро, удобно, красиво.</p>
-            </div>
-            <div class="heroBadges">
-              <span class="badge">BLACK • PURPLE</span>
-              <span class="badge">MINIMAL • NEON</span>
-            </div>
-          </div>
-
-          <div class="heroGrid">
-            <div class="heroItem">
-              <div class="hIco">⚡</div>
-              <div>
-                <div class="hT">Генератор описаний</div>
-                <div class="muted">Анализ аккаунта и шаблоны — результат одним кликом.</div>
-              </div>
-            </div>
-            <div class="heroItem">
-              <div class="hIco">✨</div>
-              <div>
-                <div class="hT">AI + чат</div>
-                <div class="muted">Быстрая генерация под стиль площадки.</div>
-              </div>
-            </div>
-            <div class="heroItem">
-              <div class="hIco">🎁</div>
-              <div>
-                <div class="hT">Кейс с призами</div>
-                <div class="muted">Прокрутка как в CS — выбей генерации или Premium.</div>
-              </div>
-            </div>
-            <div class="heroItem">
-              <div class="hIco">💳</div>
-              <div>
-                <div class="hT">Баланс и Premium</div>
-                <div class="muted">Оплата за баланс, пополнение через CryptoBot/промокод/админа.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="heroCtas">
-            <button class="btn primary tilt" type="button" data-goto="tools" id="btnGoTools">Открыть инструменты</button>
-            <button class="btn tilt" type="button" data-goto="shop" id="btnGoShop">Перейти в магазин</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>ℹ️ Что это за сайт?</h2>
-          <div class="muted">
-            <p>1) Авторизуйся → 2) выбери инструмент → 3) используй баланс или Premium для снятия ограничений.</p>
-            <p>Баланс отображается справа сверху. Если не вошёл — не покажется.</p>
-          </div>
-
-          <details class="rawbox" style="margin-top:10px">
-            <summary>Показать справку</summary>
-            <div class="muted" style="margin-top:10px">
-              <p><b>CryptoBot</b> — оплату можно открывать в браузере или в Telegram. После оплаты нажми «Проверить».</p>
-              <p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно.</p>
-              <p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment).</p>
-              <p><b>Cookie</b> нигде не сохраняется сервером. Используется только для чтения данных.</p>
-            </div>
-          </details>
-
-          <div class="divider"></div>
-          <h3>👨‍💻 Разработчик</h3>
-          <p class="muted">TG: <b>@E6JLAHOC</b></p>
-        </div>
-      </div>
-
-    </section>
-
-    <section class="pane" id="tab-tools">
-
-
-      <div id="toolsLanding" class="toolsLanding">
-        <div class="gridTools">
-          <div class="card toolsIntro">
-            <div class="headrow">
-              <h2>🧰 Инструменты</h2>
+<canvas id="particles"></canvas>
+<div class="veil"></div>
+<header class="top">
+<div class="brand">
+<div aria-label="R$T logo" class="logo">
+<span class="logoChar c1">R</span><span class="logoChar c2">$</span><span class="logoChar c3">T</span>
 </div>
-            <p class="muted">Нажми на модуль — откроется отдельная рабочая область. Никакой каши, только нужное.</p>
-          </div>
-
-          <div class="toolGrid">
-            <button class="toolCard tilt" data-tool="gen" type="button">
-              <div class="tTop">
-                <div class="tIco">✍️</div>
-                <div class="tMeta">
-                  <div class="tName">Генерация описания</div>
-                  <div class="tSub muted">Cookie → анализ → шаблон → результат</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">быстро</span>
-                <span class="pillTag">шаблоны</span>
-              </div>
-            </button>
-
-            <button class="toolCard tilt" data-tool="chat" type="button">
-              <div class="tTop">
-                <div class="tIco">💬</div>
-                <div class="tMeta">
-                  <div class="tName">AI чат</div>
-                  <div class="tSub muted">Общение с моделью (Premium)</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">контекст</span>
-                <span class="pillTag">premium</span>
-              </div>
-            </button>
-
-            <button class="toolCard tilt" data-tool="ai" type="button">
-              <div class="tTop">
-                <div class="tIco">✨</div>
-                <div class="tMeta">
-                  <div class="tName">AI генератор</div>
-                  <div class="tSub muted">Новый заголовок и описание под стиль</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">pollinations</span>
-                <span class="pillTag">groq</span>
-              </div>
-            </button>
-
-            <button class="toolCard tilt soon" data-tool="checker" type="button">
-              <div class="ribbon">SOON</div>
-              <div class="tTop">
-                <div class="tIco">🔍</div>
-                <div class="tMeta">
-                  <div class="tName">Checker</div>
-                  <div class="tSub muted">Проверка аккаунтов / данных</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">в разработке</span>
-              </div>
-            </button>
-
-            <button class="toolCard tilt soon" data-tool="refresher" type="button">
-              <div class="ribbon">SOON</div>
-              <div class="tTop">
-                <div class="tIco">🔄</div>
-                <div class="tMeta">
-                  <div class="tName">Refresher</div>
-                  <div class="tSub muted">Обновление/рефреш данных</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">в разработке</span>
-              </div>
-            </button>
-
-            <button class="toolCard tilt soon" data-tool="bulk" type="button">
-              <div class="ribbon">SOON</div>
-              <div class="tTop">
-                <div class="tIco">📦</div>
-                <div class="tMeta">
-                  <div class="tName">Bulk tools</div>
-                  <div class="tSub muted">Пакетные операции</div>
-                </div>
-              </div>
-              <div class="tFoot">
-                <span class="pillTag">в разработке</span>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div id="toolsTopbar" class="toolsTopbar" style="display:none">
-        <button id="btnToolsBack" class="iconbtn tilt" type="button">←</button>
-        <div class="toolsTB">
-          <div class="toolsT" id="toolsTitle">—</div>
-          <div class="muted toolsS" id="toolsSub">—</div>
-        </div>
-      </div>
-
-<div id="toolPaneGen" class="toolPane">
-
-      <div class="grid">
-        <div class="card">
-          <h2>🔐 Вход по cookie</h2>
-          <p class="muted">Cookie не изменяется и не «ломается»: мы только читаем данные аккаунта. На сервере не сохраняется.</p>
-          <textarea id="cookie" class="input mono" rows="3" placeholder="_|WARNING:DO-NOT-SHARE-THIS..."></textarea>
-
-          <div class="row">
-            <button id="btnAnalyze" class="btn primary">Анализировать</button>
-            <div id="status" class="status">Ожидание…</div>
-          </div>
-          <div class="pbar" id="pbarAnalyze"><div class="pfill" id="pfillAnalyze"></div></div>
-
-          <div class="divider"></div>
-
-          <h3>📌 Факты</h3>
-          <div class="facts">
-            <div class="fact"><span>Ник</span><b id="f_username">—</b></div>
-            <div class="fact"><span>Профиль</span><a id="f_link" target="_blank" rel="noreferrer">—</a></div>
-            <div class="fact"><span>Robux</span><b id="f_robux">—</b></div>
-            <div class="fact"><span>RAP</span><b id="f_rap">—</b></div>
-            <div class="fact"><span>Донат</span><b id="f_total">—</b></div>
-            <div class="fact"><span>Год</span><b id="f_year">—</b></div>
-            <div class="fact"><span>Инвентарь</span><b id="f_inv">—</b></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="headrow">
-            <h2>🧩 Шаблоны</h2>
-            <div class="headtools">
-              <button id="btnSaveTpl" class="btn mini">💾</button>
-              <button id="btnResetTpl" class="btn mini">↺</button>
-            </div>
-          </div>
-
-          <label class="lbl">Шаблон заголовка</label>
-          <input id="tplTitle" class="input" />
-
-          <label class="lbl">Шаблон описания</label>
-          <textarea id="tplDesc" class="input mono" rows="10"></textarea>
-
-          <div class="divider"></div>
-
-          <div class="headrow">
-            <h2>✅ Результат</h2>
-            <div class="headtools">
-              <button id="btnCopyTitle" class="btn mini">📋 Заголовок</button>
-              <button id="btnCopyDesc" class="btn mini">📋 Описание</button>
-              <button id="btnCopyAll" class="btn primary mini">📄 Всё</button>
-            </div>
-          </div>
-
-          <label class="lbl">Заголовок</label>
-          <input id="outTitle" class="input" readonly />
-
-          <label class="lbl">Описание</label>
-          <textarea id="outDesc" class="input mono" rows="12" readonly></textarea>
-
-          <div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
-        </div>
-      </div>
-    
-      </div>
-
-      
-<div id="toolPaneAI" class="toolPane" style="display:none">
-
-      <div class="grid1">
-        <div class="card">
-          <h2>✨ AI генератор</h2>
-          <p class="muted">Сгенерирует новый заголовок и описание по фактам аккаунта. Два сервиса: Pollinations (бесплатно) и Groq (нужен ключ).</p>
-
-          <div class="row">
-            <label class="lbl">Сервис</label>
-            <select id="aiProvider" class="input">
-              <option value="pollinations">Pollinations (free)</option>
-              <option value="groq">Groq (key)</option>
-              <option value="blackbox">BlackBox (key)</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <label class="lbl">Модель</label>
-            <select id="aiModel" class="input"></select>
-          </div>
-
-          <div class="row">
-            <label class="lbl">Режим</label>
-            <select id="aiMode" class="input">
-              <option>Рерайт</option>
-              <option>Креатив</option>
-              <option>С нуля</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <label class="lbl">Стиль</label>
-            <select id="aiTone" class="input">
-              <option>Классика</option>
-              <option>Люкс</option>
-              <option>Минимал</option>
-              <option>Доверие</option>
-            </select>
-          </div>
-
-          <label class="lbl">Доп. пожелания</label>
-          <input id="aiExtra" class="input" placeholder="Например: сделай под стиль Avito, добавь гарантию..." />
-
-          <div class="row">
-            <button id="btnAIGen" class="btn primary">Сгенерировать</button>
-            <div id="aiStatus" class="status">—</div>
-          </div>
-          <div class="pbar" id="pbarAI"><div class="pfill" id="pfillAI"></div></div>
-
-          <div class="divider"></div>
-          <details class="rawbox">
-            <summary>Показать ответ модели</summary>
-            <pre id="aiRaw" class="raw"></pre>
-          </details>
-
-                  </div>
-      </div>
-    
-      </div>
-
-    
-
-      <div id="toolPaneChat" class="toolPane" style="display:none">
-
-      <div class="grid1">
-        <div class="card">
-          <h2>💬 AI чат</h2>
-          <p class="muted">Отдельный чат. В Premium — без ограничений. Ползунок «Контекст» добавляет данные аккаунта/шаблонов.</p>
-
+<div class="btxt">
+<div aria-label="R$T logo" class="name"><span class="l1">R</span><span class="l2">$</span><span class="l3">T</span></div>
+<div class="tag">RBX Tool Seller</div>
+</div>
+</div>
+<nav aria-label="Навигация" class="nav">
+<button class="navbtn active tilt" data-tab="home"><span>🏠</span><b>Главная</b></button>
+<button class="navbtn tilt" data-tab="tools"><span>🧰</span><b>Инструменты</b></button>
+<button class="navbtn tilt" data-tab="shop"><span>🛒</span><b>Магазин</b></button>
+<button class="navbtn tilt" data-tab="profile"><span>👤</span><b>Профиль</b></button>
+</nav>
+<div class="topright">
+<div class="topBalance" id="topBalanceBox" style="display:none">
+<button class="btn mini primary tilt" id="btnTopBalance" type="button">
+<span style="opacity:.9">💰</span>
+<span id="topBalanceValue">0</span>
+</button>
+</div>
+</div>
+</header>
+<main class="wrap">
+<section class="pane active" id="tab-home">
+<div class="gridHome">
+<div class="card hero tilt">
+<div class="heroTop">
+<div>
+<h1>R$T — RBX Tool Seller</h1>
+<p class="muted">Площадка с инструментами для описаний, AI и магазином Premium. Быстро, удобно, красиво.</p>
+</div>
+<div class="heroBadges">
+<span class="badge">BLACK • PURPLE</span>
+<span class="badge">MINIMAL • NEON</span>
+</div>
+</div>
+<div class="heroGrid">
+<div class="heroItem">
+<div class="hIco">⚡</div>
+<div>
+<div class="hT">Генератор описаний</div>
+<div class="muted">Анализ аккаунта и шаблоны — результат одним кликом.</div>
+</div>
+</div>
+<div class="heroItem">
+<div class="hIco">✨</div>
+<div>
+<div class="hT">AI + чат</div>
+<div class="muted">Быстрая генерация под стиль площадки.</div>
+</div>
+</div>
+<div class="heroItem">
+<div class="hIco">🎁</div>
+<div>
+<div class="hT">Кейс с призами</div>
+<div class="muted">Прокрутка как в CS — выбей генерации или Premium.</div>
+</div>
+</div>
+<div class="heroItem">
+<div class="hIco">💳</div>
+<div>
+<div class="hT">Баланс и Premium</div>
+<div class="muted">Оплата за баланс, пополнение через CryptoBot/промокод/админа.</div>
+</div>
+</div>
+</div>
+<div class="heroCtas">
+<button class="btn primary tilt" data-goto="tools" id="btnGoTools" type="button">Открыть инструменты</button>
+<button class="btn tilt" data-goto="shop" id="btnGoShop" type="button">Перейти в магазин</button>
+</div>
+</div>
+<div class="card">
+<h2>ℹ️ Что это за сайт?</h2>
+<div class="muted">
+<p>1) Авторизуйся → 2) выбери инструмент → 3) используй баланс или Premium для снятия ограничений.</p>
+<p>Баланс отображается справа сверху. Если не вошёл — не покажется.</p>
+</div>
+<details class="rawbox" style="margin-top:10px">
+<summary>Показать справку</summary>
+<div class="muted" style="margin-top:10px">
+<p><b>CryptoBot</b> — оплату можно открывать в браузере или в Telegram. После оплаты нажми «Проверить».</p>
+<p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно.</p>
+<p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment).</p>
+<p><b>Cookie</b> нигде не сохраняется сервером. Используется только для чтения данных.</p>
+</div>
+</details>
+<div class="divider"></div>
+<h3>👨‍💻 Разработчик</h3>
+<p class="muted">TG: <b>@E6JLAHOC</b></p>
+</div>
+</div>
+</section>
+<section class="pane" id="tab-tools">
+<div class="toolsLanding" id="toolsLanding">
+<div class="gridTools">
+<div class="card toolsIntro">
+<div class="headrow">
+<h2>🧰 Инструменты</h2>
+</div>
+<p class="muted">Нажми на модуль — откроется отдельная рабочая область. Никакой каши, только нужное.</p>
+</div>
+<div class="toolGrid">
+<button class="toolCard tilt" data-tool="gen" type="button">
+<div class="tTop">
+<div class="tIco">✍️</div>
+<div class="tMeta">
+<div class="tName">Генерация описания</div>
+<div class="tSub muted">Cookie → анализ → шаблон → результат</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">быстро</span>
+<span class="pillTag">шаблоны</span>
+</div>
+</button>
+<button class="toolCard tilt" data-tool="chat" type="button">
+<div class="tTop">
+<div class="tIco">💬</div>
+<div class="tMeta">
+<div class="tName">AI чат</div>
+<div class="tSub muted">Общение с моделью (Premium)</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">контекст</span>
+<span class="pillTag">premium</span>
+</div>
+</button>
+<button class="toolCard tilt" data-tool="ai" type="button">
+<div class="tTop">
+<div class="tIco">✨</div>
+<div class="tMeta">
+<div class="tName">AI генератор</div>
+<div class="tSub muted">Новый заголовок и описание под стиль</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">pollinations</span>
+<span class="pillTag">groq</span>
+</div>
+</button>
+<button class="toolCard tilt soon" data-tool="checker" type="button">
+<div class="ribbon">SOON</div>
+<div class="tTop">
+<div class="tIco">🔍</div>
+<div class="tMeta">
+<div class="tName">Checker</div>
+<div class="tSub muted">Проверка аккаунтов / данных</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">в разработке</span>
+</div>
+</button>
+<button class="toolCard tilt soon" data-tool="refresher" type="button">
+<div class="ribbon">SOON</div>
+<div class="tTop">
+<div class="tIco">🔄</div>
+<div class="tMeta">
+<div class="tName">Refresher</div>
+<div class="tSub muted">Обновление/рефреш данных</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">в разработке</span>
+</div>
+</button>
+<button class="toolCard tilt soon" data-tool="bulk" type="button">
+<div class="ribbon">SOON</div>
+<div class="tTop">
+<div class="tIco">📦</div>
+<div class="tMeta">
+<div class="tName">Bulk tools</div>
+<div class="tSub muted">Пакетные операции</div>
+</div>
+</div>
+<div class="tFoot">
+<span class="pillTag">в разработке</span>
+</div>
+</button>
+</div>
+</div>
+</div>
+<div class="toolsTopbar" id="toolsTopbar" style="display:none">
+<button class="iconbtn tilt" id="btnToolsBack" type="button">←</button>
+<div class="toolsTB">
+<div class="toolsT" id="toolsTitle">—</div>
+<div class="muted toolsS" id="toolsSub">—</div>
+</div>
+</div>
+<div class="toolPane" id="toolPaneGen">
+<div class="grid">
+<div class="card">
+<h2>🔐 Вход по cookie</h2>
+<p class="muted">Cookie не изменяется и не «ломается»: мы только читаем данные аккаунта. На сервере не сохраняется.</p>
+<textarea class="input mono" id="cookie" placeholder="_|WARNING:DO-NOT-SHARE-THIS..." rows="3"></textarea>
 <div class="row">
-            <label class="lbl" style="margin:0">Контекст</label>
-            <label class="switch">
-              <input id="chatCtx" type="checkbox" checked>
-              <span class="slider"></span>
-            </label>
-            <div class="muted" id="chatCtxLabel">включён</div>
-          </div>
-
-          <div class="chatlog" id="chatLog"></div>
-
-          <div class="chatrow" id="chatBox">
-            <input id="chatMsg" class="input" placeholder="Напиши сообщение…" />
-            <button id="btnChatSend" class="btn primary">Отправить</button>
-          </div>
-
-          <div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
-        </div>
-      </div>
-
-      </div>
-
-
-      <div id="toolPaneSoon" class="toolPane" style="display:none">
-
-      <div class="grid1">
-        <div class="card">
-          <h2>🛠️ В разработке</h2>
-          <p class="muted">Этот инструмент появится чуть позже. Сейчас можно пользоваться генератором, AI и чатом.</p>
-          <div class="soonBox">
-            <div class="soonGlow"></div>
-            <div>
-              <div class="soonTitle" id="soonTitle">—</div>
-              <div class="muted" id="soonDesc" style="margin-top:6px">—</div>
-            </div>
-          </div>
-          <div class="divider"></div>
-          <button class="btn primary tilt" id="btnSoonBack" type="button">← Назад к инструментам</button>
-        </div>
-      </div>
-
-      </div>
-
-    </section>
-
-    <section class="pane" id="tab-shop">
-  <div class="card">
-    <h2>🛒 Магазин</h2>
-    <p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
-
-    <div class="productGrid">
-      <div class="productCard tilt" id="prodTopup">
-        <div class="productTop">
-          <div class="productIco">💳</div>
-          <div>
-            <div class="productName">Пополнение баланса</div>
-            <div class="productDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
-          </div>
-        </div>
-        <div class="productActions">
-          <button id="btnTopUpShop" class="btn primary" type="button">Пополнить</button>
-        </div>
-      </div>
-
-      <div class="productCard tilt" id="prodPremium">
-        <div class="productTop">
-          <div class="productIco">👑</div>
-          <div>
-            <div class="productName">Premium</div>
-            <div class="productDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
-          </div>
-        </div>
-        <div class="productActions">
-          <button id="btnOpenPremiumShop" class="btn" type="button">Открыть</button>
-          <button id="btnBuyPremium" class="btn primary" type="button">Купить</button>
-        </div>
-      </div>
-
-      <div class="productCard tilt" id="prodCase">
-        <div class="productTop">
-          <div class="productIco">🎁</div>
-          <div>
-            <div class="productName">Кейс с призами</div>
-            <div class="productDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
-          </div>
-        </div>
-        <div id="caseBox" class="card" style="margin-top:0px;">
-  <div class="headrow">
-    <h3>🎁 Кейс с призами</h3>
-    <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
-      <button id="btnCasePrizes" class="btn mini tilt" type="button">🎯 Призы</button>
-      <div class="muted" id="caseHint">—</div>
-    </div>
-  </div>
-
-  <div class="caseReelCard" style="margin-top:10px">
-    <div class="caseViewport">
-      <div class="caseMarker"></div>
-      <div id="caseReel" class="caseReel"></div>
-    </div>
-    <div class="muted" id="caseResult" style="margin-top:8px; font-size:12px">—</div>
-  </div>
-
-  <div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
-    <button id="btnCaseChallenge" class="btn">Получить капчу</button>
-    <div style="flex:1; min-width:220px">
-      <label class="lbl">Ответ капчи</label>
-      <input id="caseAnswer" class="input" placeholder="Например: 7" />
-    </div>
-    <button id="btnCaseOpen" class="btn primary">Открыть кейс</button>
-  </div>
-
-  <div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 генерации (AI+анализ), Premium 6/12/24ч, 2/3/7 дней.</div>
+<button class="btn primary" id="btnAnalyze">Анализировать</button>
+<div class="status" id="status">Ожидание…</div>
+</div>
+<div class="pbar" id="pbarAnalyze"><div class="pfill" id="pfillAnalyze"></div></div>
+<div class="divider"></div>
+<h3>📌 Факты</h3>
+<div class="facts">
+<div class="fact"><span>Ник</span><b id="f_username">—</b></div>
+<div class="fact"><span>Профиль</span><a id="f_link" rel="noreferrer" target="_blank">—</a></div>
+<div class="fact"><span>Robux</span><b id="f_robux">—</b></div>
+<div class="fact"><span>RAP</span><b id="f_rap">—</b></div>
+<div class="fact"><span>Донат</span><b id="f_total">—</b></div>
+<div class="fact"><span>Год</span><b id="f_year">—</b></div>
+<div class="fact"><span>Инвентарь</span><b id="f_inv">—</b></div>
+</div>
+</div>
+<div class="card">
+<div class="headrow">
+<h2>🧩 Шаблоны</h2>
+<div class="headtools">
+<button class="btn mini" id="btnSaveTpl">💾</button>
+<button class="btn mini" id="btnResetTpl">↺</button>
+</div>
+</div>
+<label class="lbl">Шаблон заголовка</label>
+<input class="input" id="tplTitle"/>
+<label class="lbl">Шаблон описания</label>
+<textarea class="input mono" id="tplDesc" rows="10"></textarea>
+<div class="divider"></div>
+<div class="headrow">
+<h2>✅ Результат</h2>
+<div class="headtools">
+<button class="btn mini" id="btnCopyTitle">📋 Заголовок</button>
+<button class="btn mini" id="btnCopyDesc">📋 Описание</button>
+<button class="btn primary mini" id="btnCopyAll">📄 Всё</button>
+</div>
+</div>
+<label class="lbl">Заголовок</label>
+<input class="input" id="outTitle" readonly=""/>
+<label class="lbl">Описание</label>
+<textarea class="input mono" id="outDesc" readonly="" rows="12"></textarea>
+<div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
+</div>
+</div>
+</div>
+<div class="toolPane" id="toolPaneAI" style="display:none">
+<div class="grid1">
+<div class="card">
+<h2>✨ AI генератор</h2>
+<p class="muted">Сгенерирует новый заголовок и описание по фактам аккаунта. Два сервиса: Pollinations (бесплатно) и Groq (нужен ключ).</p>
+<div class="row">
+<label class="lbl">Сервис</label>
+<select class="input" id="aiProvider">
+<option value="pollinations">Pollinations (free)</option>
+<option value="groq">Groq (key)</option>
+<option value="blackbox">BlackBox (key)</option>
+</select>
+</div>
+<div class="row">
+<label class="lbl">Модель</label>
+<select class="input" id="aiModel"></select>
+</div>
+<div class="row">
+<label class="lbl">Режим</label>
+<select class="input" id="aiMode">
+<option>Рерайт</option>
+<option>Креатив</option>
+<option>С нуля</option>
+</select>
+</div>
+<div class="row">
+<label class="lbl">Стиль</label>
+<select class="input" id="aiTone">
+<option>Классика</option>
+<option>Люкс</option>
+<option>Минимал</option>
+<option>Доверие</option>
+</select>
+</div>
+<label class="lbl">Доп. пожелания</label>
+<input class="input" id="aiExtra" placeholder="Например: сделай под стиль Avito, добавь гарантию..."/>
+<div class="row">
+<button class="btn primary" id="btnAIGen">Сгенерировать</button>
+<div class="status" id="aiStatus">—</div>
+</div>
+<div class="pbar" id="pbarAI"><div class="pfill" id="pfillAI"></div></div>
+<div class="divider"></div>
+<details class="rawbox">
+<summary>Показать ответ модели</summary>
+<pre class="raw" id="aiRaw"></pre>
+</details>
+</div>
+</div>
+</div>
+<div class="toolPane" id="toolPaneChat" style="display:none">
+<div class="grid1">
+<div class="card">
+<h2>💬 AI чат</h2>
+<p class="muted">Отдельный чат. В Premium — без ограничений. Ползунок «Контекст» добавляет данные аккаунта/шаблонов.</p>
+<div class="row">
+<label class="lbl" style="margin:0">Контекст</label>
+<label class="switch">
+<input checked="" id="chatCtx" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="muted" id="chatCtxLabel">включён</div>
+</div>
+<div class="chatlog" id="chatLog"></div>
+<div class="chatrow" id="chatBox">
+<input class="input" id="chatMsg" placeholder="Напиши сообщение…">
+<button class="btn primary" id="btnChatSend">Отправить</button>
+</input></div>
+<div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
+</div>
+</div>
+</div>
+<div class="toolPane" id="toolPaneSoon" style="display:none">
+<div class="grid1">
+<div class="card">
+<h2>🛠️ В разработке</h2>
+<p class="muted">Этот инструмент появится чуть позже. Сейчас можно пользоваться генератором, AI и чатом.</p>
+<div class="soonBox">
+<div class="soonGlow"></div>
+<div>
+<div class="soonTitle" id="soonTitle">—</div>
+<div class="muted" id="soonDesc" style="margin-top:6px">—</div>
+</div>
+</div>
+<div class="divider"></div>
+<button class="btn primary tilt" id="btnSoonBack" type="button">← Назад к инструментам</button>
+</div>
+</div>
+</div>
+</section>
+<section class="pane" id="tab-shop">
+<div class="card">
+<h2>🛒 Магазин</h2>
+<p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
+<div class="productGrid">
+<div class="productCard tilt" id="prodTopup">
+<div class="productTop">
+<div class="productIco">💳</div>
+<div>
+<div class="productName">Пополнение баланса</div>
+<div class="productDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
+</div>
+</div>
+<div class="productActions">
+<button class="btn primary" id="btnTopUpShop" type="button">Пополнить</button>
+</div>
+</div>
+<div class="productCard tilt" id="prodPremium">
+<div class="productTop">
+<div class="productIco">👑</div>
+<div>
+<div class="productName">Premium</div>
+<div class="productDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
+</div>
+</div>
+<div class="productActions">
+<button class="btn" id="btnOpenPremiumShop" type="button">Открыть</button>
+<button class="btn primary" id="btnBuyPremium" type="button">Купить</button>
+</div>
+</div>
+<div class="productCard tilt" id="prodCase">
+<div class="productTop">
+<div class="productIco">🎁</div>
+<div>
+<div class="productName">Кейс с призами</div>
+<div class="productDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
+</div>
 </div>
 
-        <div id="premiumPayBox" class="card" style="margin-top:0px;">
-            <div class="headrow">
-              <h3>💎 Premium</h3>
-              <div class="badge" id="premiumState" style="margin-left:auto">—</div>
-            </div>
-            <div class="muted" id="premiumDesc" style="margin-top:8px">
+<div class="card" id="premiumPayBox" style="margin-top:0px;">
+<div class="headrow">
+<h3>💎 Premium</h3>
+<div class="badge" id="premiumState" style="margin-left:auto">—</div>
+</div>
+<div class="muted" id="premiumDesc" style="margin-top:8px">
               Premium убирает лимиты и открывает чат с ИИ.
             </div>
-            <div class="row" style="margin-top:10px; flex-wrap:wrap">
-              <button id="btnBuyPremium" class="btn primary">Купить Premium за баланс</button>
-            </div>
-          </div>
-
-        <div class="card">
-
-      </div>
-    </div>
-  </div>
-</section>
-
+<div class="row" style="margin-top:10px; flex-wrap:wrap">
+<button class="btn primary" id="btnBuyPremium">Купить Premium за баланс</button>
+</div>
+</div>
+<div class="card">
+</div>
+<div class="productActions"><button class="btn primary" id="btnScrollCase" type="button">Открыть</button></div></div>
+</div><div class="shopCaseWrap"><div class="card" id="caseBox" style="margin-top:0px;">
+<div class="headrow">
+<h3>🎁 Кейс с призами</h3>
+<div style="margin-left:auto; display:flex; gap:8px; align-items:center">
+<button class="btn mini tilt" id="btnCasePrizes" type="button">🎯 Призы</button>
+<div class="muted" id="caseHint">—</div>
+</div>
+</div>
+<div class="caseReelCard" style="margin-top:10px">
+<div class="caseViewport">
+<div class="caseMarker"></div>
+<div class="caseReel" id="caseReel"></div>
+</div>
+<div class="muted" id="caseResult" style="margin-top:8px; font-size:12px">—</div>
+</div>
+<div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
+<button class="btn" id="btnCaseChallenge">Получить капчу</button>
+<div style="flex:1; min-width:220px">
+<label class="lbl">Ответ капчи</label>
+<input class="input" id="caseAnswer" placeholder="Например: 7"/>
+</div>
+<button class="btn primary" id="btnCaseOpen">Открыть кейс</button>
+</div>
+<div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 генерации (AI+анализ), Premium 6/12/24ч, 2/3/7 дней.</div>
+</div></div>
+</div></section>
 <section class="pane" id="tab-profile">
-
-      <div class="grid1">
-        <div class="card">
-          <div class="headrow">
-            <h2>👤 Профиль</h2>
-            <button id="btnLogout" class="btn mini" style="display:none">Выйти</button>
-          </div>
-
-          <div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
-
-<div id="limitsBox" class="card" style="margin-top:12px; display:none">
-  <div class="headrow">
-    <h3>⚡ Доступ</h3>
-    <div class="badge" id="badgePremium" style="margin-left:auto">FREE</div>
-  </div>
-  <div class="grid2" style="margin-top:8px">
-    <div class="stat">
-      <div class="muted">Генерации описания</div>
-      <div class="statv" id="limAnalyze">—</div>
-    </div>
-    <div class="stat">
-      <div class="muted">AI запросы</div>
-      <div class="statv" id="limAI">—</div>
-    </div>
-    <div class="stat">
-      <div class="muted">Premium до</div>
-      <div class="statv" id="limPremiumUntil">—</div>
-    </div>
-    <div class="stat">
-      <div class="muted">Кейс</div>
-      <div class="statv" id="limCase">—</div>
-    </div>
-  </div>
-  <div class="muted" style="margin-top:10px">
+<div class="grid1">
+<div class="card">
+<div class="headrow">
+<h2>👤 Профиль</h2>
+<button class="btn mini" id="btnLogout" style="display:none">Выйти</button>
+</div>
+<div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
+<div class="card" id="limitsBox" style="margin-top:12px; display:none">
+<div class="headrow">
+<h3>⚡ Доступ</h3>
+<div class="badge" id="badgePremium" style="margin-left:auto">FREE</div>
+</div>
+<div class="grid2" style="margin-top:8px">
+<div class="stat">
+<div class="muted">Генерации описания</div>
+<div class="statv" id="limAnalyze">—</div>
+</div>
+<div class="stat">
+<div class="muted">AI запросы</div>
+<div class="statv" id="limAI">—</div>
+</div>
+<div class="stat">
+<div class="muted">Premium до</div>
+<div class="statv" id="limPremiumUntil">—</div>
+</div>
+<div class="stat">
+<div class="muted">Кейс</div>
+<div class="statv" id="limCase">—</div>
+</div>
+</div>
+<div class="muted" style="margin-top:10px">
     Premium снимает лимиты и открывает чат с ИИ. Можно оформить подписку ниже или выбить Premium в бесплатном кейсе.
   </div>
 </div>
-
-          
-          
-          <div id="balanceBox" class="card" style="margin-top:12px; display:none">
-            <div class="headrow">
-              <h3>💰 Баланс</h3>
-              <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-                <div class="badge" id="balanceValue">0</div>
-                <button id="btnTopUp" class="btn">Пополнить</button>
-              </div>
-            </div>
-            <div class="muted" style="margin-top:8px">
+<div class="card" id="balanceBox" style="margin-top:12px; display:none">
+<div class="headrow">
+<h3>💰 Баланс</h3>
+<div style="margin-left:auto; display:flex; gap:10px; align-items:center">
+<div class="badge" id="balanceValue">0</div>
+<button class="btn" id="btnTopUp">Пополнить</button>
+</div>
+</div>
+<div class="muted" style="margin-top:8px">
               Баланс используется для оплаты функций. Пополнить можно через CryptoBot (крипта), промокод, либо вручную через администратора.
             </div>
-          </div>
-
-          
-
-          <div id="adminBox" class="card" style="margin-top:12px; display:none">
-            <div class="headrow">
-              <h3>🛠️ Админ-панель</h3>
-              <div class="muted" style="margin-left:auto">Баланс / пользователи</div>
-            </div>
-
-            <div class="row" style="flex-wrap:wrap">
-              <div style="flex:1; min-width:220px">
-                <label class="lbl">Поиск (username / email / id)</label>
-                <input id="adminIdent" class="input" placeholder="Kirill_123 или mail@example.com или 1" />
-              </div>
-              <button id="btnAdminFind" class="btn">Найти</button>
-            </div>
-
-            <div id="adminUserCard" style="display:none; margin-top:8px">
-              <div class="divider"></div>
-              <div class="facts">
-                <div class="fact"><span>ID</span><b id="adm_id">—</b></div>
-                <div class="fact"><span>Логин</span><b id="adm_username">—</b></div>
-                <div class="fact"><span>Email</span><b id="adm_email">—</b></div>
-                <div class="fact"><span>Баланс</span><b id="adm_balance">—</b></div>
-              </div>
-
-              <div class="divider"></div>
-
-              <div class="row" style="flex-wrap:wrap">
-                <div style="flex:1; min-width:180px">
-                  <label class="lbl">Сумма (+ / -)</label>
-                  <input id="adm_delta" class="input" placeholder="Например: 100 или -50" />
-                </div>
-                <div style="flex:2; min-width:220px">
-                  <label class="lbl">Причина (опционально)</label>
-                  <input id="adm_reason" class="input" placeholder="Например: выдача за покупку / компенсация" />
-                </div>
-                <button id="btnAdminApply" class="btn primary">Применить</button>
-              </div>
-
-              <div class="muted" id="adminTxBox" style="margin-top:10px; display:none">
-                <b>Последние операции:</b>
-                <div id="adminTxList" style="margin-top:6px"></div>
-              </div>
-            </div>
-
-<div class="divider" style="margin-top:12px"></div>
-
-<div class="headrow" style="margin-top:10px">
-  <h4 style="margin:0">💳 Пополнения (заявки)</h4>
-  <button id="btnAdminTopupsRefresh" class="btn" style="margin-left:auto">Обновить</button>
 </div>
-<div id="adminTopupsList" class="muted" style="margin-top:8px; font-size:12px">—</div>
-
-<div class="divider" style="margin-top:12px"></div>
-
-<div class="headrow" style="margin-top:10px">
-  <h4 style="margin:0">🏷️ Промокоды</h4>
-  <button id="btnAdminPromosRefresh" class="btn" style="margin-left:auto">Список</button>
+<div class="card" id="adminBox" style="margin-top:12px; display:none">
+<div class="headrow">
+<h3>🛠️ Админ-панель</h3>
+<div class="muted" style="margin-left:auto">Баланс / пользователи</div>
 </div>
-
+<div class="row" style="flex-wrap:wrap">
+<div style="flex:1; min-width:220px">
+<label class="lbl">Поиск (username / email / id)</label>
+<input class="input" id="adminIdent" placeholder="Kirill_123 или mail@example.com или 1"/>
+</div>
+<button class="btn" id="btnAdminFind">Найти</button>
+</div>
+<div id="adminUserCard" style="display:none; margin-top:8px">
+<div class="divider"></div>
+<div class="facts">
+<div class="fact"><span>ID</span><b id="adm_id">—</b></div>
+<div class="fact"><span>Логин</span><b id="adm_username">—</b></div>
+<div class="fact"><span>Email</span><b id="adm_email">—</b></div>
+<div class="fact"><span>Баланс</span><b id="adm_balance">—</b></div>
+</div>
+<div class="divider"></div>
+<div class="row" style="flex-wrap:wrap">
+<div style="flex:1; min-width:180px">
+<label class="lbl">Сумма (+ / -)</label>
+<input class="input" id="adm_delta" placeholder="Например: 100 или -50"/>
+</div>
+<div style="flex:2; min-width:220px">
+<label class="lbl">Причина (опционально)</label>
+<input class="input" id="adm_reason" placeholder="Например: выдача за покупку / компенсация"/>
+</div>
+<button class="btn primary" id="btnAdminApply">Применить</button>
+</div>
+<div class="muted" id="adminTxBox" style="margin-top:10px; display:none">
+<b>Последние операции:</b>
+<div id="adminTxList" style="margin-top:6px"></div>
+</div>
+</div>
+<div class="divider" style="margin-top:12px"></div>
+<div class="headrow" style="margin-top:10px">
+<h4 style="margin:0">💳 Пополнения (заявки)</h4>
+<button class="btn" id="btnAdminTopupsRefresh" style="margin-left:auto">Обновить</button>
+</div>
+<div class="muted" id="adminTopupsList" style="margin-top:8px; font-size:12px">—</div>
+<div class="divider" style="margin-top:12px"></div>
+<div class="headrow" style="margin-top:10px">
+<h4 style="margin:0">🏷️ Промокоды</h4>
+<button class="btn" id="btnAdminPromosRefresh" style="margin-left:auto">Список</button>
+</div>
 <div class="row" style="flex-wrap:wrap; margin-top:8px">
-  <div style="flex:1; min-width:140px">
-    <label class="lbl">Баланс</label>
-    <input id="adm_promo_points" class="input" placeholder="например 500" />
-  </div>
-  <div style="flex:1; min-width:140px">
-    <label class="lbl">Лимит использований</label>
-    <input id="adm_promo_max" class="input" placeholder="1" />
-  </div>
-  <div style="flex:2; min-width:180px">
-    <label class="lbl">Код (опц.)</label>
-    <input id="adm_promo_code" class="input" placeholder="FANPAY2026" />
-  </div>
-  <button id="btnAdminPromoCreate" class="btn primary">Создать</button>
+<div style="flex:1; min-width:140px">
+<label class="lbl">Баланс</label>
+<input class="input" id="adm_promo_points" placeholder="например 500"/>
 </div>
-<div id="adminPromoList" class="muted" style="margin-top:8px; font-size:12px">—</div>
-          </div>
-
+<div style="flex:1; min-width:140px">
+<label class="lbl">Лимит использований</label>
+<input class="input" id="adm_promo_max" placeholder="1"/>
+</div>
+<div style="flex:2; min-width:180px">
+<label class="lbl">Код (опц.)</label>
+<input class="input" id="adm_promo_code" placeholder="FANPAY2026"/>
+</div>
+<button class="btn primary" id="btnAdminPromoCreate">Создать</button>
+</div>
+<div class="muted" id="adminPromoList" style="margin-top:8px; font-size:12px">—</div>
+</div>
 <div id="authBox">
-            <div class="authTabs">
-              <button class="pill active" data-auth="login">Вход</button>
-              <button class="pill" data-auth="register">Регистрация</button>
-              <button class="pill" data-auth="reset">Сброс</button>
-            </div>
-
-            <!-- LOGIN -->
-            <div class="authPane" id="authPaneLogin">
-              <div class="row">
-                <div style="flex:1">
-                  <label class="lbl">Логин или Email</label>
-                  <input id="loginUser" class="input" placeholder="Kirill_123 или mail@example.com" />
-                </div>
-                <div style="flex:1">
-                  <label class="lbl">Пароль</label>
-                  <input id="loginPass" type="password" class="input" placeholder="••••••" />
-                </div>
-              </div>
-
-              <div class="row">
-                <button id="btnLogin" class="btn primary">Войти</button>
-              </div>
-            </div>
-
-            <!-- REGISTER -->
-            <div class="authPane" id="authPaneRegister" style="display:none">
-              <div class="row">
-                <div style="flex:1">
-                  <label class="lbl">Логин</label>
-                  <input id="regUser" class="input" placeholder="Kirill_123" />
-                </div>
-                <div style="flex:1">
-                  <label class="lbl">Email</label>
-                  <input id="regEmail" class="input" placeholder="mail@example.com" />
-                </div>
-              </div>
-              <div class="row">
-                <div style="flex:1">
-                  <label class="lbl">Пароль</label>
-                  <input id="regPass" type="password" class="input" placeholder="••••••" />
-                </div>
-                <div style="flex:1">
-                  <label class="lbl">Код</label>
-                  <input id="regCode" class="input" placeholder="000000" />
-                </div>
-              </div>
-              <div class="row">
-                <button id="btnRegStart" class="btn">Отправить код</button>
-                <button id="btnRegConfirm" class="btn primary">Подтвердить</button>
-              </div>
-              <p class="muted">Код придёт на почту (Brevo). Если письма нет — проверь «Спам».</p>
-            </div>
-
-            <!-- RESET -->
-            <div class="authPane" id="authPaneReset" style="display:none">
-              <div class="row">
-                <div style="flex:1">
-                  <label class="lbl">Email</label>
-                  <input id="resetEmail" class="input" placeholder="mail@example.com" />
-                </div>
-              </div>
-              <div class="row">
-                <div style="flex:1">
-                  <label class="lbl">Код</label>
-                  <input id="resetCode" class="input" placeholder="000000" />
-                </div>
-                <div style="flex:1">
-                  <label class="lbl">Новый пароль</label>
-                  <input id="resetPass" type="password" class="input" placeholder="••••••" />
-                </div>
-              </div>
-              <div class="row">
-                <button id="btnResetStart" class="btn">Отправить код</button>
-                <button id="btnResetConfirm" class="btn primary">Сменить пароль</button>
-              </div>
-              <p class="muted">Если аккаунт с этим email существует — код отправится.</p>
-            </div>
-          </div>
-
-          <div id="profileTools" style="display:none">
-          <div class="divider"></div>
-
-          <h3>📁 Профиль</h3>
-          <div class="row">
-            <button id="btnShowSavedTemplates" class="btn tilt">Мои шаблоны</button>
-            <button id="btnShowTx" class="btn tilt">История транзакций</button>
-          </div>
-          <p class="muted">Шаблоны сохраняются локально (в браузере). История транзакций — из базы.</p>
-
-            <div class="divider"></div>
-
-            <h3>🔄 Шаблоны</h3>
-            <div class="row">
-              <button id="btnSyncPull" class="btn">Загрузить</button>
-              <button id="btnSyncPush" class="btn primary">Сохранить</button>
-            </div>
-
-            <div class="divider"></div>
-
-            <h3>🧹 Чат</h3>
-            <div class="row">
-              <button id="btnChatPull" class="btn">Загрузить историю</button>
-              <button id="btnChatClear" class="btn">Очистить</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    
-    </section>
-</main>
-
-
-  <nav class="bottomnav" aria-label="Навигация снизу">
-    <button class="btab active" data-tab="home"><span>🏠</span><small>Главная</small></button>
-    <button class="btab" data-tab="tools"><span>🧰</span><small>Инструменты</small></button>
-    <button class="btab" data-tab="shop"><span>🛒</span><small>Магазин</small></button>
-    <button class="btab" data-tab="profile"><span>👤</span><small>Профиль</small></button>
-  </nav>
-
-
-  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
-
-  <!-- Case prizes modal -->
-  <div id="casePrizesModal" class="modal" style="display:none">
-    <div class="modal-back" id="casePrizesBack"></div>
-    <div class="modal-card">
-      <div class="headrow">
-        <h3>🎯 Призы кейса</h3>
-        <button id="btnCasePrizesClose" class="iconbtn" type="button">×</button>
-      </div>
-      <div class="muted" style="margin-top:6px">Шансы приблизительные. Кейс бесплатный, раз в 72 часа.</div>
-      <div class="divider"></div>
-      <div class="prizeList" id="casePrizesList"></div>
-    </div>
-  </div>
-
-
-  <!-- Saved templates modal -->
-  <div id="savedTemplatesModal" class="modal" style="display:none">
-    <div class="modal-back" id="savedTemplatesBack"></div>
-    <div class="modal-card">
-      <div class="headrow">
-        <h3>📁 Мои шаблоны</h3>
-        <button id="btnSavedTemplatesClose" class="iconbtn" type="button">×</button>
-      </div>
-      <div class="muted" style="margin-top:6px">Сохраняются в браузере (LocalStorage).</div>
-      <div class="divider"></div>
-      <div id="savedTemplatesList" class="prizeList"></div>
-    </div>
-  </div>
-
-  <!-- Transactions modal -->
-  <div id="txModal" class="modal" style="display:none">
-    <div class="modal-back" id="txBack"></div>
-    <div class="modal-card">
-      <div class="headrow">
-        <h3>📜 История транзакций</h3>
-        <button id="btnTxClose" class="iconbtn" type="button">×</button>
-      </div>
-      <div class="muted" style="margin-top:6px">Последние изменения баланса.</div>
-      <div class="divider"></div>
-      <div id="txList" class="prizeList"></div>
-    </div>
-  </div>
-
-
-  <!-- Payment modal -->
-<div id="payModal" class="modal" style="display:none" data-backdrop="1">
-  <div class="modal-back" id="payBack"></div>
-  <div class="modal-card">
-    <div class="headrow">
-      <h3 id="payTitle">Оплата</h3>
-      <button id="btnPayClose" class="iconbtn" type="button">×</button>
-    </div>
-    <div class="seg" id="paySeg">
-      <button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
-      <button class="segbtn" data-seg="premium" type="button">Premium</button>
-    </div>
-
-    <div id="payPaneTopup" class="payPane">
-      <div class="muted" style="margin-top:6px">1) Выбери пакет баланса</div>
-      <div id="topupPacks" class="packGrid" style="margin-top:10px"></div>
-
-      <div class="divider" style="margin-top:12px"></div>
-
-      <div class="muted" style="margin-top:6px">2) Способ пополнения</div>
-      <div class="seg" id="topupSeg" style="margin-top:8px">
-        <button class="segbtn active" data-method="crypto" type="button">CryptoBot</button>
-        <button class="segbtn" data-method="promo" type="button">Промокод</button>
-        <button class="segbtn" data-method="manual" type="button">Через админа</button>
-      </div>
-
-      <!-- Crypto -->
-      <div id="topupPaneCrypto" class="paySubPane" style="margin-top:10px">
-        <div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. Можно открыть в браузере или в Telegram. После оплаты нажми «Проверить» — баланс зачислится.</div>
-        <button id="btnTopupCrypto" class="btn primary tilt" style="width:100%; margin-top:10px">Создать инвойс</button>
-        <div id="cryptoLinkBox" class="muted" style="display:none; margin-top:10px; font-size:12px">
-          <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
-            <a id="cryptoPayUrl" target="_blank" rel="noreferrer" class="btn tilt" style="flex:1; justify-content:center; min-width:160px">Открыть оплату</a>
-            <a id="cryptoTgUrl" target="_blank" rel="noreferrer" class="btn tilt" style="flex:1; justify-content:center; min-width:160px">Открыть в Telegram</a>
-            <button id="btnTopupCheck" class="btn tilt" style="min-width:120px">Проверить</button>
-          </div>
-          <div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
-        </div>
-      </div>
-
-      <!-- Promo -->
-      <div id="topupPanePromo" class="paySubPane" style="display:none; margin-top:10px">
-        <div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
-        <input id="promoCode" class="input" placeholder="PROMO2026" style="margin-top:10px" />
-        <button id="btnPromoRedeem" class="btn primary tilt" style="width:100%; margin-top:10px">Активировать</button>
-      </div>
-
-      <!-- Manual -->
-      <div id="topupPaneManual" class="paySubPane" style="display:none; margin-top:10px">
-        <div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
-        <button id="btnTopupManual" class="btn primary tilt" style="width:100%; margin-top:10px">Создать заявку</button>
-        <div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
-      </div>
-    </div>
-
-    <div id="payPanePremium" class="payPane" style="display:none">
-      <div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
-      <div class="packGrid" style="margin-top:10px">
-        <button id="premPlan" class="packBtn sel tilt" type="button">
-          <div class="p1">Premium</div>
-          <div class="p2" id="premPrice">—</div>
-        </button>
-      </div>
-      <button id="btnPayPremium" class="btn primary tilt" style="width:100%; margin-top:12px">Купить Premium</button>
-      <div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
-    </div>
-  </div>
+<div class="authTabs">
+<button class="pill active" data-auth="login">Вход</button>
+<button class="pill" data-auth="register">Регистрация</button>
+<button class="pill" data-auth="reset">Сброс</button>
 </div>
-
-  <script src="/static/app.js?v=1768219290"></script>
+<!-- LOGIN -->
+<div class="authPane" id="authPaneLogin">
+<div class="row">
+<div style="flex:1">
+<label class="lbl">Логин или Email</label>
+<input class="input" id="loginUser" placeholder="Kirill_123 или mail@example.com"/>
+</div>
+<div style="flex:1">
+<label class="lbl">Пароль</label>
+<input class="input" id="loginPass" placeholder="••••••" type="password"/>
+</div>
+</div>
+<div class="row">
+<button class="btn primary" id="btnLogin">Войти</button>
+</div>
+</div>
+<!-- REGISTER -->
+<div class="authPane" id="authPaneRegister" style="display:none">
+<div class="row">
+<div style="flex:1">
+<label class="lbl">Логин</label>
+<input class="input" id="regUser" placeholder="Kirill_123"/>
+</div>
+<div style="flex:1">
+<label class="lbl">Email</label>
+<input class="input" id="regEmail" placeholder="mail@example.com"/>
+</div>
+</div>
+<div class="row">
+<div style="flex:1">
+<label class="lbl">Пароль</label>
+<input class="input" id="regPass" placeholder="••••••" type="password"/>
+</div>
+<div style="flex:1">
+<label class="lbl">Код</label>
+<input class="input" id="regCode" placeholder="000000"/>
+</div>
+</div>
+<div class="row">
+<button class="btn" id="btnRegStart">Отправить код</button>
+<button class="btn primary" id="btnRegConfirm">Подтвердить</button>
+</div>
+<p class="muted">Код придёт на почту (Brevo). Если письма нет — проверь «Спам».</p>
+</div>
+<!-- RESET -->
+<div class="authPane" id="authPaneReset" style="display:none">
+<div class="row">
+<div style="flex:1">
+<label class="lbl">Email</label>
+<input class="input" id="resetEmail" placeholder="mail@example.com"/>
+</div>
+</div>
+<div class="row">
+<div style="flex:1">
+<label class="lbl">Код</label>
+<input class="input" id="resetCode" placeholder="000000"/>
+</div>
+<div style="flex:1">
+<label class="lbl">Новый пароль</label>
+<input class="input" id="resetPass" placeholder="••••••" type="password"/>
+</div>
+</div>
+<div class="row">
+<button class="btn" id="btnResetStart">Отправить код</button>
+<button class="btn primary" id="btnResetConfirm">Сменить пароль</button>
+</div>
+<p class="muted">Если аккаунт с этим email существует — код отправится.</p>
+</div>
+</div>
+<div id="profileTools" style="display:none">
+<div class="divider"></div>
+<h3>📁 Профиль</h3>
+<div class="row">
+<button class="btn tilt" id="btnShowSavedTemplates">Мои шаблоны</button>
+<button class="btn tilt" id="btnShowTx">История транзакций</button>
+</div>
+<p class="muted">Шаблоны сохраняются локально (в браузере). История транзакций — из базы.</p>
+<div class="divider"></div>
+<h3>🔄 Шаблоны</h3>
+<div class="row">
+<button class="btn" id="btnSyncPull">Загрузить</button>
+<button class="btn primary" id="btnSyncPush">Сохранить</button>
+</div>
+<div class="divider"></div>
+<h3>🧹 Чат</h3>
+<div class="row">
+<button class="btn" id="btnChatPull">Загрузить историю</button>
+<button class="btn" id="btnChatClear">Очистить</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<nav aria-label="Навигация снизу" class="bottomnav">
+<button class="btab active" data-tab="home"><span>🏠</span><small>Главная</small></button>
+<button class="btab" data-tab="tools"><span>🧰</span><small>Инструменты</small></button>
+<button class="btab" data-tab="shop"><span>🛒</span><small>Магазин</small></button>
+<button class="btab" data-tab="profile"><span>👤</span><small>Профиль</small></button>
+</nav>
+<div aria-atomic="true" aria-live="polite" class="toasts" id="toasts"></div>
+<!-- Case prizes modal -->
+<div class="modal" id="casePrizesModal" style="display:none">
+<div class="modal-back" id="casePrizesBack"></div>
+<div class="modal-card">
+<div class="headrow">
+<h3>🎯 Призы кейса</h3>
+<button class="iconbtn" id="btnCasePrizesClose" type="button">×</button>
+</div>
+<div class="muted" style="margin-top:6px">Шансы приблизительные. Кейс бесплатный, раз в 72 часа.</div>
+<div class="divider"></div>
+<div class="prizeList" id="casePrizesList"></div>
+</div>
+</div>
+<!-- Saved templates modal -->
+<div class="modal" id="savedTemplatesModal" style="display:none">
+<div class="modal-back" id="savedTemplatesBack"></div>
+<div class="modal-card">
+<div class="headrow">
+<h3>📁 Мои шаблоны</h3>
+<button class="iconbtn" id="btnSavedTemplatesClose" type="button">×</button>
+</div>
+<div class="muted" style="margin-top:6px">Сохраняются в браузере (LocalStorage).</div>
+<div class="divider"></div>
+<div class="prizeList" id="savedTemplatesList"></div>
+</div>
+</div>
+<!-- Transactions modal -->
+<div class="modal" id="txModal" style="display:none">
+<div class="modal-back" id="txBack"></div>
+<div class="modal-card">
+<div class="headrow">
+<h3>📜 История транзакций</h3>
+<button class="iconbtn" id="btnTxClose" type="button">×</button>
+</div>
+<div class="muted" style="margin-top:6px">Последние изменения баланса.</div>
+<div class="divider"></div>
+<div class="prizeList" id="txList"></div>
+</div>
+</div>
+<!-- Payment modal -->
+<div class="modal" data-backdrop="1" id="payModal" style="display:none">
+<div class="modal-back" id="payBack"></div>
+<div class="modal-card">
+<div class="headrow">
+<h3 id="payTitle">Оплата</h3>
+<button class="iconbtn" id="btnPayClose" type="button">×</button>
+</div>
+<div class="seg" id="paySeg">
+<button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
+<button class="segbtn" data-seg="premium" type="button">Premium</button>
+</div>
+<div class="payPane" id="payPaneTopup">
+<div class="muted" style="margin-top:6px">1) Выбери пакет баланса</div>
+<div class="packGrid" id="topupPacks" style="margin-top:10px"></div>
+<div class="divider" style="margin-top:12px"></div>
+<div class="muted" style="margin-top:6px">2) Способ пополнения</div>
+<div class="seg" id="topupSeg" style="margin-top:8px">
+<button class="segbtn active" data-method="crypto" type="button">CryptoBot</button>
+<button class="segbtn" data-method="promo" type="button">Промокод</button>
+<button class="segbtn" data-method="manual" type="button">Через админа</button>
+</div>
+<!-- Crypto -->
+<div class="paySubPane" id="topupPaneCrypto" style="margin-top:10px">
+<div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. Можно открыть в браузере или в Telegram. После оплаты нажми «Проверить» — баланс зачислится.</div>
+<button class="btn primary tilt" id="btnTopupCrypto" style="width:100%; margin-top:10px">Создать инвойс</button>
+<div class="muted" id="cryptoLinkBox" style="display:none; margin-top:10px; font-size:12px">
+<div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+<a class="btn tilt" id="cryptoPayUrl" rel="noreferrer" style="flex:1; justify-content:center; min-width:160px" target="_blank">Открыть оплату</a>
+<a class="btn tilt" id="cryptoTgUrl" rel="noreferrer" style="flex:1; justify-content:center; min-width:160px" target="_blank">Открыть в Telegram</a>
+<button class="btn tilt" id="btnTopupCheck" style="min-width:120px">Проверить</button>
+</div>
+<div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
+</div>
+</div>
+<!-- Promo -->
+<div class="paySubPane" id="topupPanePromo" style="display:none; margin-top:10px">
+<div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
+<input class="input" id="promoCode" placeholder="PROMO2026" style="margin-top:10px"/>
+<button class="btn primary tilt" id="btnPromoRedeem" style="width:100%; margin-top:10px">Активировать</button>
+</div>
+<!-- Manual -->
+<div class="paySubPane" id="topupPaneManual" style="display:none; margin-top:10px">
+<div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
+<button class="btn primary tilt" id="btnTopupManual" style="width:100%; margin-top:10px">Создать заявку</button>
+<div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
+</div>
+</div>
+<div class="payPane" id="payPanePremium" style="display:none">
+<div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
+<div class="packGrid" style="margin-top:10px">
+<button class="packBtn sel tilt" id="premPlan" type="button">
+<div class="p1">Premium</div>
+<div class="p2" id="premPrice">—</div>
+</button>
+</div>
+<button class="btn primary tilt" id="btnPayPremium" style="width:100%; margin-top:12px">Купить Premium</button>
+<div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
+</div>
+</div>
+</div>
+<script src="/static/app.js?v=1768219290"></script>
 </body>
 </html>
