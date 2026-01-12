@@ -89,6 +89,10 @@ let accountData = null;
 const toastQ = [];
 let toastBusy = false;
 
+let toastLastAt = 0;
+let toastNext = null;
+let toastCooldownTimer = null;
+
 function toastIcon(type){
   if(type === "bad") return "⛔";
   if(type === "warn") return "⚡";
@@ -96,6 +100,25 @@ function toastIcon(type){
 }
 
 function toast(title, msg="", type="ok"){
+  const now = Date.now();
+  const COOLDOWN_MS = 1500;
+  if(now - toastLastAt < COOLDOWN_MS){
+    toastNext = {title, msg, type};
+    if(!toastCooldownTimer){
+      const wait = COOLDOWN_MS - (now - toastLastAt);
+      toastCooldownTimer = setTimeout(()=>{
+        toastCooldownTimer = null;
+        if(toastNext){
+          const t = toastNext; toastNext = null;
+          toastLastAt = Date.now();
+          toastQ.push(t);
+          if(!toastBusy) drainToasts();
+        }
+      }, wait);
+    }
+    return;
+  }
+  toastLastAt = now;
   toastQ.push({title, msg, type});
   if(!toastBusy) drainToasts();
 }
@@ -122,7 +145,7 @@ function drainToasts(){
   // CSS transition hook (fix: toasts were stuck invisible)
   requestAnimationFrame(() => el.classList.add("show"));
 
-  const SHOW_MS = 6500;
+  const SHOW_MS = 2500;
 
   const cleanup = ()=>{
     if(el && el.parentNode) el.parentNode.removeChild(el);
