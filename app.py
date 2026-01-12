@@ -4,6 +4,15 @@ import datetime
 import random
 import sqlite3
 
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+app = FastAPI(title="R$T Web")
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 # Optional Postgres (Render)
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_PG = DATABASE_URL.lower().startswith("postgres")
@@ -1390,7 +1399,6 @@ def roblox_analyze(cookie: str) -> Dict[str, Any]:
 # ----------------------------
 # App
 # ----------------------------
-app = FastAPI(title="R$T Web")
 
 @app.middleware("http")
 async def add_cache_headers(request: Request, call_next):
