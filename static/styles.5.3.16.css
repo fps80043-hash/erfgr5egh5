@@ -1201,3 +1201,46 @@ code{
 }
 .soonTitle{font-weight:900; position:relative}
 
+<<<<<<< HEAD
+=======
+
+
+/* --- HOTFIX: mobile taps & overlays --- */
+#bgFX, .bgFX, .noise, .grain, .glow, .radial, .grid, .vignette,
+.bg, .bgLayer, .bg-layer, .fx, .fxLayer, .particles, #particles,
+canvas, svg.fx, svg#fx, .decor, .decorLayer {
+  pointer-events: none !important;
+}
+
+/* Ensure UI remains interactive */
+.topbar, .nav, .content, main, .page, .modal, .modal * , #toasts, #toasts * {
+  pointer-events: auto;
+}
+
+/* Disable 3D tilt on touch devices (prevents click issues) */
+@media (hover: none) and (pointer: coarse) {
+  .tilt { transform: none !important; }
+  .tilt * { transform: none !important; }
+}
+
+
+/* Home footer filler */
+.homeFooter{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+  margin-top:18px;
+}
+@media (max-width: 860px){
+  .homeFooter{ grid-template-columns: 1fr; }
+}
+.glassCard{
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 14px 14px;
+}
+.glassCard .h{ font-weight: 650; margin-bottom: 6px; }
+.glassCard .p{ opacity:.82; line-height:1.35; }
+>>>>>>> 8ae66d5 (Ideal hotfix: mobile taps + auth cookies + modal close + case auth + toast limits)
