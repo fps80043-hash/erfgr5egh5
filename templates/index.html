@@ -21,15 +21,15 @@
 </div>
 </div>
 <nav aria-label="Навигация" class="nav">
-<button class="navbtn active tilt" data-tab="home"><span>🏠</span><b>Главная</b></button>
-<button class="navbtn tilt" data-tab="tools"><span>🧰</span><b>Инструменты</b></button>
-<button class="navbtn tilt" data-tab="shop"><span>🛒</span><b>Магазин</b></button>
-<button class="navbtn tilt" data-tab="profile"><span>👤</span><b>Профиль</b></button>
+<button class="navbtn active tilt" data-tab="home"><span class="navIco ico" data-ico="home" aria-hidden="true"></span><b>Главная</b></button>
+<button class="navbtn tilt" data-tab="tools"><span class="navIco ico" data-ico="box" aria-hidden="true"></span><b>Инструменты</b></button>
+<button class="navbtn tilt" data-tab="shop"><span class="navIco ico" data-ico="cart" aria-hidden="true"></span><b>Магазин</b></button>
+<button class="navbtn tilt" data-tab="profile"><span class="navIco ico" data-ico="user" aria-hidden="true"></span><b>Профиль</b></button>
 </nav>
 <div class="topright">
 <div class="topBalance" id="topBalanceBox" style="display:none">
 <button class="btn mini primary tilt" id="btnTopBalance" type="button">
-<span style="opacity:.9">💰</span>
+<span class="ico" data-ico="wallet" aria-hidden="true" style="opacity:.95"></span>
 <span id="topBalanceValue">0</span>
 </button>
 </div>
@@ -372,7 +372,7 @@
 <div class="productCard tilt pxtCard" id="prodTopup">
   <div class="prodMedia">
     <div class="prodMediaGlow"></div>
-    <div class="prodMediaIcon">💳</div>
+    <div class="prodMediaIcon"><span class="ico" data-ico="card" aria-hidden="true"></span></div>
   </div>
   <div class="prodBody">
     <div class="prodHead">
@@ -381,7 +381,7 @@
     </div>
     <div class="prodDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
     <div class="prodFooter">
-      <button class="btn pxtBtn" id="btnTopUpShop" type="button"><span class="btnIco">🛒</span> Пополнить</button>
+      <button class="btn pxtBtn" id="btnTopUpShop" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Пополнить</button>
       <div class="prodPrice">
         <div class="priceHint">Любая сумма</div>
         <div class="priceMain">₽</div>
@@ -392,7 +392,7 @@
 <div class="productCard tilt pxtCard" id="prodPremium">
   <div class="prodMedia">
     <div class="prodMediaGlow"></div>
-    <div class="prodMediaIcon">👑</div>
+    <div class="prodMediaIcon"><span class="ico" data-ico="crown" aria-hidden="true"></span></div>
   </div>
   <div class="prodBody">
     <div class="prodHead">
@@ -403,7 +403,7 @@
     <div class="prodFooter">
       <div class="prodBtnRow">
         <button class="btn pxtBtnGhost" id="btnOpenPremiumShop" type="button">Открыть</button>
-        <button class="btn pxtBtn" id="btnBuyPremium" type="button"><span class="btnIco">🛒</span> Купить</button>
+        <button class="btn pxtBtn" id="btnBuyPremium" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Купить</button>
       </div>
       <div class="prodPrice">
         <div class="priceHint">Starting at</div>
@@ -412,24 +412,44 @@
     </div>
   </div>
 </div>
-<div class="productCard tilt pxtCard" id="prodCase">
+<!-- Case: FREE (captcha) -->
+<div class="productCard tilt pxtCard" id="prodCaseFree" data-prod="case-free">
   <div class="prodMedia">
+    <img class="prodMediaArt" src="/static/banners/case_free.svg" alt="Кейс за капчу" loading="lazy"/>
     <div class="prodMediaGlow"></div>
-    <div class="prodMediaIcon">🎁</div>
   </div>
   <div class="prodBody">
     <div class="prodHead">
-      <div class="prodTitle">Кейс с призами</div>
-      <div class="prodTag">Case</div>
+      <div class="prodTitle">Кейс за капчу</div>
+      <div class="prodTag">FREE</div>
     </div>
-    <div class="prodDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
+    <div class="prodDesc">Открытие раз в 2 дня. Призы: бонусы и Premium. Только для авторизованных.</div>
     <div class="prodFooter">
-      <div class="prodBtnCol">
-        <button class="btn pxtBtn" id="btnOpenCaseFree" type="button">🎯 Кейс за капчу</button>
-        <button class="btn pxtBtnGhost" id="btnOpenCasePaid" type="button">💸 Кейс за 17₽</button>
-      </div>
+      <button class="btn pxtBtn" id="btnOpenCaseFree" type="button"><span class="ico" data-ico="target" aria-hidden="true"></span> Открыть</button>
       <div class="prodPrice">
-        <div class="priceHint">Paid case</div>
+        <div class="priceHint">Cooldown</div>
+        <div class="priceMain">48h</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Case: PAID (17₽) -->
+<div class="productCard tilt pxtCard" id="prodCasePaid" data-prod="case-paid">
+  <div class="prodMedia">
+    <img class="prodMediaArt" src="/static/banners/case_paid.svg" alt="Кейс за 17 рублей" loading="lazy"/>
+    <div class="prodMediaGlow"></div>
+  </div>
+  <div class="prodBody">
+    <div class="prodHead">
+      <div class="prodTitle">Кейс за 17₽</div>
+      <div class="prodTag">PAID</div>
+    </div>
+    <div class="prodDesc">Без капчи. Быстрый кейс за баланс. Призы начисляются в инвентарь.</div>
+    <div class="prodFooter">
+      <button class="btn pxtBtn" id="btnOpenCasePaid" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Открыть</button>
+      <div class="prodPrice">
+        <div class="priceHint">Starting at</div>
         <div class="priceMain">₽17</div>
       </div>
     </div>
@@ -467,9 +487,9 @@
       </div>
 
       <div class="profileActions">
-        <button class="btn" id="btnTopUp" type="button">💳 Пополнить</button>
-        <button class="btn" id="btnShowTx" type="button">🧾 Транзакции</button>
-        <button class="btn" id="btnShowSavedTemplates" type="button">📁 Шаблоны</button>
+        <button class="btn" id="btnTopUp" type="button"><span class="ico" data-ico="card" aria-hidden="true"></span> Пополнить</button>
+        <button class="btn" id="btnShowTx" type="button"><span class="ico" data-ico="receipt" aria-hidden="true"></span> Транзакции</button>
+        <button class="btn" id="btnShowSavedTemplates" type="button"><span class="ico" data-ico="folder" aria-hidden="true"></span> Шаблоны</button>
       </div>
 
       <div class="divider" style="margin-top:12px"></div>
