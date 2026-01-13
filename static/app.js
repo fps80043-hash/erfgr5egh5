@@ -5,6 +5,188 @@ function closeAllSelects(except=null){
   });
 }
 
+// -------------------------
+// Theme + particles (UI)
+// -------------------------
+function applyTheme(theme){
+  const t = (theme === "classic") ? "classic" : "pastex";
+  document.body.classList.toggle("theme-pastex", t === "pastex");
+  document.body.classList.toggle("theme-classic", t === "classic");
+  try{ localStorage.setItem("theme", t); }catch(e){}
+}
+window.applyTheme = applyTheme;
+
+function initParticles(){
+  const cv = document.getElementById("particles");
+  if(!cv) return;
+  const ctx = cv.getContext("2d", { alpha: true });
+  if(!ctx) return;
+
+  let w=0,h=0;
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  const pts = [];
+  const COUNT = Math.max(30, Math.min(120, Math.floor((window.innerWidth*window.innerHeight)/18000)));
+
+  function resize(){
+    w = cv.clientWidth = window.innerWidth;
+    h = cv.clientHeight = window.innerHeight;
+    cv.width = Math.floor(w*DPR);
+    cv.height = Math.floor(h*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  function seed(){
+    pts.length = 0;
+    for(let i=0;i<COUNT;i++){
+      pts.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        vx: (Math.random()-.5)*0.22,
+        vy: (Math.random()-.5)*0.22,
+        r: 1 + Math.random()*1.6,
+        a: 0.10 + Math.random()*0.35
+      });
+    }
+  }
+
+  let last=0;
+  function frame(t){
+    const dt = Math.min(40, t-last||16);
+    last = t;
+    ctx.clearRect(0,0,w,h);
+
+    // dots
+    for(const p of pts){
+      p.x += p.vx*(dt/16);
+      p.y += p.vy*(dt/16);
+      if(p.x < -20) p.x = w+20;
+      if(p.x > w+20) p.x = -20;
+      if(p.y < -20) p.y = h+20;
+      if(p.y > h+20) p.y = -20;
+
+      ctx.globalAlpha = p.a;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    // faint links
+    ctx.globalAlpha = 0.08;
+    for(let i=0;i<pts.length;i++){
+      const p = pts[i];
+      for(let j=i+1;j<pts.length;j++){
+        const q = pts[j];
+        const dx = p.x-q.x, dy = p.y-q.y;
+        const d2 = dx*dx+dy*dy;
+        if(d2 < 180*180){
+          ctx.globalAlpha = 0.05*(1 - d2/(180*180));
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);
+          ctx.lineTo(q.x,q.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    requestAnimationFrame(frame);
+  }
+
+  // styles
+  ctx.fillStyle = "rgba(255,255,255,1)";
+  ctx.strokeStyle = "rgba(124,92,255,1)";
+
+  resize();
+  seed();
+  window.addEventListener("resize", ()=>{ resize(); seed(); }, { passive:true });
+  requestAnimationFrame(frame);
+}
+window.initParticles = initParticles;
+
+// -------------------------
+// Inventory (case prizes)
+// -------------------------
+function _prizeMeta(key){
+  const map = {
+    GEN10: {label: "+10 анализов", icon:"🧾"},
+    AI3: {label: "+3 генерации (AI+анализ)", icon:"🤖"},
+    P6H: {label: "Premium 6ч", img:"/static/prizes/premium_6h.png"},
+    P12H: {label: "Premium 12ч", img:"/static/prizes/premium_12h.png"},
+    P24H: {label: "Premium 24ч", img:"/static/prizes/premium_24h.png"},
+    P2D: {label: "Premium 2д", img:"/static/prizes/premium_2d.png"},
+    P3D: {label: "Premium 3д", img:"/static/prizes/premium_3d.png"},
+    P7D: {label: "Premium 7д", img:"/static/prizes/premium_7d.png"},
+  };
+  return map[key] || {label: key, icon:"🎁"};
+}
+
+function renderInv(inv){
+  const list = $("#invList");
+  const cnt = $("#invCount");
+  if(cnt) cnt.textContent = `${inv?.count || 0}/${inv?.max || 10}`;
+  if(!list) return;
+  const items = inv?.items || [];
+  if(items.length === 0){
+    list.innerHTML = `<div class="muted" style="padding:6px 2px">Пусто. Открой кейс — приз появится здесь.</div>`;
+    return;
+  }
+  list.innerHTML = items.map(it=>{
+    const m = _prizeMeta(it.prize);
+    const when = it.created_at ? new Date(it.created_at).toLocaleString() : "—";
+    const ico = m.img
+      ? `<img src="${m.img}" alt="" style="width:44px; height:44px; object-fit:contain;">`
+      : `<div class="prIco" style="width:44px; height:44px; border-radius:14px">${escapeHtml(m.icon||"🎁")}</div>`;
+    return `
+      <div class="prizeRow">
+        ${ico}
+        <div style="min-width:0">
+          <div class="prT">${escapeHtml(m.label||it.prize)}</div>
+          <div class="muted" style="font-size:11px; margin-top:2px">Получено: ${escapeHtml(when)}</div>
+        </div>
+        <button class="btn mini tilt" data-use-inv="${it.id}">Использовать</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-use-inv]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = Number(btn.getAttribute("data-use-inv")||0);
+      if(!id) return;
+      try{
+        await apiPost("/api/inventory/use", {id});
+        toast("Инвентарь", "Приз применён", "ok");
+        await refreshMe();
+      }catch(e){
+        toast("Инвентарь", e.message || "Ошибка", "bad");
+        await window.invPull().catch(()=>{});
+      }
+    });
+  });
+}
+
+async function invPull(){
+  if(!currentUser) return null;
+  const j = await apiGet("/api/inventory/list").catch(()=>null);
+  if(j && j.ok) renderInv(j);
+  return j;
+}
+window.invPull = invPull;
+document.addEventListener("DOMContentLoaded", ()=>{
+  const b = document.getElementById("btnInvRefresh");
+  if(b) b.addEventListener("click", ()=>window.invPull().catch(()=>{}));
+
+  // theme init
+  const saved = (()=>{ try{return localStorage.getItem("theme");}catch(e){return null;} })();
+  const theme = (saved === "classic") ? "classic" : "pastex";
+  applyTheme(theme);
+  const sel = document.getElementById("themeSelect");
+  if(sel) sel.value = theme;
+  const btn = document.getElementById("btnThemeApply");
+  if(btn && sel) btn.addEventListener("click", ()=>applyTheme(sel.value));
+
+  // particle background
+  initParticles();
+});
+
 function buildOptions(wrap, sel){
   const list = wrap.querySelector(".cselect-list");
   list.innerHTML = "";
@@ -249,6 +431,8 @@ function renderPacks(){
 function openPayModal(seg="topup"){
   const m = $("#payModal");
   if(!m) return;
+  // Pay modal is a full-screen backdrop that centers the card via flex.
+  // Keep display as flex to respect the scoped CSS (#payModal.modal.open).
   m.style.display = "flex";
   m.classList.add("open");
   requestAnimationFrame(()=>m.classList.add("vis"));
@@ -827,7 +1011,8 @@ function setTab(name) {
 
   if(name === "profile"){
     refreshMe().catch(()=>{});
-    txPull && txPull().catch(()=>{});
+    // txPull may be absent in some builds; guard safely
+    if (typeof window.txPull === "function") window.txPull().catch(()=>{});
   }
 
 }
@@ -923,12 +1108,17 @@ async function refreshMe() {
   }
 
   const st = $("#meStatus");
+  const pName = $("#pName");
+  const pId = $("#pUserId");
+  const pAv = $("#pAvatar");
+
   const authBox = $("#authBox");
   const tools = $("#profileTools");
   const lo = $("#btnLogout");
   const caseBox = $("#caseBox");
   const limitsBox = $("#limitsBox");
   const balBox = $("#balanceBox");
+  const invBox = $("#invBox");
   const balVal = $("#balanceValue");
   const premPayBox = $("#premiumPayBox");
   const premState = $("#premiumState");
@@ -942,12 +1132,16 @@ async function refreshMe() {
     if(!topupCfg) await loadTopupConfig();
     const extra = currentUser.email ? ` • ${currentUser.email}` : "";
     if (st) st.textContent = `${currentUser.username}${extra}`;
+    if (pName) pName.textContent = currentUser.username;
+    if (pId) pId.textContent = (currentUser.id ?? currentUser.user_id ?? "—");
+    if (pAv) pAv.textContent = (currentUser.username || "?").slice(0,1).toUpperCase();
     if (authBox) authBox.style.display = "none";
     if (tools) tools.style.display = "block";
     if (lo) lo.style.display = "inline-flex";
     if (caseBox) caseBox.style.display = "block";
     if (limitsBox) limitsBox.style.display = "block";
     if (balBox) balBox.style.display = "block";
+    if (invBox) invBox.style.display = "block";
     if (balVal) balVal.textContent = String(currentUser.balance ?? 0);
 
     const topBalBox = $("#topBalanceBox");
@@ -1017,12 +1211,20 @@ if(premDesc){
     premDesc.textContent = premPricePts ? ("Premium стоит " + premPricePts + " баланса. Можно купить прямо здесь.") : "Premium можно купить за баланс.";
   }
 }
+
 if(btnTopUp) btnTopUp.disabled = !anyTopup;
 if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(currentUser.balance || 0) < premPricePts);
     }
 
-    // refresh case hint
-    await caseStatus().catch(() => {});
+    // refresh case hint (guarded)
+    if (typeof window.caseStatus === "function") {
+      await window.caseStatus().catch(() => {});
+    }
+
+    // refresh inventory (guarded)
+    if (typeof window.invPull === "function") {
+      await window.invPull().catch(() => {});
+    }
   } else {
     if (st) st.textContent = "не вошёл";
     if (authBox) authBox.style.display = "block";
@@ -1032,6 +1234,7 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
     if (limitsBox) limitsBox.style.display = "none";
 
     if (balBox) balBox.style.display = "none";
+    if (invBox) invBox.style.display = "none";
 
     const topBalBox = $("#topBalanceBox");
     if (topBalBox) topBalBox.style.display = "none";
@@ -1248,8 +1451,6 @@ window.addEventListener("load", async () => {
   $$(".navbtn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
   $$(".btab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
 
-  $("#btnScrollCase")?.addEventListener("click", ()=>{ const el = $("#caseBox"); if(el) el.scrollIntoView({behavior:"smooth", block:"start"}); });
-
   // home CTAs
   $("#btnGoTools")?.addEventListener("click", ()=>setTab("tools"));
   $("#btnGoShop")?.addEventListener("click", ()=>setTab("shop"));
@@ -1320,6 +1521,8 @@ initShopSearchSort();
 let caseToken = "";
 let caseSpinning = false;
 
+const CASE_PAID_PRICE = 17;
+
 const CASE_ITEMS = [
   { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:450 },
   { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:350 },
@@ -1327,7 +1530,7 @@ const CASE_ITEMS = [
   { key:"P12H",  label:"Premium 12 часов", icon:"💎", img:"/static/prizes/premium_12h.png", weight:50 },
   { key:"P24H",  label:"Premium 24 часа", icon:"💎", img:"/static/prizes/premium_24h.png", weight:25 },
   { key:"P2D",   label:"Premium 2 дня", icon:"💎", img:"/static/prizes/premium_2d.png", weight:12 },
-  { key:"P3D",   label:"Premium 3 дня", icon:"💎", weight:8 },
+  { key:"P3D",  label:"Premium 3 дня", icon:"💎", img:"/static/prizes/premium_3d.png", weight:8 },
   { key:"P7D",   label:"Premium 7 дней", icon:"💎", img:"/static/prizes/premium_7d.png", weight:5 },
 ];
 
@@ -1337,8 +1540,13 @@ const CASE_ITEMS = [
   buildCaseUI();
 
   // profile modals
-  $("#btnShowSavedTemplates")?.addEventListener("click", openSavedTemplates);
-  $("#btnShowTx")?.addEventListener("click", openTxModal);
+  // NOTE: openSavedTemplates may be absent in some builds; guard to avoid breaking the whole app.
+  if (typeof openSavedTemplates !== "undefined") {
+    $("#btnShowSavedTemplates")?.addEventListener("click", openSavedTemplates);
+  }
+  if (typeof openTxModal !== "undefined") {
+    $("#btnShowTx")?.addEventListener("click", openTxModal);
+  }
 
   // particles + logo burst
   initParticles();
@@ -1595,6 +1803,10 @@ const CASE_ITEMS = [
   // Payments
   await loadTopupConfig();
   $("#btnTopUp")?.addEventListener("click", () => openPayModal("topup"));
+  // Extra topup triggers (used by redesigned layout)
+  document.querySelectorAll('[data-topup="1"]').forEach((el)=>{
+    el.addEventListener("click", () => openPayModal("topup"));
+  });
   $("#btnBuyPremium")?.addEventListener("click", () => openPayModal("premium"));
   $("#btnPayClose")?.addEventListener("click", closePayModal);
   $("#payBack")?.addEventListener("click", closePayModal);
@@ -1614,7 +1826,7 @@ const CASE_ITEMS = [
   renderPreview().catch(() => {});
 
 // --- Case (shop) ---
-function buildCaseUI(){
+function buildCaseUI({ rebuildReel = true } = {}){
   // prizes modal list
   const list = $("#casePrizesList");
   if(list){
@@ -1639,7 +1851,7 @@ function buildCaseUI(){
 
   // reel
   const reel = $("#caseReel");
-  if(reel){
+  if(reel && rebuildReel){
     reel.innerHTML = "";
     const seq = [];
     // Build long sequence for smooth spin
@@ -1647,34 +1859,42 @@ function buildCaseUI(){
       CASE_ITEMS.forEach(it=>seq.push(it));
     }
     // Extra random tail
-    for(let i=0;i<18;i++){
+    for(let i=0;i<22;i++){
       seq.push(CASE_ITEMS[Math.floor(Math.random()*CASE_ITEMS.length)]);
     }
     seq.forEach((it)=>{
       const d = document.createElement("div");
       d.className = "casePrize" + (it.key.startsWith("P") ? " prem" : "");
       d.dataset.prize = it.key;
-      if(it.img){
-        d.classList.add("hasImg");
-        d.innerHTML = `<img class="caseImg" src="${it.img}" alt=""><div class="caseLbl">${escapeHtml(it.label)}</div>`;
-      }else{
-        d.textContent = it.label;
-      }
+      d.innerHTML = `
+        <div class="caseInner">
+          ${it.img ? `<img class="caseImg" src="${it.img}" alt="">` : `<div class="caseIcon">${it.icon || "🎁"}</div>`}
+          <div class="caseLbl">${escapeHtml(it.label)}</div>
+        </div>
+      `;
       reel.appendChild(d);
     });
+    // reset position
+    reel.style.transition = "none";
+    reel.style.transform = "translateX(0)";
   }
 
-  // modal open/close
-  $("#btnCasePrizes")?.addEventListener("click", ()=>openCasePrizes());
-  $("#btnCasePrizesClose")?.addEventListener("click", ()=>closeCasePrizes());
-  $("#casePrizesBack")?.addEventListener("click", ()=>closeCasePrizes());
-  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeCasePrizes(); });
+  // prizes modal hooks (idempotent)
+  if($("#btnCasePrizes")) $("#btnCasePrizes").onclick = ()=>openCasePrizes();
+  if($("#btnCasePrizesClose")) $("#btnCasePrizesClose").onclick = ()=>closeCasePrizes();
+  if($("#casePrizesBack")) $("#casePrizesBack").onclick = ()=>closeCasePrizes();
 }
 
 function openCasePrizes(){
   const m = $("#casePrizesModal");
   if(!m) return;
-  m.style.display = "flex";
+  const b = $("#casePrizesBack");
+  if(b){
+    b.classList.remove("hidden");
+    b.style.display = "block";
+  }
+  m.classList.remove("hidden");
+  m.style.display = "block";
   m.classList.add("open");
   requestAnimationFrame(()=>m.classList.add("vis"));
 }
@@ -1686,127 +1906,220 @@ function closeCasePrizes(){
   setTimeout(()=>{
     m.classList.remove("open");
     m.style.display = "none";
+    m.classList.add("hidden");
+    const b = $("#casePrizesBack");
+    if(b){ b.style.display = "none"; b.classList.add("hidden"); }
   }, 190);
 }
 
-function openSavedTemplates(){
-  const m = $("#savedTemplatesModal");
-  const list = $("#savedTemplatesList");
-  if(list){
-    const titleTpl = (localStorage.getItem("rst_title_tpl") || $("#tplTitle")?.value || "").trim();
-    const descTpl  = (localStorage.getItem("rst_desc_tpl")  || $("#tplDesc")?.value || "").trim();
-    list.innerHTML = "";
-
-    const make = (name, val)=>{
-      const row = document.createElement("div");
-      row.className = "prizeRow";
-      row.innerHTML = `
-        <div class="prIco">📄</div>
-        <div style="flex:1">
-          <div class="prT">${escapeHtml(name)}</div>
-          <pre class="rawbox" style="margin:8px 0 0 0; white-space:pre-wrap">${escapeHtml(val || "—")}</pre>
-        </div>
-      `;
-      return row;
-    };
-    list.appendChild(make("Шаблон заголовка", titleTpl));
-    list.appendChild(make("Шаблон описания", descTpl));
+// Case open modal (free / paid)
+let caseMode = "free"; // "free" | "paid"
+function _setCaseLocked(v){
+  const m = $("#caseOpenModal");
+  if(!m) return;
+  if(v) m.classList.add("locked");
+  else m.classList.remove("locked");
+}
+function setCaseMode(mode){
+  caseMode = mode;
+  const badge = $("#caseModeBadge");
+  const title = $("#caseModalTitle");
+  const free = $("#caseFreeControls");
+  const paid = $("#casePaidControls");
+  if(mode === "paid"){
+    if(title) title.textContent = "💸 Кейс за 17₽";
+    if(badge) badge.textContent = "PAID";
+    // paid controls are initially rendered with .hidden in HTML
+    // (to avoid flashing). We must remove it explicitly here.
+    if(free){
+      free.style.display = "none";
+    }
+    if(paid){
+      paid.classList.remove("hidden");
+      paid.style.display = "flex";
+    }
+    $("#caseResult") && ($("#caseResult").textContent = "—");
+  }else{
+    if(title) title.textContent = "🎯 Кейс за капчу";
+    if(badge) badge.textContent = "FREE";
+    if(free){
+      free.style.display = "flex";
+    }
+    if(paid){
+      paid.style.display = "none";
+      paid.classList.add("hidden");
+    }
+    $("#caseResult") && ($("#caseResult").textContent = "—");
   }
-  if(m) m.style.display = "flex";
-}
-function closeSavedTemplates(){
-  const m = $("#savedTemplatesModal");
-  if(m) m.style.display = "none";
 }
 
-async function openTxModal(){
-  const m = $("#txModal");
-  const list = $("#txList");
-  if(list) list.innerHTML = "";
-  if(m) m.style.display = "flex";
+function openCaseModal(mode){
+  const m = $("#caseOpenModal");
+  if(!m) return;
+
+  // auth guard
   if(!currentUser){
-    if(list) list.innerHTML = '<div class="muted">Сначала войди в аккаунт.</div>';
+    toast("Профиль","Сначала войди в аккаунт","warn");
+    try{ showTab("profile"); }catch(_e){}
     return;
   }
-  try{
-    const j = await apiGet("/api/user/tx?limit=50");
-    const items = j.items || [];
-    if(!items.length){
-      if(list) list.innerHTML = '<div class="muted">Пока пусто.</div>';
-      return;
-    }
-    if(list){
-      list.innerHTML = "";
-      items.forEach(it=>{
-        const row = document.createElement("div");
-        row.className = "prizeRow";
-        const d = Number(it.delta || 0);
-        const sign = d >= 0 ? "+" : "";
-        const ts = it.ts ? new Date(it.ts).toLocaleString() : "—";
-        row.innerHTML = `
-          <div class="prIco">${d>=0?"💚":"🟥"}</div>
-          <div style="flex:1">
-            <div class="prT">${sign}${d}</div>
-            <div class="muted" style="font-size:12px">${escapeHtml(it.reason || "")}</div>
-          </div>
-          <div class="prW">${escapeHtml(ts)}</div>
-        `;
-        list.appendChild(row);
-      });
-    }
-  }catch(e){
-    if(list) list.innerHTML = '<div class="muted">Ошибка: ' + escapeHtml(e.message || "—") + '</div>';
+
+  // rebuild reel each open for fresh feel
+  buildCaseUI({ rebuildReel: true });
+  setCaseMode(mode);
+  _setCaseLocked(false);
+
+  const back = $("#caseOpenBack");
+  if(back){
+    back.classList.remove("hidden");
+    back.style.display = "block";
   }
-}
-function closeTxModal(){
-  const m = $("#txModal");
-  if(m) m.style.display = "none";
+  m.classList.remove("hidden");
+
+  // IMPORTANT: keep modal layout controlled by CSS (.modal.open).
+  // Using flex here breaks the internal vertical layout (header/stage/controls).
+  m.style.display = "block";
+  m.classList.add("open");
+  requestAnimationFrame(()=>m.classList.add("vis"));
+
+  // refresh cooldown hint
+  if (typeof window.caseStatus === "function") window.caseStatus().catch(()=>{});
 }
 
-// modal close binds
-$("#btnSavedTemplatesClose")?.addEventListener("click", closeSavedTemplates);
-$("#savedTemplatesBack")?.addEventListener("click", closeSavedTemplates);
-$("#btnTxClose")?.addEventListener("click", closeTxModal);
-$("#txBack")?.addEventListener("click", closeTxModal);
+function closeCaseModal(){
+  if(caseSpinning) return; // do not allow closing while spinning
+  const m = $("#caseOpenModal");
+  if(!m) return;
+  m.classList.remove("vis");
+  setTimeout(()=>{
+    m.classList.remove("open");
+    m.style.display = "none";
+    m.classList.add("hidden");
+    const back = $("#caseOpenBack");
+    if(back){ back.style.display = "none"; back.classList.add("hidden"); }
+  }, 190);
+}
 
+// hooks
+$("#btnOpenCaseFree")?.addEventListener("click", ()=>openCaseModal("free"));
+$("#btnOpenCasePaid")?.addEventListener("click", ()=>openCaseModal("paid"));
+$("#btnCaseModalClose")?.addEventListener("click", closeCaseModal);
+$("#caseOpenBack")?.addEventListener("click", closeCaseModal);
+
+window.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape"){
+    if(!caseSpinning) closeCaseModal();
+    closeCasePrizes();
+  }
+});
+
+// --- sounds + helpers for reel tick (CS-like) ---
+const caseAudio = (()=>{
+  let ctx = null;
+  const ensure = () => {
+    if(ctx) return;
+    try{ ctx = new (window.AudioContext || window.webkitAudioContext)(); }catch(_e){ ctx = null; }
+  };
+  const _beep = (freq, durMs, gain=0.08) => {
+    if(!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "triangle";
+    o.frequency.value = freq;
+    const t0 = ctx.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.02, durMs/1000));
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + Math.max(0.03, durMs/1000));
+  };
+  const tick = () => { ensure(); _beep(1850, 28, 0.08); };
+  const open = () => { ensure(); _beep(520, 120, 0.14); setTimeout(()=>_beep(760, 90, 0.10), 70); };
+  return { ensure, tick, open };
+})();
+
+function _getTranslateX(el){
+  try{
+    const tr = getComputedStyle(el).transform;
+    if(!tr || tr === "none") return 0;
+    const m = tr.match(/matrix\(([^)]+)\)/);
+    if(m){
+      const parts = m[1].split(",").map(x=>parseFloat(x.trim()));
+      return parts[4] || 0;
+    }
+    const m3 = tr.match(/matrix3d\(([^)]+)\)/);
+    if(m3){
+      const parts = m3[1].split(",").map(x=>parseFloat(x.trim()));
+      return parts[12] || 0;
+    }
+  }catch(_e){}
+  return 0;
+}
 
 async function caseStatus(){
   const st = await apiGet("/api/case/status").catch(()=>null);
   if(!st || !st.ok){ return null; }
   const hint = $("#caseHint");
-  if(st.ready){
-    if(hint) hint.textContent = "Доступен";
-  }else{
-    if(hint) hint.textContent = "КД до: " + (st.next_at ? new Date(st.next_at).toLocaleString() : "—");
+  const freeTxt = st.ready
+    ? "Бесплатный: доступен"
+    : ("Бесплатный КД до: " + (st.next_at ? new Date(st.next_at).toLocaleString() : "—"));
+  const paidTxt = `Платный: без КД (${CASE_PAID_PRICE}₽)`;
+  if(hint){
+    hint.textContent = (caseMode === "paid") ? `${paidTxt} • ${freeTxt}` : freeTxt;
   }
   return st;
 }
 
-function caseSpinTo(prizeKey){
+function caseSpinTo(prizeKey, durationMs=5200){
   const reel = $("#caseReel");
   const vp = reel?.parentElement;
-  if(!reel || !vp) return;
+  if(!reel || !vp) return { durationMs: 0 };
+
+  reel.querySelectorAll(".casePrize.win").forEach(x=>x.classList.remove("win"));
+
   const cards = Array.from(reel.querySelectorAll(".casePrize"));
-  // pick a late occurrence of prize
   const idxs = cards.map((c,i)=>c.dataset.prize===prizeKey?i:-1).filter(i=>i>=0);
   const pick = idxs.filter(i=>i>12);
   const idx = (pick.length ? pick[Math.floor(Math.random()*pick.length)] : (idxs[0] ?? 0));
   const card = cards[idx];
-  const vpRect = vp.getBoundingClientRect();
-  const cRect = card.getBoundingClientRect();
-  // compute current left of card relative to reel by using offsetLeft
-  const targetLeft = card.offsetLeft;
-  const target = targetLeft - (vpRect.width/2 - card.offsetWidth/2);
 
-  // kick
+  const gap = parseFloat(getComputedStyle(reel).gap || "0") || 0;
+  const step = (card?.offsetWidth || 180) + gap;
+
+  const targetLeft = card.offsetLeft;
+  const target = targetLeft - (vp.clientWidth/2 - card.offsetWidth/2);
+
   reel.style.transition = "none";
-  reel.style.transform = "translateX(0px)";
-  void reel.offsetWidth; // reflow
-  reel.style.transition = "transform 3.1s cubic-bezier(.08,.82,.12,1)";
-  reel.style.transform = `translateX(${-Math.max(0,target)}px)`;
+  reel.style.transform = `translateX(0px)`;
+  void reel.offsetWidth;
+
+  let lastIdx = -1;
+  const tickTimer = setInterval(()=>{
+    const x = _getTranslateX(reel);
+    const center = (-x) + (vp.clientWidth/2);
+    const i = Math.floor(center / step);
+    if(i !== lastIdx){
+      lastIdx = i;
+      caseAudio.tick();
+    }
+  }, 28);
+
+  requestAnimationFrame(()=>{
+    reel.style.transition = `transform ${durationMs}ms cubic-bezier(.07,.85,.12,1)`;
+    reel.style.transform = `translateX(${-Math.max(0, target)}px)`;
+  });
+
+  setTimeout(()=>{
+    clearInterval(tickTimer);
+    caseAudio.open();
+    card.classList.add("win");
+  }, Math.max(0, durationMs - 60));
+
+  return { durationMs };
 }
 
-$("#btnCaseChallenge")?.addEventListener("click", async () => {
+async function _caseGetCaptcha(){
   try{
     const ch = await apiGet("/api/case/challenge");
     caseToken = ch.token || "";
@@ -1815,12 +2128,16 @@ $("#btnCaseChallenge")?.addEventListener("click", async () => {
   }catch(e){
     toast("Кейс", e.message || "Ошибка", "bad");
   }
-});
+}
 
-$("#btnCaseOpen")?.addEventListener("click", async ()=>{
+// Support BOTH ids (old/new) so redesign doesn't break behavior.
+$("#btnCaseChallenge")?.addEventListener("click", _caseGetCaptcha);
+$("#btnCaseGetCaptcha")?.addEventListener("click", _caseGetCaptcha);
+
+async function _caseOpenFree(){
   if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
-
   if(caseSpinning) return;
+
   try{
     const answer = ($("#caseAnswer")?.value || "").trim();
     if(!caseToken){
@@ -1833,21 +2150,16 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
     }
 
     caseSpinning = true;
+    _setCaseLocked(true);
+    _setCaseLocked(true);
     const resBox = $("#caseResult");
     if(resBox) resBox.textContent = "Крутим…";
-
-    // During request, give a tiny fake movement
-    const reel = $("#caseReel");
-    if(reel){
-      reel.style.transition = "transform .35s ease";
-      reel.style.transform = "translateX(-160px)";
-    }
 
     const r = await apiPost("/api/case/open", { token: caseToken, answer });
     caseToken = "";
 
-    // animate to final prize
-    caseSpinTo(r.prize);
+    caseAudio.ensure();
+    const spin = caseSpinTo(r.prize);
 
     const map = {
       GEN10: "+10 анализов",
@@ -1861,15 +2173,68 @@ $("#btnCaseOpen")?.addEventListener("click", async ()=>{
     };
 
     setTimeout(async ()=>{
-      if(resBox) resBox.textContent = "Выигрыш: " + (map[r.prize] || r.prize);
-      toast("Кейс", "Выигрыш: " + (map[r.prize] || r.prize), "ok");
+      if(resBox) resBox.textContent = "Приз добавлен в инвентарь: " + (map[r.prize] || r.prize);
+      toast("Кейс", "Приз в инвентаре: " + (map[r.prize] || r.prize), "ok");
       caseSpinning = false;
+      _setCaseLocked(false);
       await refreshMe();
       await caseStatus().catch(()=>{});
-    }, 3200);
+    }, (spin.durationMs || 5200));
 
   }catch(e){
     caseSpinning = false;
+    _setCaseLocked(false);
+    toast("Кейс", e.message || "Ошибка", "bad");
+  }
+}
+
+// Support BOTH ids (old/new)
+$("#btnCaseOpen")?.addEventListener("click", _caseOpenFree);
+$("#btnCaseOpenFree")?.addEventListener("click", _caseOpenFree);
+
+$("#btnCaseOpenPaid")?.addEventListener("click", async ()=>{
+  if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
+  if(caseSpinning) return;
+
+  try{
+    const bal = Number(currentUser?.balance || 0);
+    if(bal < CASE_PAID_PRICE){
+      toast("Баланс", `Нужно ${CASE_PAID_PRICE}₽ для открытия`, "warn");
+      try{ showTab("profile"); }catch(_e){}
+      return;
+    }
+
+    caseSpinning = true;
+    const resBox = $("#caseResult");
+    if(resBox) resBox.textContent = `Крутим за ${CASE_PAID_PRICE}₽…`;
+
+    const r = await apiPost("/api/case/open_paid", {});
+
+    caseAudio.ensure();
+    const spin = caseSpinTo(r.prize);
+
+    const map = {
+      GEN10: "+10 анализов",
+      AI3: "+3 генерации (AI+анализ)",
+      P6H: "Premium на 6 часов",
+      P12H: "Premium на 12 часов",
+      P24H: "Premium на 24 часа",
+      P2D: "Premium на 2 дня",
+      P3D: "Premium на 3 дня",
+      P7D: "Premium на 7 дней",
+    };
+
+    setTimeout(async ()=>{
+      if(resBox) resBox.textContent = "Приз добавлен в инвентарь: " + (map[r.prize] || r.prize);
+      toast("Кейс", "Приз в инвентаре: " + (map[r.prize] || r.prize), "ok");
+      caseSpinning = false;
+      _setCaseLocked(false);
+      await refreshMe();
+    }, (spin.durationMs || 5200));
+
+  }catch(e){
+    caseSpinning = false;
+    _setCaseLocked(false);
     toast("Кейс", e.message || "Ошибка", "bad");
   }
 });

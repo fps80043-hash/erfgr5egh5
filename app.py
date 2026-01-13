@@ -2675,20 +2675,164 @@ def pollinations_models():
 
 # ----------------------------
 # ----------------------------
-# Case (free every 72h) + captcha
+# Case (free every 48h) + captcha
 # ----------------------------
-CASE_COOLDOWN_HOURS = 72
+CASE_COOLDOWN_HOURS = 48
 
 CASE_PRIZES = [
-    ("GEN10", 450),   # +10 анализов
-    ("AI3",   350),   # +3 генерации (AI+анализ)
-    ("P6H",   100),
-    ("P12H",  50),
-    ("P24H",  25),
-    ("P2D",   12),
-    ("P3D",   8),
-    ("P7D",   5),
+    # Weights ~ out of 10k. Rare prize P7D ~= 1.5%
+    ("GEN10", 2500),
+    ("AI3",   2400),
+    ("P6H",   1800),
+    ("P12H",  1200),
+    ("P24H",   700),
+    ("P2D",    650),
+    ("P3D",    600),
+    ("P7D",    150),
 ]
+
+# Paid case (balance) — no captcha, always available (cost in RUB points)
+CASE_PAID_PRICE = 17
+
+# Better odds than free case
+CASE_PAID_PRIZES = [
+    # same rare chance (P7D ~= 1.5%), but overall slightly better distribution for premium
+    ("GEN10", 2350),
+    ("AI3",   2300),
+    ("P6H",   1900),
+    ("P12H",  1300),
+    ("P24H",   750),
+    ("P2D",    700),
+    ("P3D",    700),
+    ("P7D",    150),
+]
+
+
+# ----------------------------
+# Case inventory (store case prizes; user redeems when wants)
+# ----------------------------
+CASE_INV_MAX = 10
+
+def _ensure_case_inventory_table(con):
+    if USE_PG:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_inventory(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              used_at TEXT,
+              meta TEXT
+            )
+        """)
+    else:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_inventory(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              used_at TEXT,
+              meta TEXT
+            )
+        """)
+
+def _case_inventory_count_unused(con, uid: int) -> int:
+    _ensure_case_inventory_table(con)
+    row = con.execute(
+        "SELECT COUNT(1) as c FROM case_inventory WHERE user_id=? AND (used_at IS NULL OR used_at='')",
+        (int(uid),),
+    ).fetchone()
+    return int(_rget(row, "c") or 0)
+
+def _case_inventory_add(con, uid: int, prize: str):
+    _ensure_case_inventory_table(con)
+    con.execute(
+        "INSERT INTO case_inventory(user_id, prize, created_at, used_at, meta) VALUES(?,?,?,?,?)",
+        (int(uid), str(prize), _now_utc_iso(), None, None),
+    )
+
+def _apply_case_prize(uid: int, prize: str):
+    """Apply a stored prize to user account. Premium prizes are blocked if premium is already active."""
+    con = db_conn()
+    # premium active?
+    row = con.execute("SELECT premium_until FROM users WHERE id=?", (int(uid),)).fetchone()
+    cur = _parse_iso((_rget(row, "premium_until") if row else "") or "")
+    premium_active = bool(cur and _now_utc() < cur)
+
+    if prize == "GEN10":
+        con.execute("UPDATE users SET credits_analyze=credits_analyze+10 WHERE id=?", (int(uid),))
+    elif prize == "AI3":
+        con.execute("UPDATE users SET credits_ai=credits_ai+3, credits_analyze=credits_analyze+3 WHERE id=?", (int(uid),))
+    elif prize in ("P6H","P12H","P24H","P2D","P3D","P7D"):
+        if premium_active:
+            con.close()
+            raise HTTPException(status_code=409, detail="Premium already active")
+        delta = {
+            "P6H": datetime.timedelta(hours=6),
+            "P12H": datetime.timedelta(hours=12),
+            "P24H": datetime.timedelta(hours=24),
+            "P2D": datetime.timedelta(days=2),
+            "P3D": datetime.timedelta(days=3),
+            "P7D": datetime.timedelta(days=7),
+        }[prize]
+        con.close()
+        _apply_premium(int(uid), delta)
+        return
+
+    con.commit()
+    con.close()
+
+
+@app.get("/api/inventory/list")
+def api_inventory_list(request: Request):
+    u = require_user(request)
+    uid = int(u["id"])
+    con = db_conn()
+    _ensure_case_inventory_table(con)
+    rows = con.execute(
+        "SELECT id, prize, created_at FROM case_inventory WHERE user_id=? AND (used_at IS NULL OR used_at='') ORDER BY id DESC",
+        (uid,),
+    ).fetchall()
+    cnt = len(rows)
+    con.close()
+    items = [{"id": int(_rget(r,"id") or 0), "prize": _rget(r,"prize"), "created_at": _rget(r,"created_at")} for r in rows]
+    return {"ok": True, "max": CASE_INV_MAX, "count": cnt, "items": items}
+
+
+@app.post("/api/inventory/use")
+def api_inventory_use(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    try:
+        item_id = int(payload.get("id") or 0)
+    except Exception:
+        item_id = 0
+    if item_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid id")
+
+    con = db_conn()
+    _ensure_case_inventory_table(con)
+    row = con.execute(
+        "SELECT id, prize FROM case_inventory WHERE id=? AND user_id=? AND (used_at IS NULL OR used_at='')",
+        (int(item_id), uid),
+    ).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Not found")
+
+    prize = str(_rget(row, "prize") or "")
+
+    # apply (may raise if premium already active)
+    con.close()
+    _apply_case_prize(uid, prize)
+
+    con = db_conn()
+    ts = _now_utc_iso()
+    con.execute("UPDATE case_inventory SET used_at=? WHERE id=? AND user_id=?", (ts, int(item_id), uid))
+    con.commit(); con.close()
+    return {"ok": True, "prize": prize, "limits": user_limits(uid)}
+
 
 def _pick_weighted(items):
     total = sum(w for _, w in items)
@@ -2775,6 +2919,10 @@ def api_case_open(request: Request, payload: Dict[str, Any]):
     prize = _pick_weighted(CASE_PRIZES)
 
     con = db_conn()
+    # inventory capacity check
+    if _case_inventory_count_unused(con, uid) >= CASE_INV_MAX:
+        con.close()
+        raise HTTPException(status_code=409, detail="Inventory full")
     # ensure spins table exists
     if USE_PG:
         con.execute("""
@@ -2795,36 +2943,8 @@ def api_case_open(request: Request, payload: Dict[str, Any]):
             )
         """)
 
-    # Apply prize
-    if prize == "GEN10":
-        con.execute("UPDATE users SET credits_analyze=credits_analyze+10 WHERE id=?", (uid,))
-    elif prize == "AI3":
-        # +3 генерации (AI + анализ)
-        con.execute("UPDATE users SET credits_ai=credits_ai+3, credits_analyze=credits_analyze+3 WHERE id=?", (uid,))
-    elif prize == "P6H":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(hours=6))
-        con = db_conn()
-    elif prize == "P12H":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(hours=12))
-        con = db_conn()
-    elif prize == "P24H":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(hours=24))
-        con = db_conn()
-    elif prize == "P2D":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(days=2))
-        con = db_conn()
-    elif prize == "P3D":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(days=3))
-        con = db_conn()
-    elif prize == "P7D":
-        con.close()
-        _apply_premium(uid, datetime.timedelta(days=7))
-        con = db_conn()
+    # Store prize to inventory (user redeems later)
+    _case_inventory_add(con, uid, prize)
 
     next_at = (_now_utc() + datetime.timedelta(hours=CASE_COOLDOWN_HOURS)).isoformat()
     con.execute("UPDATE users SET case_next_at=? WHERE id=?", (next_at, uid))
@@ -2835,6 +2955,65 @@ def api_case_open(request: Request, payload: Dict[str, Any]):
     con.close()
 
     return {"ok": True, "prize": prize, "next_at": next_at, "limits": user_limits(uid)}
+
+
+@app.post("/api/case/open_paid")
+def api_case_open_paid(request: Request, payload: Dict[str, Any]):
+    """Paid case: opens instantly for balance (no captcha, no cooldown)."""
+    u = require_user(request)
+    uid = int(u["id"])
+
+    con = db_conn()
+    row = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+    bal = int(_rget(row, "balance") or 0)
+
+    if bal < CASE_PAID_PRICE:
+        con.close()
+        raise HTTPException(status_code=402, detail="Not enough balance")
+
+    # inventory capacity check
+    if _case_inventory_count_unused(con, uid) >= CASE_INV_MAX:
+        con.close()
+        raise HTTPException(status_code=409, detail="Inventory full")
+
+    prize = _pick_weighted(CASE_PAID_PRIZES)
+
+    # ensure spins table exists
+    if USE_PG:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_spins(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              ts TEXT NOT NULL
+            )
+        """)
+    else:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS case_spins(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              prize TEXT NOT NULL,
+              ts TEXT NOT NULL
+            )
+        """)
+
+    # Deduct balance + tx
+    ts = _now_utc_iso()
+    con.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(CASE_PAID_PRICE), uid))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
+                (uid, None, -int(CASE_PAID_PRICE), "case paid", ts))
+
+    # Store prize to inventory (user redeems later)
+    _case_inventory_add(con, uid, prize)
+
+    # log spin
+    con.execute("INSERT INTO case_spins(user_id, prize, ts) VALUES(?,?,?)", (uid, prize, ts))
+    con.commit()
+    con.close()
+
+    return {"ok": True, "prize": prize, "price": CASE_PAID_PRICE, "limits": user_limits(uid)}
+
 
 # Core endpoints
 # ----------------------------

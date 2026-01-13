@@ -17,6 +17,23 @@
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji";
 }
 
+/* Theme overrides (pastex-like: deeper black + subtle neon) */
+body.theme-pastex{
+  --bg0:#000000;
+  --bg1:#05050a;
+  --bg2:#080814;
+  --card1:rgba(10,10,18,.82);
+  --card2:rgba(6,6,12,.82);
+  --line:rgba(255,255,255,.08);
+  --acc:#7c5cff;
+  --acc2:#22d3ee;
+  --shadow: 0 26px 110px rgba(0,0,0,.78);
+}
+
+body.theme-classic{
+  /* keep defaults from :root */
+}
+
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -39,13 +56,186 @@ body{
   z-index:1;
   pointer-events:none;
   background:
-    radial-gradient(1000px 600px at 20% 15%, rgba(124,92,255,.22), transparent 60%),
-    radial-gradient(900px 520px at 80% 20%, rgba(34,211,238,.14), transparent 62%),
-    radial-gradient(900px 600px at 60% 86%, rgba(16,185,129,.12), transparent 70%),
-    linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.76));
+    radial-gradient(1000px 600px at 20% 15%, rgba(124,92,255,.18), transparent 60%),
+    radial-gradient(900px 520px at 80% 20%, rgba(34,211,238,.10), transparent 62%),
+    radial-gradient(900px 600px at 60% 86%, rgba(16,185,129,.08), transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.86));
   filter: blur(10px);
   animation: aurora 10s ease-in-out infinite alternate;
 }
+
+
+/* Theme overrides */
+body.theme-pastex{
+  --bg0:#050507;
+  --bg1:#050507;
+  --bg2:#06060b;
+  --card1:rgba(14,14,20,.72);
+  --card2:rgba(10,10,16,.72);
+  --line:rgba(255,255,255,.12);
+  --shadow: 0 18px 60px rgba(0,0,0,.32);
+}
+body.theme-classic{
+  /* keep defaults */
+}
+
+
+/* pastex-like veil: darker, less colorful */
+body.theme-pastex .veil{
+  /* keep pastex vibe but avoid "затмение" on other tabs */
+  opacity:.26;
+  filter: blur(5px);
+  background:
+    radial-gradient(900px 560px at 22% 18%, rgba(124,92,255,.11), transparent 66%),
+    radial-gradient(820px 520px at 78% 20%, rgba(34,211,238,.08), transparent 68%),
+    radial-gradient(700px 520px at 55% 88%, rgba(124,92,255,.06), transparent 72%),
+    linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.55));
+}
+
+/* =========================
+   REDESIGN: pastex-inspired
+   ========================= */
+
+/* True black base */
+body.theme-pastex{ background:#000; }
+
+/* Subtle noise + glows (keeps content readable on all tabs) */
+body.theme-pastex::before,
+body.theme-pastex::after{
+  content:"";
+  position:fixed;
+  inset:-40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Glow layer */
+body.theme-pastex::before{
+  background:
+    radial-gradient(900px 560px at 18% 10%, rgba(124,92,255,.22), transparent 60%),
+    radial-gradient(820px 520px at 82% 18%, rgba(34,211,238,.14), transparent 64%),
+    radial-gradient(900px 640px at 55% 88%, rgba(124,92,255,.10), transparent 70%),
+    radial-gradient(1200px 900px at 50% 50%, rgba(0,0,0,.65), rgba(0,0,0,.92));
+  filter: blur(14px);
+  opacity:.85;
+}
+
+/* Noise + vignette */
+body.theme-pastex::after{
+  background:
+    radial-gradient(closest-side at 50% 50%, rgba(255,255,255,.06), transparent 72%),
+    radial-gradient(900px 700px at 50% 50%, rgba(0,0,0,.0), rgba(0,0,0,.78));
+  opacity:.25;
+  mix-blend-mode: overlay;
+}
+
+/* Veil should NOT darken content too much */
+body.theme-pastex .veil{
+  opacity:.14;
+  filter: blur(4px);
+  background:
+    radial-gradient(900px 560px at 22% 18%, rgba(124,92,255,.10), transparent 66%),
+    radial-gradient(820px 520px at 78% 20%, rgba(34,211,238,.08), transparent 68%),
+    linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.38));
+}
+
+/* Ensure app content is always above background layers */
+.wrap, .top{ position:relative; z-index:3; }
+
+/* Cards: brighter glass, pastex-like rim */
+.card{
+  background: linear-gradient(180deg, rgba(20,22,34,.55), rgba(10,12,18,.55));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 14px 55px rgba(0,0,0,.45);
+}
+body.theme-pastex .card{
+  background: linear-gradient(180deg, rgba(18,18,28,.58), rgba(8,8,12,.56));
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 18px 70px rgba(0,0,0,.55);
+}
+
+/* Buttons: closer to pastex */
+.btn{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(18,18,28,.45);
+}
+.btn.primary{
+  background: linear-gradient(90deg, rgba(124,92,255,.95), rgba(34,211,238,.78));
+  border-color: rgba(255,255,255,.22);
+}
+.btn.primary:hover{ filter: brightness(1.07); }
+.btn:hover{ filter: brightness(1.05); }
+
+/* Pane background to avoid "eclipse" feel in Shop/Profile */
+.pane{
+  position:relative;
+}
+.pane::before{
+  content:"";
+  position:absolute;
+  inset:-10px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.22));
+  pointer-events:none;
+}
+
+/* Profile redesign layout */
+.profileLayout{
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap:14px;
+  align-items:start;
+}
+@media (max-width: 980px){
+  .profileLayout{ grid-template-columns: 1fr; }
+}
+
+.profileSide .card,
+.profileMain .card{ margin-top:12px; }
+.profileSide .card:first-child,
+.profileMain .card:first-child{ margin-top:0; }
+
+.pHero{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.pAvatar{
+  width:56px;
+  height:56px;
+  border-radius: 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(180deg, rgba(124,92,255,.22), rgba(34,211,238,.10));
+  border:1px solid rgba(255,255,255,.14);
+  font-weight:900;
+}
+.pName{ font-size:18px; font-weight:900; }
+.pSub{ color:var(--muted); font-size:12px; }
+
+.quickGrid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:10px;
+  margin-top:12px;
+}
+@media (max-width: 520px){
+  .quickGrid{ grid-template-columns: 1fr; }
+}
+
+.quickStat{
+  padding:12px;
+  border-radius: 16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+}
+.quickStat .k{ color:var(--muted); font-size:12px; }
+.quickStat .v{ font-size:20px; font-weight:1000; margin-top:6px; }
+
+.panelTitleRow{ display:flex; align-items:center; gap:10px; }
+.panelTitleRow h3{ margin:0; }
+
 @keyframes aurora{
   from{transform: translate3d(-1.6%, -1%, 0) rotate(-.6deg)}
   to{transform: translate3d(1.6%, 1%, 0) rotate(.6deg)}
@@ -62,6 +252,10 @@ body{
   background: rgba(2,2,10,.65);
   border-bottom:1px solid var(--line);
   backdrop-filter: blur(18px);
+}
+
+body.theme-pastex .top{
+  background: rgba(0,0,0,.62);
 }
 
 .brand{display:flex; align-items:center; gap:12px}
@@ -802,9 +996,10 @@ code{
 }
 
 /* -------------------------
-   Payments modal (Stripe)
-------------------------- */
-.modal{
+   Payments modal (scoped)
+   (Do NOT affect case/prizes modals)
+-------------------------- */
+#payModal.modal{
   position: fixed;
   inset: 0;
   z-index: 999;
@@ -815,16 +1010,16 @@ code{
   opacity: 0;
   transition: opacity .18s ease;
 }
-.modal.open{display:flex;}
-.modal.vis{opacity:1;}
+#payModal.modal.open{display:flex;}
+#payModal.modal.vis{opacity:1;}
 
-.modal-back{
+#payModal .modal-back{
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,.55);
   backdrop-filter: blur(8px);
 }
-.modal-card{
+#payModal .modal-card{
   transform: translateY(10px) scale(.98);
   transition: transform .18s ease;
 
@@ -949,12 +1144,26 @@ code{
 .productGrid{display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin-top:10px}
 @media (max-width: 980px){ .productGrid{grid-template-columns:1fr} }
 .productCard{
-  display:flex; gap:12px; align-items:center;
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:12px;
-  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  position:relative;
+  display:flex; gap:14px; align-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  overflow:hidden;
 }
+.productCard::before{
+  content:"";
+  position:absolute; inset:-1px;
+  border-radius:20px;
+  background: radial-gradient(600px 220px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
+              radial-gradient(520px 240px at 90% 0%, rgba(34,211,238,.20), transparent 55%);
+  opacity:.55;
+  pointer-events:none;
+}
+.productCard > *{ position:relative; z-index:1; }
+
 .productCard .pIcon{font-size:22px; width:38px; height:38px; display:grid; place-items:center;
   border-radius:12px; border:1px solid rgba(124,92,255,.35);
   background: radial-gradient(60% 60% at 30% 20%, rgba(124,92,255,.25), rgba(0,0,0,0));
@@ -965,39 +1174,55 @@ code{
 .caseViewport{
   position:relative;
   overflow:hidden;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.18));
-  height:96px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.22));
+  height:170px;
 }
 .caseMarker{
   position:absolute;
   left:50%;
   top:0;
-  width:2px;
+  width:4px;
   height:100%;
   transform: translateX(-50%);
-  background: linear-gradient(180deg, transparent, rgba(124,92,255,.9), transparent);
-  box-shadow: 0 0 22px rgba(124,92,255,.65);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.95), rgba(124,92,255,.95), transparent);
+  box-shadow: 0 0 26px rgba(124,92,255,.75);
   z-index:2;
 }
+.caseMarker::before,
+.caseMarker::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  transform: translateX(-50%);
+  width:0; height:0;
+  border-left:9px solid transparent;
+  border-right:9px solid transparent;
+  filter: drop-shadow(0 0 10px rgba(124,92,255,.7));
+}
+.caseMarker::before{ top:8px; border-bottom:12px solid rgba(124,92,255,.95); }
+.caseMarker::after{ bottom:8px; border-top:12px solid rgba(124,92,255,.95); }
 .caseReel{
   position:absolute;
   left:0; top:0;
   height:100%;
   display:flex;
-  gap:10px;
+  gap:12px;
   align-items:center;
-  padding:10px;
+  padding:14px;
   will-change: transform;
   transform: translateX(0);
 }
 .casePrize{
-  min-width:180px;
-  height:72px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  width:170px;
+  min-width:170px;
+  height:170px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(124,92,255,.16), rgba(0,0,0,0) 55%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1005,11 +1230,12 @@ code{
   letter-spacing:.2px;
   position:relative;
   overflow:hidden;
+  flex:0 0 auto;
 }
-.casePrize.prem{border-color: rgba(124,92,255,.35)}
+.casePrize.prem{border-color: rgba(124,92,255,.45)}
 .casePrize.small{min-width:140px}
 
-.prizeList{display:grid; gap:8px}
+.prizeList{display:grid; gap:8px; max-height:60vh; overflow:auto; padding-right:4px}
 .prizeRow{
   display:flex; gap:10px; align-items:center;
   padding:10px;
@@ -1023,6 +1249,19 @@ code{
 }
 .prizeRow .prT{font-weight:900}
 .prizeRow .prW{margin-left:auto; font-size:12px; color:var(--muted)}
+
+/* Mobile: prize list should be scrollable and not absurdly tall */
+@media (max-width: 520px){
+  .prizeList{max-height:48vh}
+  .prizeRow{padding:10px}
+  .prizeRow .prIco{width:40px; height:40px; border-radius:14px}
+  .prizeRow .prT{font-size:13px}
+  .prizeRow .prW{font-size:11px}
+}
+
+/* While case is spinning: prevent closing */
+.modal.locked .iconbtn{pointer-events:none; opacity:.5}
+.modal.locked .modal-back{pointer-events:none}
 
 /* Tilt / 3D hover  */
 .tilt{
@@ -1261,15 +1500,26 @@ canvas.fx, svg.fx {
 }
 
 .productCard{
-  position: relative;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.05);
-  backdrop-filter: blur(14px);
-  padding: 14px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(0,0,0,.35);
+  position:relative;
+  display:flex; gap:14px; align-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  overflow:hidden;
 }
+.productCard::before{
+  content:"";
+  position:absolute; inset:-1px;
+  border-radius:20px;
+  background: radial-gradient(600px 220px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
+              radial-gradient(520px 240px at 90% 0%, rgba(34,211,238,.20), transparent 55%);
+  opacity:.55;
+  pointer-events:none;
+}
+.productCard > *{ position:relative; z-index:1; }
+
 
 .productCard:before{
   content:"";
@@ -1346,13 +1596,25 @@ canvas.fx, svg.fx {
 /* Product cards: glass + subtle bevel (stable) */
 .productCard{
   position:relative;
+  display:flex; gap:14px; align-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
   overflow:hidden;
-  background:
-    radial-gradient(120% 120% at 20% 0%, rgba(124,92,255,.14), rgba(0,0,0,0) 55%),
-    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-  box-shadow: 0 16px 50px rgba(0,0,0,.35);
-  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
 }
+.productCard::before{
+  content:"";
+  position:absolute; inset:-1px;
+  border-radius:20px;
+  background: radial-gradient(600px 220px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
+              radial-gradient(520px 240px at 90% 0%, rgba(34,211,238,.20), transparent 55%);
+  opacity:.55;
+  pointer-events:none;
+}
+.productCard > *{ position:relative; z-index:1; }
+
 .productCard::before{
   content:"";
   position:absolute;
@@ -1368,10 +1630,756 @@ canvas.fx, svg.fx {
 }
 .productCard:hover::before{ opacity:1; }
 
-/* Case prize images */
-.casePrize.hasImg{padding:0; justify-content:flex-start}
-.casePrize .caseImg{width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.05) contrast(1.05)}
-.casePrize .caseLbl{position:absolute; left:10px; right:10px; bottom:8px; font-size:12px; font-weight:900; text-shadow:0 2px 10px rgba(0,0,0,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.casePrize.hasImg::after{content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(0,0,0,.22), rgba(0,0,0,0) 60%); pointer-events:none;}
+/* Case prize images (uniform size, transparent-friendly) */
+.casePrize .caseInner{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:10px;
+  text-align:center;
+}
+.casePrize .caseIcon{
+  width:92px;
+  height:92px;
+  display:grid;
+  place-items:center;
+  font-size:44px;
+}
+.casePrize .caseImg{
+  width:92px;
+  height:92px;
+  object-fit:contain;
+  display:block;
+  background: transparent;
+  filter: saturate(1.05) contrast(1.05);
+}
+.casePrize .caseLbl{
+  font-size:12px;
+  font-weight:900;
+  line-height:1.12;
+  color: rgba(255,255,255,.92);
+  white-space:normal;
+}
+.casePrize.win{
+  border-color: rgba(255,255,255,.55);
+  box-shadow: 0 0 0 2px rgba(124,92,255,.55), 0 18px 60px rgba(124,92,255,.22);
+}
 
-.prizeRow .prImg{width:34px; height:34px; border-radius:12px; object-fit:cover; border:1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.2)}
+/* Prize list icons */
+.prizeRow .prImg{width:34px; height:34px; border-radius:12px; object-fit:contain; border:1px solid rgba(255,255,255,.10); background: transparent}
+
+
+
+/* === CASE STEP1.1: modal + bigger reel + nicer buttons === */
+.caseModalCard{ max-width: 980px; width:min(980px, 96vw); }
+.caseViewport.big{ height: 280px; border-radius: 22px; }
+.caseMarker.big{ width: 6px; box-shadow: 0 0 34px rgba(124,92,255,.85); }
+.caseReel.big{ padding: 18px; gap: 14px; }
+
+.caseReel.big .casePrize{
+  width: 230px;
+  min-width: 230px;
+  height: 230px;
+  border-radius: 22px;
+}
+.caseReel.big .casePrize .caseIcon{ width: 140px; height: 140px; font-size: 64px; }
+.caseReel.big .casePrize .caseImg{ width: 170px; height: 170px; }
+.caseReel.big .casePrize .caseLbl{ font-size: 14px; }
+
+@media (max-width: 720px){
+  .caseViewport.big{ height: 230px; }
+  .caseReel.big .casePrize{ width: 185px; min-width:185px; height:185px; }
+  .caseReel.big .casePrize .caseImg{ width: 140px; height: 140px; }
+}
+
+.prizeRow .prImg{ width: 60px; height: 60px; border-radius: 16px; }
+
+/* Case entry buttons (only for cases) */
+.caseBtn{
+  width:100%;
+  justify-content:center;
+  padding: 14px 16px;
+  font-size: 15px;
+  border-radius: 16px;
+  border: 1px solid rgba(124,92,255,.55);
+  background:
+    radial-gradient(60% 80% at 30% 20%, rgba(124,92,255,.35), rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, rgba(124,92,255,.22), rgba(255,255,255,.03));
+  box-shadow: 0 16px 50px rgba(124,92,255,.16);
+}
+.caseBtnAlt{
+  width:100%;
+  justify-content:center;
+  padding: 14px 16px;
+  font-size: 15px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+}
+.caseBtn:hover, .caseBtnAlt:hover{ transform: translateY(-1px); }
+
+.caseAction{ border-radius: 16px; }
+.caseActionPrimary{
+  border-radius: 16px;
+  background:
+    radial-gradient(70% 90% at 30% 20%, rgba(124,92,255,.38), rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, rgba(124,92,255,.30), rgba(255,255,255,.04));
+  border: 1px solid rgba(124,92,255,.55);
+}
+
+
+
+/* === FULL REDESIGN THEME (pastex-like) === */
+:root{
+  --bg0:#070811;
+  --bg1:#090a18;
+  --bg2:#0c0f24;
+  --glass: rgba(255,255,255,.06);
+  --glass2: rgba(255,255,255,.09);
+  --border: rgba(255,255,255,.12);
+  --border2: rgba(255,255,255,.18);
+
+  --accentA:#8b5cf6;   /* purple */
+  --accentB:#22d3ee;   /* cyan */
+  --accentC:#fb7185;   /* pink */
+  --text:#eef2ff;
+  --muted: rgba(238,242,255,.68);
+
+  --shadow: 0 18px 60px rgba(0,0,0,.55);
+  --shadow2: 0 10px 30px rgba(0,0,0,.40);
+
+  --rCard: 22px;
+  --rBtn: 18px;
+}
+
+/* Background */
+body{
+  color: var(--text);
+  background:
+    radial-gradient(1200px 700px at 10% 10%, rgba(139,92,246,.22), transparent 55%),
+    radial-gradient(900px 600px at 85% 25%, rgba(34,211,238,.18), transparent 50%),
+    radial-gradient(900px 700px at 60% 95%, rgba(251,113,133,.12), transparent 55%),
+    linear-gradient(180deg, var(--bg0), var(--bg2));
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(transparent, rgba(0,0,0,.18)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 1px, transparent 1px 120px);
+  opacity:.14;
+  mix-blend-mode: overlay;
+}
+
+body::after{
+  content:"";
+  position:fixed;
+  inset:-60px;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(139,92,246,.22), transparent 45%),
+    radial-gradient(circle at 70% 40%, rgba(34,211,238,.16), transparent 48%),
+    radial-gradient(circle at 60% 80%, rgba(251,113,133,.14), transparent 52%);
+  filter: blur(40px);
+  opacity:.45;
+}
+
+/* Cards */
+.card, .productCard, .modal, .panel, .box{
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+  border:1px solid var(--border);
+  border-radius: var(--rCard);
+  box-shadow: 0 10px 26px rgba(0,0,0,.32);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.card:hover, .productCard:hover{
+  border-color: rgba(255,255,255,.22);
+  box-shadow: var(--shadow);
+}
+
+/* Headings / text */
+h1,h2,h3{ letter-spacing: .2px; }
+.muted{ color: var(--muted) !important; }
+
+/* Buttons */
+.btn, .navbtn, .btab{
+  border-radius: var(--rBtn) !important;
+  border:1px solid rgba(255,255,255,.16) !important;
+  background:
+    radial-gradient(120% 140% at 20% 0%, rgba(255,255,255,.18), rgba(255,255,255,.07) 55%, rgba(255,255,255,.05)),
+    linear-gradient(180deg, rgba(12,14,30,.35), rgba(12,14,30,.15));
+  color: var(--text) !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.35);
+}
+
+.btn:hover, .navbtn:hover, .btab:hover{
+  border-color: rgba(255,255,255,.28) !important;
+  transform: translateY(-1px);
+}
+
+.btn.primary, .btnPrimary{
+  border:1px solid rgba(255,255,255,.18) !important;
+  background:
+    linear-gradient(90deg, rgba(139,92,246,.9), rgba(34,211,238,.75)),
+    radial-gradient(120% 160% at 20% 0%, rgba(255,255,255,.22), transparent 55%);
+  box-shadow: 0 14px 40px rgba(139,92,246,.22), 0 12px 34px rgba(34,211,238,.14);
+}
+.btn.primary:hover, .btnPrimary:hover{
+  filter: brightness(1.06);
+  box-shadow: 0 18px 55px rgba(139,92,246,.26), 0 16px 44px rgba(34,211,238,.18);
+}
+
+.btn.danger{
+  background: linear-gradient(90deg, rgba(251,113,133,.85), rgba(244,63,94,.75));
+}
+
+.btn:disabled, .navbtn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  transform:none !important;
+}
+
+/* Inputs */
+input, textarea, select, .selectBox{
+  background: rgba(255,255,255,.06) !important;
+  border:1px solid rgba(255,255,255,.14) !important;
+  border-radius: 16px !important;
+  color: var(--text) !important;
+  backdrop-filter: blur(12px);
+}
+input:focus, textarea:focus, select:focus{
+  outline:none;
+  border-color: rgba(34,211,238,.35) !important;
+  box-shadow: 0 0 0 4px rgba(34,211,238,.10);
+}
+
+/* Product grid */
+.productGrid{ gap:14px !important; }
+.productCard{
+  position:relative;
+  display:flex; gap:14px; align-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  overflow:hidden;
+}
+.productCard::before{
+  content:"";
+  position:absolute; inset:-1px;
+  border-radius:20px;
+  background: radial-gradient(600px 220px at 10% 10%, rgba(124,92,255,.28), transparent 60%),
+              radial-gradient(520px 240px at 90% 0%, rgba(34,211,238,.20), transparent 55%);
+  opacity:.55;
+  pointer-events:none;
+}
+.productCard > *{ position:relative; z-index:1; }
+
+.productCard::before{
+  content:"";
+  position:absolute; inset:-2px;
+  background: linear-gradient(120deg, rgba(139,92,246,.30), rgba(34,211,238,.18), rgba(251,113,133,.22));
+  opacity:.35;
+  filter: blur(22px);
+  pointer-events:none;
+}
+.productCard .productName{
+  font-weight: 750;
+}
+.productCard .productPrice{
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+
+/* Top area */
+.top, .header, .topbar{
+  background: transparent !important;
+}
+
+/* Mobile bottom nav (keep, but style) */
+.mnav{
+  background: linear-gradient(180deg, rgba(12,14,30,.35), rgba(12,14,30,.75)) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* Profile redesign helpers */
+.profileHero{
+  display:flex;
+  gap:14px;
+  align-items:center;
+}
+.pAvatar{
+  width:56px; height:56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(139,92,246,.85), rgba(34,211,238,.75));
+  box-shadow: 0 14px 40px rgba(139,92,246,.18);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900;
+}
+.pMeta{ line-height:1.1; }
+.pMeta .pName{ font-size: 18px; font-weight: 850; }
+.pMeta .pSub{ font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.pStatRow{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:12px;
+  margin-top: 14px;
+}
+.pStat{
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);
+}
+.pStat .k{ font-size: 12px; color: var(--muted); }
+.pStat .v{ font-size: 18px; font-weight: 850; margin-top: 4px; }
+
+@media (max-width: 520px){
+  .pStatRow{ grid-template-columns: 1fr; }
+}
+
+
+/* --- utilities --- */
+.hidden{ display:none !important; }
+
+/* --- pastex-like background (deeper black + glows) --- */
+body.theme-pastex{
+  background-color:#000;
+  background-image:
+    radial-gradient(1200px 650px at 20% 10%, rgba(124,92,255,.22), transparent 60%),
+    radial-gradient(1100px 620px at 85% 20%, rgba(34,211,238,.16), transparent 62%),
+    radial-gradient(900px 520px at 50% 95%, rgba(124,92,255,.10), transparent 65%),
+    linear-gradient(180deg, rgba(0,0,0,1), rgba(0,0,0,1));
+}
+body.theme-pastex::before{
+  /* disable grid look; keep subtle noise-like sheen */
+  background: radial-gradient(800px 260px at 50% 0%, rgba(255,255,255,.05), transparent 65%);
+  opacity:.22;
+  mix-blend-mode: overlay;
+}
+body.theme-pastex::after{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none;
+  background: radial-gradient(900px 700px at 50% 50%, transparent 35%, rgba(0,0,0,.75) 78%, rgba(0,0,0,.92) 100%);
+  z-index:1;
+}
+
+/* particles canvas should stay behind UI */
+#particles{ z-index:0; }
+.app, main, header, .bottomNav{ position:relative; z-index:2; }
+
+/* --- modals (cases + prizes) --- */
+.modalBack{
+  position:fixed; inset:0;
+  /* Slightly lighter than before: avoids "затмение" effect */
+  background: rgba(0,0,0,.52);
+  backdrop-filter: blur(5px);
+  z-index:1200;
+}
+.modal{
+  position:fixed;
+  inset: auto; /* override any global/inherited inset */
+  left:50%; top:50%;
+  transform: translate(-50%,-50%) scale(.985);
+  width:min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow:hidden;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, rgba(12,12,18,.86), rgba(7,7,12,.78));
+  box-shadow: 0 22px 110px rgba(0,0,0,.70);
+  z-index:1201;
+  display:none;
+  opacity:0;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.modal.open{ display:block; }
+.modal.vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+.modal.open{ display:block; }
+.modal.vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+.modal.glass{
+  backdrop-filter: blur(14px);
+}
+.modalHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 14px 10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.modalTitleRow{ display:flex; align-items:center; gap:10px; }
+.modalTitle{ font-weight:800; letter-spacing:.2px; }
+.iconBtn{
+  width:36px; height:36px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+}
+.iconBtn:hover{ background: rgba(255,255,255,.07); }
+
+.badge{
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+
+/* case reel */
+.modalCase{ width:min(720px, calc(100vw - 24px)); }
+.caseStage{ padding:14px; }
+.caseReelWrap{
+  position:relative;
+  overflow:hidden;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(124,92,255,.18), rgba(0,0,0,0) 55%),
+    radial-gradient(120% 120% at 70% 30%, rgba(34,211,238,.12), rgba(0,0,0,0) 55%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.35));
+  height: 260px;
+}
+.caseReel{
+  height:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:18px;
+  will-change: transform;
+}
+/* marker inside case reel (scoped to modal so it doesn't affect other pages) */
+.modalCase .caseMarker{
+  position:absolute;
+  left:50%;
+  top:0;
+  height:100%;
+  width:4px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.95), rgba(124,92,255,.95), transparent);
+  box-shadow: 0 0 26px rgba(124,92,255,.55);
+  z-index:3;
+}
+.modalCase .caseMarker::before,
+.modalCase .caseMarker::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  transform: translateX(-50%);
+  width:0; height:0;
+  border-left:9px solid transparent;
+  border-right:9px solid transparent;
+  filter: drop-shadow(0 0 10px rgba(124,92,255,.7));
+}
+.modalCase .caseMarker::before{ top:10px; border-bottom:12px solid rgba(124,92,255,.95); }
+.modalCase .caseMarker::after{ bottom:10px; border-top:12px solid rgba(124,92,255,.95); }
+.caseResult{
+  margin: 0 14px 10px 14px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+
+.caseControls{ padding: 0 14px 14px 14px; }
+.caseControlsBox{ margin-top:10px; }
+.row{ display:flex; align-items:center; }
+.gap{ gap:10px; }
+.input{
+  height:44px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.32);
+  color: var(--text);
+  padding: 0 12px;
+  min-width: 140px;
+}
+.hint{ margin-top:8px; opacity:.85; font-size:13px; }
+
+/* prizes modal mobile-friendly */
+.modalPrizes{ width:min(560px, calc(100vw - 24px)); }
+.prizesList{
+  padding: 12px 14px 16px 14px;
+  overflow:auto;
+  max-height: min(58vh, 520px);
+}
+@media (max-width: 520px){
+  .prizesList{ max-height: 44vh; }
+  .caseReelWrap{ height: 210px; }
+}
+
+/* =========================
+   Pastex-inspired global background + UI polish
+   ========================= */
+
+/* True black base; keep gradients in overlay layers */
+body.theme-pastex{ background:#000; }
+
+/* Overlay: subtle grid + noise (very light) */
+body.theme-pastex::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:
+    radial-gradient(1200px 700px at 18% 14%, rgba(124,92,255,.18), transparent 60%),
+    radial-gradient(900px 650px at 82% 22%, rgba(34,211,238,.10), transparent 62%),
+    radial-gradient(900px 700px at 62% 86%, rgba(124,92,255,.08), transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.78));
+}
+body.theme-pastex::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.22;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(90% 60% at 50% 30%, rgba(0,0,0,1), rgba(0,0,0,0));
+}
+
+/* Particles already z=0; keep content above */
+.wrap, .top, .pane{ position:relative; z-index:2; }
+
+/* Veil should never "eclipse" content */
+body.theme-pastex .veil{
+  opacity:.14;
+  filter: blur(4px);
+  background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.44));
+  animation: none;
+}
+
+/* Pane container: add subtle surface so text is readable on all tabs */
+.pane{
+  padding: 18px;
+}
+.pane > .grid1,
+.pane > .gridHome,
+.pane > .toolsLanding,
+.pane > .shopWrap{
+  border-radius: 24px;
+}
+
+/* Cards: clearer glass, less muddy */
+body.theme-pastex .card{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 22px 80px rgba(0,0,0,.55);
+}
+
+/* Buttons: closer to pastex vibe */
+body.theme-pastex .btn{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 10px 40px rgba(0,0,0,.45);
+}
+body.theme-pastex .btn.primary{
+  background: linear-gradient(90deg, rgba(124,92,255,.95), rgba(34,211,238,.92));
+  border-color: rgba(255,255,255,.14);
+  box-shadow: 0 14px 60px rgba(124,92,255,.28), 0 14px 60px rgba(34,211,238,.18);
+}
+body.theme-pastex .btn.primary:hover{ transform: translateY(-1px); }
+
+/* Inputs */
+body.theme-pastex .input{
+  background: rgba(0,0,0,.30);
+  border: 1px solid rgba(255,255,255,.10);
+}
+
+/* --- Profile redesign layout --- */
+.profileLayout{
+  display:grid;
+  grid-template-columns: 380px 1fr;
+  gap: 14px;
+}
+.profileSide .card, .profileMain .card{ margin-bottom: 12px; }
+
+.pHeroNew{
+  display:flex;
+  gap: 12px;
+  align-items:center;
+}
+.pAvatar{
+  width:56px; height:56px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, rgba(124,92,255,.35), rgba(34,211,238,.18));
+  border: 1px solid rgba(255,255,255,.14);
+  font-weight: 900;
+}
+.pName{ font-size: 18px; font-weight: 900; }
+.pSub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.quickStats{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.qStat{
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+.qStat .k{ font-size: 12px; color: var(--muted); }
+.qStat .v{ font-size: 18px; font-weight: 950; margin-top: 4px; }
+
+.profileActions{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+@media (max-width: 980px){
+  .profileLayout{ grid-template-columns: 1fr; }
+}
+
+
+
+
+
+/* === Pastex-like product cards === */
+.productCard.pxtCard{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
+  padding:14px;
+  border-radius:26px;
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow: 0 22px 70px rgba(0,0,0,.65);
+}
+.productCard.pxtCard::before{
+  opacity:.9;
+  background:
+    radial-gradient(820px 420px at 10% 0%, rgba(124,92,255,.30), transparent 55%),
+    radial-gradient(760px 420px at 90% 0%, rgba(34,211,238,.18), transparent 55%),
+    radial-gradient(520px 420px at 50% 120%, rgba(255,255,255,.06), transparent 60%);
+}
+.productCard.pxtCard .prodMedia{
+  position:relative;
+  height:168px;
+  border-radius:20px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+  background: radial-gradient(120% 120% at 20% 10%, rgba(124,92,255,.22), rgba(0,0,0,0) 55%),
+              radial-gradient(120% 120% at 90% 0%, rgba(34,211,238,.14), rgba(0,0,0,0) 55%),
+              linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.35));
+}
+.productCard.pxtCard .prodMediaGlow{
+  position:absolute; inset:-40%;
+  background: radial-gradient(circle at 30% 30%, rgba(124,92,255,.25), transparent 45%),
+              radial-gradient(circle at 70% 40%, rgba(34,211,238,.18), transparent 48%);
+  filter: blur(20px);
+  opacity:.9;
+}
+.productCard.pxtCard .prodMediaIcon{
+  position:absolute; inset:0;
+  display:grid; place-items:center;
+  font-size:64px;
+  opacity:.9;
+  text-shadow: 0 18px 60px rgba(0,0,0,.55);
+}
+.productCard.pxtCard .prodBody{
+  padding:14px 4px 2px 4px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.productCard.pxtCard .prodHead{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.productCard.pxtCard .prodTitle{
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.productCard.pxtCard .prodTag{
+  margin-left:auto;
+  padding:5px 10px;
+  font-size:12px;
+  font-weight:800;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: radial-gradient(80% 80% at 30% 20%, rgba(124,92,255,.22), rgba(0,0,0,0));
+  color: rgba(255,255,255,.92);
+}
+.productCard.pxtCard .prodDesc{
+  color: rgba(255,255,255,.72);
+  line-height:1.35;
+  min-height:44px;
+}
+.productCard.pxtCard .prodFooter{
+  margin-top:auto;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  padding-top:6px;
+}
+.productCard.pxtCard .prodBtnRow{display:flex; gap:10px; align-items:center}
+.productCard.pxtCard .prodBtnCol{display:flex; flex-direction:column; gap:10px}
+.productCard.pxtCard .pxtBtn,
+.productCard.pxtCard .pxtBtnGhost{
+  height:44px;
+  border-radius:14px;
+  padding:0 18px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.productCard.pxtCard .pxtBtn{
+  background: linear-gradient(90deg, rgba(124,92,255,.95), rgba(34,211,238,.85));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow: 0 16px 45px rgba(0,0,0,.55);
+}
+.productCard.pxtCard .pxtBtn:hover{transform: translateY(-1px); filter: brightness(1.05)}
+.productCard.pxtCard .pxtBtnGhost{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.12);
+}
+.productCard.pxtCard .btnIco{margin-right:8px}
+.productCard.pxtCard .prodPrice{
+  text-align:right;
+  min-width:110px;
+}
+.productCard.pxtCard .prodPrice .priceHint{
+  color: rgba(255,255,255,.55);
+  font-size:12px;
+}
+.productCard.pxtCard .prodPrice .priceMain{
+  font-weight:1000;
+  font-size:24px;
+  letter-spacing:.2px;
+}
+/* responsive */
+@media (max-width: 980px){
+  .productCard.pxtCard .prodFooter{flex-direction:column; align-items:stretch}
+  .productCard.pxtCard .prodPrice{text-align:left}
+  .productCard.pxtCard .prodBtnRow{justify-content:space-between}
+}
+

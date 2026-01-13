@@ -5,9 +5,9 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1768231390" rel="stylesheet"/>
+<link href="/static/styles.css?v=1768319380" rel="stylesheet"/>
 </head>
-<body>
+<body class="theme-pastex">
 <canvas id="particles"></canvas>
 <div class="veil"></div>
 <header class="top">
@@ -344,6 +344,7 @@
 </div>
 </div>
 </section>
+
 <section class="pane" id="tab-shop">
 <div class="card">
 <h2>🛒 Магазин</h2>
@@ -368,93 +369,138 @@
 </div>
 
 <div class="productGrid">
-<div class="productCard tilt" id="prodTopup">
-<div class="productTop">
-<div class="productIco">💳</div>
-<div>
-<div class="productName">Пополнение баланса</div>
-<div class="productDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
+<div class="productCard tilt pxtCard" id="prodTopup">
+  <div class="prodMedia">
+    <div class="prodMediaGlow"></div>
+    <div class="prodMediaIcon">💳</div>
+  </div>
+  <div class="prodBody">
+    <div class="prodHead">
+      <div class="prodTitle">Пополнение баланса</div>
+      <div class="prodTag">Balance</div>
+    </div>
+    <div class="prodDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
+    <div class="prodFooter">
+      <button class="btn pxtBtn" id="btnTopUpShop" type="button"><span class="btnIco">🛒</span> Пополнить</button>
+      <div class="prodPrice">
+        <div class="priceHint">Любая сумма</div>
+        <div class="priceMain">₽</div>
+      </div>
+    </div>
+  </div>
 </div>
+<div class="productCard tilt pxtCard" id="prodPremium">
+  <div class="prodMedia">
+    <div class="prodMediaGlow"></div>
+    <div class="prodMediaIcon">👑</div>
+  </div>
+  <div class="prodBody">
+    <div class="prodHead">
+      <div class="prodTitle">Premium</div>
+      <div class="prodTag">Executor</div>
+    </div>
+    <div class="prodDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
+    <div class="prodFooter">
+      <div class="prodBtnRow">
+        <button class="btn pxtBtnGhost" id="btnOpenPremiumShop" type="button">Открыть</button>
+        <button class="btn pxtBtn" id="btnBuyPremium" type="button"><span class="btnIco">🛒</span> Купить</button>
+      </div>
+      <div class="prodPrice">
+        <div class="priceHint">Starting at</div>
+        <div class="priceMain"><span style="opacity:.85">₽</span><span id="premiumPrice">—</span></div>
+      </div>
+    </div>
+  </div>
 </div>
-<div class="productActions">
-<button class="btn primary" id="btnTopUpShop" type="button">Пополнить</button>
+<div class="productCard tilt pxtCard" id="prodCase">
+  <div class="prodMedia">
+    <div class="prodMediaGlow"></div>
+    <div class="prodMediaIcon">🎁</div>
+  </div>
+  <div class="prodBody">
+    <div class="prodHead">
+      <div class="prodTitle">Кейс с призами</div>
+      <div class="prodTag">Case</div>
+    </div>
+    <div class="prodDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
+    <div class="prodFooter">
+      <div class="prodBtnCol">
+        <button class="btn pxtBtn" id="btnOpenCaseFree" type="button">🎯 Кейс за капчу</button>
+        <button class="btn pxtBtnGhost" id="btnOpenCasePaid" type="button">💸 Кейс за 17₽</button>
+      </div>
+      <div class="prodPrice">
+        <div class="priceHint">Paid case</div>
+        <div class="priceMain">₽17</div>
+      </div>
+    </div>
+  </div>
 </div>
-</div>
-<div class="productCard tilt" id="prodPremium">
-<div class="productTop">
-<div class="productIco">👑</div>
-<div>
-<div class="productName">Premium</div>
-<div class="productDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
-</div>
-</div>
-<div class="productActions">
-<button class="btn" id="btnOpenPremiumShop" type="button">Открыть</button>
-<button class="btn primary" id="btnBuyPremium" type="button">Купить</button>
-</div>
-</div>
-<div class="productCard tilt" id="prodCase">
-<div class="productTop">
-<div class="productIco">🎁</div>
-<div>
-<div class="productName">Кейс с призами</div>
-<div class="productDesc">Призы: +баланс, +генерации и бонусы. Открытие — только для авторизованных.</div>
-</div>
-</div>
-
-<div class="card" id="premiumPayBox" style="margin-top:0px;">
-<div class="headrow">
-<h3>💎 Premium</h3>
-<div class="badge" id="premiumState" style="margin-left:auto">—</div>
-</div>
-<div class="muted" id="premiumDesc" style="margin-top:8px">
-              Premium убирает лимиты и открывает чат с ИИ.
-            </div>
-<div class="row" style="margin-top:10px; flex-wrap:wrap">
-<button class="btn primary" id="btnBuyPremium">Купить Premium за баланс</button>
-</div>
-</div>
-<div class="card">
-</div>
-<div class="productActions"><button class="btn primary" id="btnScrollCase" type="button">Открыть</button></div></div>
-</div><div class="shopCaseWrap"><div class="card" id="caseBox" style="margin-top:0px;">
-<div class="headrow">
-<h3>🎁 Кейс с призами</h3>
-<div style="margin-left:auto; display:flex; gap:8px; align-items:center">
-<button class="btn mini tilt" id="btnCasePrizes" type="button">🎯 Призы</button>
-<div class="muted" id="caseHint">—</div>
-</div>
-</div>
-<div class="caseReelCard" style="margin-top:10px">
-<div class="caseViewport">
-<div class="caseMarker"></div>
-<div class="caseReel" id="caseReel"></div>
-</div>
-<div class="muted" id="caseResult" style="margin-top:8px; font-size:12px">—</div>
-</div>
-<div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
-<button class="btn" id="btnCaseChallenge">Получить капчу</button>
-<div style="flex:1; min-width:220px">
-<label class="lbl">Ответ капчи</label>
-<input class="input" id="caseAnswer" placeholder="Например: 7"/>
-</div>
-<button class="btn primary" id="btnCaseOpen">Открыть кейс</button>
-</div>
-<div class="muted" style="margin-top:8px">Призы: +10 анализов, +3 генерации (AI+анализ), Premium 6/12/24ч, 2/3/7 дней.</div>
-</div></div>
-</div></section>
+</div> <!-- /productGrid -->
+</div> <!-- /card -->
+</section>
 <section class="pane" id="tab-profile">
-<div class="grid1">
-<div class="card">
-<div class="headrow">
-<h2>👤 Профиль</h2>
-<button class="btn mini" id="btnLogout" style="display:none">Выйти</button>
-</div>
-<div class="muted" style="margin-bottom:10px">Статус: <b id="meStatus">не вошёл</b></div>
+<div class="profileLayout">
+  <!-- LEFT: identity + quick actions -->
+  <div class="profileSide">
+    <div class="card">
+      <div class="pHeroNew">
+        <div class="pAvatar tilt" id="pAvatar">?</div>
+        <div>
+          <div class="pName" id="pName">Гость</div>
+          <div class="pSub">ID: <b id="pUserId">—</b> • <span style="opacity:.9">Статус:</span> <b id="meStatus">не вошёл</b></div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
+          <div class="badge" id="badgePremium" style="display:none">FREE</div>
+          <button class="btn mini" id="btnLogout" style="display:none" type="button">Выйти</button>
+        </div>
+      </div>
+
+      <div class="quickStats">
+        <div class="qStat" id="profileBalanceQuick" style="display:none">
+          <div class="k">Баланс</div>
+          <div class="v" id="profileBalanceValue">0 ₽</div>
+        </div>
+        <div class="qStat" id="premiumState" style="display:none">
+          <div class="k">Premium до</div>
+          <div class="v" id="limPremiumUntil">—</div>
+        </div>
+      </div>
+
+      <div class="profileActions">
+        <button class="btn" id="btnTopUp" type="button">💳 Пополнить</button>
+        <button class="btn" id="btnShowTx" type="button">🧾 Транзакции</button>
+        <button class="btn" id="btnShowSavedTemplates" type="button">📁 Шаблоны</button>
+      </div>
+
+      <div class="divider" style="margin-top:12px"></div>
+      <div class="muted" style="font-size:12px">Быстрые действия: пополнение, история, шаблоны. Всё остальное — справа.</div>
+    </div>
+
+    <div class="card" id="themeBox">
+      <div class="headrow">
+        <h3>🎨 Тема</h3>
+        <div class="badge" style="margin-left:auto">Оформление</div>
+      </div>
+      <div class="row" style="flex-wrap:wrap; margin-top:10px">
+        <div style="flex:1; min-width:220px">
+          <label class="lbl">Выбор темы</label>
+          <select class="input" id="themeSelect">
+            <option value="pastex">Dark (pastex-like)</option>
+            <option value="classic">Classic</option>
+          </select>
+        </div>
+        <button class="btn primary" id="btnThemeApply" type="button">Применить</button>
+      </div>
+      <div class="muted" style="margin-top:8px; font-size:12px">Тема сохраняется в браузере. Можно переключиться обратно.</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: account / limits / inventory / admin -->
+  <div class="profileMain">
 <div class="card" id="limitsBox" style="margin-top:12px; display:none">
 <div class="headrow">
 <h3>⚡ Доступ</h3>
-<div class="badge" id="badgePremium" style="margin-left:auto">FREE</div>
+<div class="badge" style="margin-left:auto" class="muted">Права</div>
 </div>
 <div class="grid2" style="margin-top:8px">
 <div class="stat">
@@ -467,7 +513,7 @@
 </div>
 <div class="stat">
 <div class="muted">Premium до</div>
-<div class="statv" id="limPremiumUntil">—</div>
+<div class="statv" id="limPremiumUntil2">—</div>
 </div>
 <div class="stat">
 <div class="muted">Кейс</div>
@@ -478,17 +524,32 @@
     Premium снимает лимиты и открывает чат с ИИ. Можно оформить подписку ниже или выбить Premium в бесплатном кейсе.
   </div>
 </div>
-<div class="card" id="balanceBox" style="margin-top:12px; display:none">
+<div class="card" id="balanceBox" style="display:none">
 <div class="headrow">
 <h3>💰 Баланс</h3>
 <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
 <div class="badge" id="balanceValue">0</div>
-<button class="btn" id="btnTopUp">Пополнить</button>
+<button class="btn" data-topup="1" type="button">Пополнить</button>
 </div>
+ </div>
+ <div class="muted" style="margin-top:8px">
+   Баланс используется для оплаты функций. Пополнить можно через CryptoBot (крипта), промокод, либо вручную через администратора.
+ </div>
 </div>
-<div class="muted" style="margin-top:8px">
-              Баланс используется для оплаты функций. Пополнить можно через CryptoBot (крипта), промокод, либо вручную через администратора.
-            </div>
+
+<div class="card" id="invBox" style="margin-top:12px; display:none">
+  <div class="headrow">
+    <h3>🎒 Инвентарь призов</h3>
+    <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
+      <div class="badge" id="invCount">0/10</div>
+      <button class="btn mini" id="btnInvRefresh" type="button">Обновить</button>
+    </div>
+  </div>
+  <div class="muted" style="margin-top:8px; font-size:12px">
+    Призы из кейсов попадают сюда. Их можно использовать <b>единоразово</b> в любой момент. Если Premium уже активен — применять Premium-приз нельзя.
+  </div>
+  <div class="divider" style="margin-top:12px"></div>
+  <div class="prizeList" id="invList"></div>
 </div>
 <div class="card" id="adminBox" style="margin-top:12px; display:none">
 <div class="headrow">
@@ -654,53 +715,62 @@
 </div>
 </div>
 </section>
+
 </main>
-<nav aria-label="Навигация снизу" class="bottomnav">
-<button class="btab active" data-tab="home"><span>🏠</span><small>Главная</small></button>
-<button class="btab" data-tab="tools"><span>🧰</span><small>Инструменты</small></button>
-<button class="btab" data-tab="shop"><span>🛒</span><small>Магазин</small></button>
-<button class="btab" data-tab="profile"><span>👤</span><small>Профиль</small></button>
-</nav>
-<div aria-atomic="true" aria-live="polite" class="toasts" id="toasts"></div>
-<!-- Case prizes modal -->
-<div class="modal" id="casePrizesModal" style="display:none">
-<div class="modal-back" id="casePrizesBack"></div>
-<div class="modal-card">
-<div class="headrow">
-<h3>🎯 Призы кейса</h3>
-<button class="iconbtn" id="btnCasePrizesClose" type="button">×</button>
+
+<div id="caseOpenBack" class="modalBack hidden"></div>
+<div id="caseOpenModal" class="modal glass modalCase hidden" role="dialog" aria-modal="true">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="modalTitle" id="caseModalTitle">Кейс</div>
+      <div class="badge" id="caseModeBadge">FREE</div>
+    </div>
+    <button class="iconBtn" id="btnCaseModalClose" type="button" aria-label="Close">✕</button>
+  </div>
+
+  <div class="caseStage">
+    <div class="caseReelWrap">
+      <div class="caseMarker" aria-hidden="true"></div>
+      <div id="caseReel" class="caseReel"></div>
+    </div>
+  </div>
+
+  <div id="caseResult" class="caseResult hidden"></div>
+
+  <div class="caseControls">
+    <div class="row">
+      <button class="btn secondary" id="btnCasePrizes" type="button">👁 Призы</button>
+    </div>
+
+    <div id="caseFreeControls" class="caseControlsBox">
+      <div class="row gap">
+        <button class="btn primary" id="btnCaseGetCaptcha" type="button">Получить капчу</button>
+        <input id="caseAnswer" class="input" placeholder="Ответ капчи" inputmode="numeric" />
+        <button class="btn primary" id="btnCaseOpenFree" type="button">Открыть</button>
+      </div>
+      <div id="caseHint" class="hint"></div>
+    </div>
+
+    <div id="casePaidControls" class="caseControlsBox hidden">
+      <div class="row gap">
+        <button class="btn primary" id="btnCaseOpenPaid" type="button">Открыть за 17₽</button>
+      </div>
+    </div>
+  </div>
 </div>
-<div class="muted" style="margin-top:6px">Шансы приблизительные. Кейс бесплатный, раз в 72 часа.</div>
-<div class="divider"></div>
-<div class="prizeList" id="casePrizesList"></div>
+
+<div id="casePrizesBack" class="modalBack hidden"></div>
+<div id="casePrizesModal" class="modal glass modalPrizes hidden" role="dialog" aria-modal="true">
+  <div class="modalHeader">
+    <div class="modalTitle">Призы</div>
+    <button class="iconBtn" id="btnCasePrizesClose" type="button" aria-label="Close">✕</button>
+  </div>
+  <div id="casePrizesList" class="prizesList"></div>
 </div>
-</div>
-<!-- Saved templates modal -->
-<div class="modal" id="savedTemplatesModal" style="display:none">
-<div class="modal-back" id="savedTemplatesBack"></div>
-<div class="modal-card">
-<div class="headrow">
-<h3>📁 Мои шаблоны</h3>
-<button class="iconbtn" id="btnSavedTemplatesClose" type="button">×</button>
-</div>
-<div class="muted" style="margin-top:6px">Сохраняются в браузере (LocalStorage).</div>
-<div class="divider"></div>
-<div class="prizeList" id="savedTemplatesList"></div>
-</div>
-</div>
-<!-- Transactions modal -->
-<div class="modal" id="txModal" style="display:none">
-<div class="modal-back" id="txBack"></div>
-<div class="modal-card">
-<div class="headrow">
-<h3>📜 История транзакций</h3>
-<button class="iconbtn" id="btnTxClose" type="button">×</button>
-</div>
-<div class="muted" style="margin-top:6px">Последние изменения баланса.</div>
-<div class="divider"></div>
-<div class="prizeList" id="txList"></div>
-</div>
-</div>
+<!-- /CASES MODALS -->
+
+
+
 <!-- Payment modal -->
 <div class="modal" data-backdrop="1" id="payModal" style="display:none">
 <div class="modal-back" id="payBack"></div>
@@ -762,6 +832,8 @@
 </div>
 </div>
 </div>
-<script src="/static/app.js?v=1768231390"></script>
+
+<!-- core logic -->
+<script src="/static/app.js?v=1768319380"></script>
 </body>
 </html>
