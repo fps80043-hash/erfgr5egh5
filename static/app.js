@@ -8,96 +8,146 @@ function closeAllSelects(except=null){
 // -------------------------
 // Theme + particles (UI)
 // -------------------------
-function applyTheme(theme){
-  const t = (theme === "classic") ? "classic" : "pastex";
-  document.body.classList.toggle("theme-pastex", t === "pastex");
-  document.body.classList.toggle("theme-classic", t === "classic");
-  try{ localStorage.setItem("theme", t); }catch(e){}
+function applyTheme(name){
+  const t = (name === "event") ? "event" : "night";
+  writeLS("theme", t);
+  document.body.setAttribute("data-theme", t);
+  document.body.classList.remove("theme-night","theme-event");
+  document.body.classList.add(`theme-${t}`);
 }
 window.applyTheme = applyTheme;
 
-function initParticles(){
+function initParticles(forceRestart=false){
   const cv = document.getElementById("particles");
   if(!cv) return;
+
+  // prevent double init
+  if(cv.__fxRunning && !forceRestart) return;
+  cv.__fxRunning = true;
+
   const ctx = cv.getContext("2d", { alpha: true });
-  if(!ctx) return;
+  let w = 0, h = 0;
+  const isMobile = window.matchMedia("(max-width: 980px)").matches;
 
-  let w=0,h=0;
-  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  const theme = String((document.body.getAttribute("data-theme")||readLS("theme","night"))).toLowerCase();
+  let mode = (theme === "event") ? "snow" : "particles";
+
+  // config
+  let COUNT = Math.max(26, Math.min(110, Math.floor((window.innerWidth*window.innerHeight) / 18000)));
+  if(isMobile) COUNT = Math.max(18, Math.min(65, COUNT));
+
   const pts = [];
-  const COUNT = Math.max(30, Math.min(120, Math.floor((window.innerWidth*window.innerHeight)/18000)));
-
   function resize(){
-    w = cv.clientWidth = window.innerWidth;
-    h = cv.clientHeight = window.innerHeight;
-    cv.width = Math.floor(w*DPR);
-    cv.height = Math.floor(h*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    w = cv.width = window.innerWidth;
+    h = cv.height = window.innerHeight;
   }
+  resize();
+  window.addEventListener("resize", resize, {passive:true});
+
+  // init points depending on mode
   function seed(){
     pts.length = 0;
-    for(let i=0;i<COUNT;i++){
-      pts.push({
-        x: Math.random()*w,
-        y: Math.random()*h,
-        vx: (Math.random()-.5)*0.22,
-        vy: (Math.random()-.5)*0.22,
-        r: 1 + Math.random()*1.6,
-        a: 0.10 + Math.random()*0.35
-      });
-    }
-  }
-
-  let last=0;
-  function frame(t){
-    const dt = Math.min(40, t-last||16);
-    last = t;
-    ctx.clearRect(0,0,w,h);
-
-    // dots
-    for(const p of pts){
-      p.x += p.vx*(dt/16);
-      p.y += p.vy*(dt/16);
-      if(p.x < -20) p.x = w+20;
-      if(p.x > w+20) p.x = -20;
-      if(p.y < -20) p.y = h+20;
-      if(p.y > h+20) p.y = -20;
-
-      ctx.globalAlpha = p.a;
-      ctx.beginPath();
-      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fill();
-    }
-
-    // faint links
-    ctx.globalAlpha = 0.08;
-    for(let i=0;i<pts.length;i++){
-      const p = pts[i];
-      for(let j=i+1;j<pts.length;j++){
-        const q = pts[j];
-        const dx = p.x-q.x, dy = p.y-q.y;
-        const d2 = dx*dx+dy*dy;
-        if(d2 < 180*180){
-          ctx.globalAlpha = 0.05*(1 - d2/(180*180));
-          ctx.beginPath();
-          ctx.moveTo(p.x,p.y);
-          ctx.lineTo(q.x,q.y);
-          ctx.stroke();
-        }
+    if(mode === "snow"){
+      const n = isMobile ? 70 : 120;
+      for(let i=0;i<n;i++){
+        pts.push({
+          x: Math.random()*w,
+          y: Math.random()*h,
+          r: 1.0 + Math.random()*2.3,
+          vy: 0.35 + Math.random()*1.25,
+          vx: -0.25 + Math.random()*0.5,
+          a: 0.35 + Math.random()*0.55,
+          wob: Math.random()*Math.PI*2,
+          wobSp: 0.004 + Math.random()*0.012,
+        });
+      }
+    }else{
+      for(let i=0;i<COUNT;i++){
+        pts.push({
+          x: Math.random()*w,
+          y: Math.random()*h,
+          r: 0.9 + Math.random()*1.6,
+          vx: (Math.random()-.5)*0.22,
+          vy: (Math.random()-.5)*0.22,
+          a: 0.22 + Math.random()*0.55
+        });
       }
     }
-    ctx.globalAlpha = 1;
+  }
+  seed();
+
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(32, now-last); last = now;
+
+    ctx.clearRect(0,0,w,h);
+
+    if(mode === "snow"){
+      // haze
+      ctx.save();
+      ctx.globalAlpha = isMobile ? 0.18 : 0.28;
+      const g = ctx.createRadialGradient(w*0.3,h*0.25, 0, w*0.3,h*0.25, Math.max(w,h)*0.9);
+      g.addColorStop(0, "rgba(200,230,255,0.10)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+
+      // snowflakes
+      for(const p of pts){
+        p.wob += p.wobSp * dt;
+        p.x += (p.vx + Math.sin(p.wob)*0.12) * dt;
+        p.y += p.vy * dt;
+
+        if(p.y > h + 10){ p.y = -10; p.x = Math.random()*w; }
+        if(p.x < -20) p.x = w + 20;
+        if(p.x > w + 20) p.x = -20;
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${p.a})`;
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+    }else{
+      // particles
+      for(const p of pts){
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if(p.x < -10) p.x = w + 10;
+        if(p.x > w + 10) p.x = -10;
+        if(p.y < -10) p.y = h + 10;
+        if(p.y > h + 10) p.y = -10;
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${p.a})`;
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+
+      // lines only on desktop for perf
+      if(!isMobile){
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        for(let i=0;i<pts.length;i++){
+          for(let j=i+1;j<pts.length;j++){
+            const p=pts[i], q=pts[j];
+            const dx=p.x-q.x, dy=p.y-q.y;
+            const d2 = dx*dx+dy*dy;
+            if(d2 < 110*110){
+              const a = 1 - (Math.sqrt(d2)/110);
+              ctx.globalAlpha = a*0.35;
+              ctx.beginPath();
+              ctx.moveTo(p.x,p.y);
+              ctx.lineTo(q.x,q.y);
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
 
     requestAnimationFrame(frame);
   }
-
-  // styles
-  ctx.fillStyle = "rgba(255,255,255,1)";
-  ctx.strokeStyle = "rgba(124,92,255,1)";
-
-  resize();
-  seed();
-  window.addEventListener("resize", ()=>{ resize(); seed(); }, { passive:true });
   requestAnimationFrame(frame);
 }
 window.initParticles = initParticles;
@@ -119,30 +169,58 @@ function _prizeMeta(key){
   return map[key] || {label: key, icon:"🎁"};
 }
 
+function isPremiumActive(){
+  try{
+    if(!currentUser) return false;
+    const u = currentUser.premium_until;
+    if(!u) return false;
+    const t = new Date(u).getTime();
+    return !isNaN(t) && t > Date.now();
+  }catch(_e){ return false; }
+}
+function isWastePrizeWhilePremium(prize){
+  if(!prize) return false;
+  const p = String(prize).toUpperCase();
+  if(p.startsWith("P")) return true;      // any Premium prize
+  if(p === "AI3") return true;            // +AI generations
+  if(p === "GEN10") return true;          // +Generations
+  if(p === "REQ10" || p === "Q10") return true; // safety if you rename
+  return false;
+}
+
 function renderInv(inv){
   const list = $("#invList");
-  const cnt = $("#invCount");
-  if(cnt) cnt.textContent = `${inv?.count || 0}/${inv?.max || 10}`;
   if(!list) return;
-  const items = inv?.items || [];
-  if(items.length === 0){
-    list.innerHTML = `<div class="muted" style="padding:6px 2px">Пусто. Открой кейс — приз появится здесь.</div>`;
+  const max = Number(inv.max || 10);
+  const cnt = Number(inv.count || 0);
+  const badge = $("#invBadge");
+  if(badge) badge.textContent = `${cnt}/${max}`;
+
+  const premiumOn = isPremiumActive();
+  const items = (inv.items || []);
+  if(!items.length){
+    list.innerHTML = `<div class="muted" style="padding:10px 2px;opacity:.75">Инвентарь пуст.</div>`;
     return;
   }
+
   list.innerHTML = items.map(it=>{
     const m = _prizeMeta(it.prize);
-    const when = it.created_at ? new Date(it.created_at).toLocaleString() : "—";
-    const ico = m.img
-      ? `<img src="${m.img}" alt="" style="width:44px; height:44px; object-fit:contain;">`
-      : `<div class="prIco" style="width:44px; height:44px; border-radius:14px">${escapeHtml(m.icon||"🎁")}</div>`;
+    const title = escapeHtml(m.label || it.prize);
+    const dt = it.created_at ? escapeHtml(String(it.created_at).replace("T"," ").slice(0,19)) : "";
+    const img = m.img ? `<img src="${m.img}" alt="">` : `<div class="ico" data-ico="gift"></div>`;
+    const disabled = premiumOn && isWastePrizeWhilePremium(it.prize);
+    const hint = disabled ? ` title="Premium активен — этот приз тратить не нужно"` : "";
     return `
-      <div class="prizeRow">
-        ${ico}
-        <div style="min-width:0">
-          <div class="prT">${escapeHtml(m.label||it.prize)}</div>
-          <div class="muted" style="font-size:11px; margin-top:2px">Получено: ${escapeHtml(when)}</div>
+      <div class="invItem">
+        <div class="invIconWrap">${img}</div>
+        <div class="invInfo">
+          <div class="invTitle">${title}</div>
+          <div class="invMeta">Получено: ${dt}</div>
         </div>
-        <button class="btn mini tilt" data-use-inv="${it.id}">Использовать</button>
+        <div class="invActions">
+          <button class="btn invBtn" data-use-inv="${it.id}" ${disabled?'disabled':''}${hint}>Использовать</button>
+          <button class="invBtnDanger" data-del-inv="${it.id}" title="Удалить">✕</button>
+        </div>
       </div>
     `;
   }).join("");
@@ -150,7 +228,7 @@ function renderInv(inv){
   list.querySelectorAll("[data-use-inv]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const id = Number(btn.getAttribute("data-use-inv")||0);
-      if(!id) return;
+      if(!id || btn.disabled) return;
       try{
         await apiPost("/api/inventory/use", {id});
         toast("Инвентарь", "Приз применён", "ok");
@@ -158,6 +236,23 @@ function renderInv(inv){
       }catch(e){
         toast("Инвентарь", e.message || "Ошибка", "bad");
         await window.invPull().catch(()=>{});
+      }
+    });
+  });
+
+  list.querySelectorAll("[data-del-inv]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = Number(btn.getAttribute("data-del-inv")||0);
+      if(!id) return;
+      const ok = await confirmAction("Удалить этот приз из инвентаря? Это действие нельзя отменить.", "Удалить");
+      if(!ok) return;
+      try{
+        await apiPost("/api/inventory/delete", {id});
+        toast("Инвентарь", "Удалено", "ok");
+        await window.invPull().catch(()=>{});
+        await refreshMe().catch(()=>{});
+      }catch(e){
+        toast("Инвентарь", e.message || "Ошибка", "bad");
       }
     });
   });
@@ -175,33 +270,40 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if(b) b.addEventListener("click", ()=>window.invPull().catch(()=>{}));
 
   // prefs init
-  const savedTheme = readLS("theme", "pastex");
-  const theme = (savedTheme === "classic") ? "classic" : "pastex";
+  const savedTheme = readLS("theme", "night");
+  const theme = (savedTheme === "night") ? "night" : "night";
   applyTheme(theme);
 
-  const savedAbbr = readLS("num_abbr", "0");
-  prefNumAbbr = (savedAbbr === "1");
+  // Number format
+  const savedFmt = readLS("num_format", "comma");
+  prefNumAbbr = (savedFmt === "abbr");
 
   const sel = document.getElementById("themeSelect");
   if(sel) sel.value = theme;
-  const chk = document.getElementById("numAbbr");
-  if(chk) chk.checked = prefNumAbbr;
 
-  const btn = document.getElementById("btnThemeApply");
-  if(btn){
-    btn.addEventListener("click", async ()=>{
-      if(sel) applyTheme(sel.value);
-      if(chk){
-        prefNumAbbr = !!chk.checked;
-        writeLS("num_abbr", prefNumAbbr ? "1" : "0");
-      }
-      // refresh numbers in UI
+  const fmtSel = document.getElementById("numFormatSelect");
+  if(fmtSel) fmtSel.value = (prefNumAbbr ? "abbr" : "comma");
+
+  // Apply instantly (no apply button)
+  if(sel){
+    sel.addEventListener("change", async ()=>{
+      applyTheme(sel.value);
       try{ await refreshMe(); }catch(_e){}
-      toast("Настройки", "Применено", "ok");
+      toast("Тема", "Сохранено", "ok");
+      // restart background FX for new theme
+      try{ initParticles(true); }catch(_e){}
+    });
+  }
+  if(fmtSel){
+    fmtSel.addEventListener("change", async ()=>{
+      prefNumAbbr = (fmtSel.value === "abbr");
+      writeLS("num_format", prefNumAbbr ? "abbr" : "comma");
+      try{ await refreshMe(); }catch(_e){}
+      toast("Числа", "Сохранено", "ok");
     });
   }
 
-  // particle background
+  // particle / snow background
   initParticles();
 });
 
@@ -315,6 +417,53 @@ function formatMoney(val){
   // grouped number with commas (1,700)
   try{ return new Intl.NumberFormat("en-US", {maximumFractionDigits:0}).format(n); }
   catch(_e){ return String(n); }
+}
+
+
+// ===== Confirm modal helper =====
+let _confirmResolve = null;
+function confirmAction(text, yesLabel="OK"){
+  const back = document.getElementById("confirmBack");
+  const modal = document.getElementById("confirmModal");
+  const t = document.getElementById("confirmText");
+  const yes = document.getElementById("btnConfirmYes");
+  const no = document.getElementById("btnConfirmNo");
+  const close = document.getElementById("btnConfirmClose");
+  if(!back || !modal || !t || !yes || !no) return Promise.resolve(window.confirm(text));
+
+  t.textContent = text || "Вы уверены?";
+  yes.textContent = yesLabel || "OK";
+
+  back.classList.remove("hidden");
+  modal.classList.remove("hidden");
+
+  const done = (v)=>{
+    try{ back.classList.add("hidden"); modal.classList.add("hidden"); }catch(_e){}
+    const r = _confirmResolve; _confirmResolve = null;
+    if(r) r(!!v);
+  };
+
+  const onYes = ()=>{ cleanup(); done(true); };
+  const onNo = ()=>{ cleanup(); done(false); };
+  const onClose = ()=>{ cleanup(); done(false); };
+  const onBack = (e)=>{ if(e.target===back){ cleanup(); done(false); } };
+
+  function cleanup(){
+    yes.removeEventListener("click", onYes);
+    no.removeEventListener("click", onNo);
+    if(close) close.removeEventListener("click", onClose);
+    back.removeEventListener("click", onBack);
+    document.removeEventListener("keydown", onEsc);
+  }
+  function onEsc(e){ if(e.key==="Escape"){ cleanup(); done(false);} }
+
+  yes.addEventListener("click", onYes);
+  no.addEventListener("click", onNo);
+  if(close) close.addEventListener("click", onClose);
+  back.addEventListener("click", onBack);
+  document.addEventListener("keydown", onEsc);
+
+  return new Promise(res=>{ _confirmResolve = res; });
 }
 
 const toastQ = [];

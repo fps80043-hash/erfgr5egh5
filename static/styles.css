@@ -18,7 +18,7 @@
 }
 
 /* Theme overrides (pastex-like: deeper black + subtle neon) */
-body.theme-pastex{
+body.theme-night{
   --bg0:#000000;
   --bg1:#05050a;
   --bg2:#080814;
@@ -30,7 +30,7 @@ body.theme-pastex{
   --shadow: 0 26px 110px rgba(0,0,0,.78);
 }
 
-body.theme-classic{
+body.theme-night{
   /* keep defaults from :root */
 }
 
@@ -66,7 +66,7 @@ body{
 
 
 /* Theme overrides */
-body.theme-pastex{
+body.theme-night{
   --bg0:#050507;
   --bg1:#050507;
   --bg2:#06060b;
@@ -75,13 +75,13 @@ body.theme-pastex{
   --line:rgba(255,255,255,.12);
   --shadow: 0 18px 60px rgba(0,0,0,.32);
 }
-body.theme-classic{
+body.theme-night{
   /* keep defaults */
 }
 
 
 /* pastex-like veil: darker, less colorful */
-body.theme-pastex .veil{
+body.theme-night .veil{
   /* keep pastex vibe but avoid "затмение" on other tabs */
   opacity:.26;
   filter: blur(5px);
@@ -97,11 +97,11 @@ body.theme-pastex .veil{
    ========================= */
 
 /* True black base */
-body.theme-pastex{ background:#000; }
+body.theme-night{ background:#000; }
 
 /* Subtle noise + glows (keeps content readable on all tabs) */
-body.theme-pastex::before,
-body.theme-pastex::after{
+body.theme-night::before,
+body.theme-night::after{
   content:"";
   position:fixed;
   inset:-40px;
@@ -110,7 +110,7 @@ body.theme-pastex::after{
 }
 
 /* Glow layer */
-body.theme-pastex::before{
+body.theme-night::before{
   background:
     radial-gradient(900px 560px at 18% 10%, rgba(124,92,255,.22), transparent 60%),
     radial-gradient(820px 520px at 82% 18%, rgba(34,211,238,.14), transparent 64%),
@@ -121,7 +121,7 @@ body.theme-pastex::before{
 }
 
 /* Noise + vignette */
-body.theme-pastex::after{
+body.theme-night::after{
   background:
     radial-gradient(closest-side at 50% 50%, rgba(255,255,255,.06), transparent 72%),
     radial-gradient(900px 700px at 50% 50%, rgba(0,0,0,.0), rgba(0,0,0,.78));
@@ -130,7 +130,7 @@ body.theme-pastex::after{
 }
 
 /* Veil should NOT darken content too much */
-body.theme-pastex .veil{
+body.theme-night .veil{
   opacity:.14;
   filter: blur(4px);
   background:
@@ -148,7 +148,7 @@ body.theme-pastex .veil{
   border: 1px solid rgba(255,255,255,.10);
   box-shadow: 0 14px 55px rgba(0,0,0,.45);
 }
-body.theme-pastex .card{
+body.theme-night .card{
   background: linear-gradient(180deg, rgba(18,18,28,.58), rgba(8,8,12,.56));
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: 0 18px 70px rgba(0,0,0,.55);
@@ -254,7 +254,7 @@ body.theme-pastex .card{
   backdrop-filter: blur(18px);
 }
 
-body.theme-pastex .top{
+body.theme-night .top{
   background: rgba(0,0,0,.62);
 }
 
@@ -2055,7 +2055,7 @@ input:focus, textarea:focus, select:focus{
 .hidden{ display:none !important; }
 
 /* --- pastex-like background (deeper black + glows) --- */
-body.theme-pastex{
+body.theme-night{
   background-color:#000;
   background-image:
     radial-gradient(1200px 650px at 20% 10%, rgba(124,92,255,.22), transparent 60%),
@@ -2063,13 +2063,13 @@ body.theme-pastex{
     radial-gradient(900px 520px at 50% 95%, rgba(124,92,255,.10), transparent 65%),
     linear-gradient(180deg, rgba(0,0,0,1), rgba(0,0,0,1));
 }
-body.theme-pastex::before{
+body.theme-night::before{
   /* disable grid look; keep subtle noise-like sheen */
   background: radial-gradient(800px 260px at 50% 0%, rgba(255,255,255,.05), transparent 65%);
   opacity:.22;
   mix-blend-mode: overlay;
 }
-body.theme-pastex::after{
+body.theme-night::after{
   content:"";
   position:fixed; inset:0;
   pointer-events:none;
@@ -2226,10 +2226,10 @@ body.theme-pastex::after{
    ========================= */
 
 /* True black base; keep gradients in overlay layers */
-body.theme-pastex{ background:#000; }
+body.theme-night{ background:#000; }
 
 /* Overlay: subtle grid + noise (very light) */
-body.theme-pastex::before{
+body.theme-night::before{
   content:"";
   position:fixed;
   inset:0;
@@ -2241,7 +2241,7 @@ body.theme-pastex::before{
     radial-gradient(900px 700px at 62% 86%, rgba(124,92,255,.08), transparent 70%),
     linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.78));
 }
-body.theme-pastex::after{
+body.theme-night::after{
   content:"";
   position:fixed;
   inset:0;
@@ -2259,7 +2259,7 @@ body.theme-pastex::after{
 .wrap, .top, .pane{ position:relative; z-index:2; }
 
 /* Veil should never "eclipse" content */
-body.theme-pastex .veil{
+body.theme-night .veil{
   opacity:.14;
   filter: blur(4px);
   background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.44));
@@ -2278,27 +2278,27 @@ body.theme-pastex .veil{
 }
 
 /* Cards: clearer glass, less muddy */
-body.theme-pastex .card{
+body.theme-night .card{
   background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
   border: 1px solid rgba(255,255,255,.10);
   box-shadow: 0 22px 80px rgba(0,0,0,.55);
 }
 
 /* Buttons: closer to pastex vibe */
-body.theme-pastex .btn{
+body.theme-night .btn{
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.06);
   box-shadow: 0 10px 40px rgba(0,0,0,.45);
 }
-body.theme-pastex .btn.primary{
+body.theme-night .btn.primary{
   background: linear-gradient(90deg, rgba(124,92,255,.95), rgba(34,211,238,.92));
   border-color: rgba(255,255,255,.14);
   box-shadow: 0 14px 60px rgba(124,92,255,.28), 0 14px 60px rgba(34,211,238,.18);
 }
-body.theme-pastex .btn.primary:hover{ transform: translateY(-1px); }
+body.theme-night .btn.primary:hover{ transform: translateY(-1px); }
 
 /* Inputs */
-body.theme-pastex .input{
+body.theme-night .input{
   background: rgba(0,0,0,.30);
   border: 1px solid rgba(255,255,255,.10);
 }
@@ -2372,9 +2372,9 @@ body.theme-pastex .input{
 .productCard.pxtCard::before{
   opacity:.9;
   background:
-    radial-gradient(820px 420px at 10% 0%, rgba(124,92,255,.30), transparent 55%),
-    radial-gradient(760px 420px at 90% 0%, rgba(34,211,238,.18), transparent 55%),
-    radial-gradient(520px 420px at 50% 120%, rgba(255,255,255,.06), transparent 60%);
+    radial-gradient(820px 300px at 10% 0%, rgba(124,92,255,.30), transparent 55%),
+    radial-gradient(760px 300px at 90% 0%, rgba(34,211,238,.18), transparent 55%),
+    radial-gradient(520px 300px at 50% 120%, rgba(255,255,255,.06), transparent 60%);
 }
 .productCard.pxtCard .prodMedia{
   position:relative;
@@ -2496,3 +2496,75 @@ body.theme-pastex .input{
   .productCard.pxtCard .prodBtnRow{justify-content:space-between}
 }
 
+
+
+/* ===== Event theme (snow + cold haze) ===== */
+body.theme-event{
+  background: radial-gradient(1200px 700px at 20% 10%, rgba(120,180,255,.18), transparent 60%),
+              radial-gradient(900px 600px at 80% 30%, rgba(160,120,255,.14), transparent 55%),
+              radial-gradient(900px 900px at 50% 110%, rgba(0,140,180,.10), transparent 60%),
+              #07090f;
+}
+body.theme-event::before{
+  content:"";
+  position:fixed; inset:0;
+  background:
+    radial-gradient(900px 520px at 50% 20%, rgba(180,220,255,.10), transparent 60%),
+    radial-gradient(1100px 700px at 60% 80%, rgba(140,190,255,.08), transparent 65%);
+  pointer-events:none;
+  mix-blend-mode:screen;
+  filter: blur(16px);
+  opacity:.9;
+  z-index:0;
+}
+body.theme-event::after{
+  content:"";
+  position:fixed; inset:-60px;
+  background: radial-gradient(800px 300px at 30% 30%, rgba(255,255,255,.05), transparent 60%);
+  pointer-events:none;
+  filter: blur(26px);
+  opacity:.6;
+  z-index:0;
+}
+
+
+/* ===== Inventory redesign ===== */
+#invList.prizeList{ display:flex; flex-direction:column; gap:10px; }
+.invItem{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 12px;
+  border-radius:14px;
+  background: rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(10px);
+}
+.invIconWrap{
+  width:46px; height:46px; flex:0 0 46px;
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  overflow:hidden;
+}
+.invIconWrap img{ width:36px; height:36px; object-fit:contain; }
+.invInfo{ flex:1; min-width:0; }
+.invTitle{ font-weight:700; letter-spacing:.2px; }
+.invMeta{ opacity:.75; font-size:12px; margin-top:2px; }
+.invActions{ display:flex; gap:10px; align-items:center; }
+.invBtn{ padding:8px 12px; border-radius:999px; }
+.invBtnDanger{
+  width:34px; height:34px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:999px;
+  background: rgba(255,70,70,.08);
+  border:1px solid rgba(255,70,70,.18);
+}
+.invBtnDanger:hover{ background: rgba(255,70,70,.12); }
+.invBtn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+
+/* ===== Confirm modal ===== */
+.confirmModal{ max-width:300px; }
+.confirmBody{ padding:14px 14px 16px; }
+.confirmText{ font-size:14px; opacity:.9; }
+.confirmActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }

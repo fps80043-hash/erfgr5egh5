@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1768324690" rel="stylesheet"/>
+<link href="/static/styles.css?v=1768337233" rel="stylesheet"/>
 </head>
 <body class="theme-pastex">
 <canvas id="particles"></canvas>
@@ -505,18 +505,21 @@
         <div style="flex:1; min-width:220px">
           <label class="lbl">Выбор темы</label>
           <select class="input" id="themeSelect">
-            <option value="pastex">Dark (pastex-like)</option>
-            <option value="classic">Classic</option>
+            <option value="night">Night</option>
+            <option value="event">Event</option>
           </select>
         </div>
         <div style="flex:1; min-width:220px">
           <label class="lbl">Числа</label>
           <label class="check">
-            <input type="checkbox" id="numAbbr" />
+            <select class="input" id="numFormatSelect">
+            <option value="comma">1,700</option>
+            <option value="abbr">1.7K</option>
+          </select>
             <span>Сокращать (1K / 1.7K)</span>
           </label>
         </div>
-        <button class="btn primary" id="btnThemeApply" type="button">Применить</button>
+        
       </div>
       <div class="muted" style="margin-top:8px; font-size:12px">Тема и формат чисел сохраняются в браузере.</div>
     </div>
@@ -877,6 +880,23 @@
 
 
 <!-- core logic -->
-<script src="/static/app.js?v=1768324690"></script>
+<script src="/static/app.js?v=1768337233"></script>
+
+  <!-- Confirm Modal -->
+  <div class="modalBack hidden" id="confirmBack"></div>
+  <div class="modal confirmModal hidden" id="confirmModal" role="dialog" aria-modal="true">
+    <div class="modalHeader">
+      <div class="title">Подтверждение</div>
+      <button class="iconBtn" id="btnConfirmClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="confirmBody">
+      <div class="confirmText" id="confirmText">Вы уверены?</div>
+      <div class="confirmActions">
+        <button class="btn" id="btnConfirmNo" type="button">Отмена</button>
+        <button class="btn primary" id="btnConfirmYes" type="button">Удалить</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -4,7 +4,7 @@ import datetime
 import random
 import sqlite3
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -34,7 +34,7 @@ import base64
 from typing import Any, Dict, List, Tuple, Optional
 
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -65,6 +65,76 @@ PBKDF2_ITERS = int(os.environ.get('PBKDF2_ITERS', '200000'))
 ADMIN_USERS_RAW = os.environ.get("ADMIN_USERS", "")
 ADMIN_USERS = [u.strip() for u in ADMIN_USERS_RAW.split(",") if u.strip()]
 ADMIN_USERS_LC = {u.lower() for u in ADMIN_USERS}
+
+# ----------------------------
+# Dev Lock (temporary private access during development)
+# ----------------------------
+DEV_LOCK = os.environ.get("DEV_LOCK", "0") == "1"
+DEV_PASS = os.environ.get("DEV_PASS", "")
+DEV_COOKIE_NAME = "dev_access"
+def _dev_cookie_value() -> str:
+    if not DEV_PASS:
+        return ""
+    return hashlib.sha256((DEV_PASS + SECRET_KEY).encode("utf-8")).hexdigest()[:32]
+DEV_COOKIE_VALUE = _dev_cookie_value()
+
+@app.middleware("http")
+async def _dev_lock_mw(request, call_next):
+    if not DEV_LOCK:
+        return await call_next(request)
+
+    path = request.url.path or "/"
+    # allow dev login page and static assets
+    if path.startswith("/static") or path.startswith("/dev"):
+        return await call_next(request)
+    if path.startswith("/api/health"):
+        return await call_next(request)
+
+    c = request.cookies.get(DEV_COOKIE_NAME)
+    if c and DEV_COOKIE_VALUE and c == DEV_COOKIE_VALUE:
+        return await call_next(request)
+
+    # API requests -> 403
+    if path.startswith("/api"):
+        return PlainTextResponse("Site in development", status_code=403)
+
+    return RedirectResponse(url="/dev", status_code=302)
+
+@app.get("/dev", response_class=HTMLResponse)
+def dev_page(request: Request):
+    # simple password form
+    html = """<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dev Access</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#05060a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;}
+.card{width:min(420px,92vw);padding:18px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(12px)}
+h1{font-size:18px;margin:0 0 10px 0;opacity:.9}
+p{margin:0 0 14px 0;opacity:.7;font-size:13px}
+input{width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);color:#fff;outline:none}
+button{margin-top:10px;width:100%;padding:12px;border-radius:12px;border:0;background:linear-gradient(90deg,#7c5cff,#29b6f6);color:#fff;font-weight:700;cursor:pointer}
+.err{margin-top:10px;color:#ff7a7a;font-size:13px;opacity:.95}
+</style></head>
+<body>
+  <form class="card" method="post" action="/dev">
+    <h1>Доступ к dev-версии</h1>
+    <p>Введите пароль, чтобы сайт запомнил вас на 30 дней.</p>
+    <input type="password" name="password" placeholder="Пароль" autofocus>
+    <button type="submit">Войти</button>
+  </form>
+</body></html>"""
+    return HTMLResponse(html)
+
+@app.post("/dev")
+def dev_login(password: str = Form(default="")):
+    if not DEV_PASS:
+        return PlainTextResponse("DEV_PASS is not set", status_code=500)
+    if password != DEV_PASS:
+        return RedirectResponse(url="/dev", status_code=302)
+    resp = RedirectResponse(url="/", status_code=302)
+    resp.set_cookie(DEV_COOKIE_NAME, DEV_COOKIE_VALUE, max_age=60*60*24*30, httponly=True, samesite="lax")
+    return resp
+
 
 
 
@@ -2866,6 +2936,33 @@ def _apply_premium(uid: int, delta: datetime.timedelta):
     con.execute("UPDATE users SET premium_until=? WHERE id=?", (new_until, uid))
     con.commit()
     con.close()
+
+
+@app.post("/api/inventory/delete")
+def api_inventory_delete(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    try:
+        item_id = int(payload.get("id") or 0)
+    except Exception:
+        item_id = 0
+    if item_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid id")
+
+    con = db_conn()
+    _ensure_case_inventory_table(con)
+    row = con.execute(
+        "SELECT id FROM case_inventory WHERE id=? AND user_id=? AND (used_at IS NULL OR used_at='')",
+        (item_id, uid),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    con.execute("DELETE FROM case_inventory WHERE id=? AND user_id=?", (item_id, uid))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
 
 @app.get("/api/case/status")
 def api_case_status(request: Request):
