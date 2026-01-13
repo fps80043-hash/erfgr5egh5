@@ -498,7 +498,7 @@
 
     <div class="card" id="themeBox">
       <div class="headrow">
-        <h3>🎨 Тема</h3>
+        <h3><span class="ico" data-ico="palette" aria-hidden="true"></span> Тема</h3>
         <div class="badge" style="margin-left:auto">Оформление</div>
       </div>
       <div class="row" style="flex-wrap:wrap; margin-top:10px">
@@ -509,9 +509,16 @@
             <option value="classic">Classic</option>
           </select>
         </div>
+        <div style="flex:1; min-width:220px">
+          <label class="lbl">Числа</label>
+          <label class="check">
+            <input type="checkbox" id="numAbbr" />
+            <span>Сокращать (1K / 1.7K)</span>
+          </label>
+        </div>
         <button class="btn primary" id="btnThemeApply" type="button">Применить</button>
       </div>
-      <div class="muted" style="margin-top:8px; font-size:12px">Тема сохраняется в браузере. Можно переключиться обратно.</div>
+      <div class="muted" style="margin-top:8px; font-size:12px">Тема и формат чисел сохраняются в браузере.</div>
     </div>
   </div>
 
@@ -546,10 +553,13 @@
 </div>
 <div class="card" id="balanceBox" style="display:none">
 <div class="headrow">
-<h3>💰 Баланс</h3>
+<h3><span class="ico" data-ico="wallet" aria-hidden="true"></span> Баланс</h3>
 <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-<div class="badge" id="balanceValue">0</div>
-<button class="btn" data-topup="1" type="button">Пополнить</button>
+  <div class="balWrap">
+    <div class="balNum" id="balanceValue">0</div>
+    <div class="balHint">₽ доступно</div>
+  </div>
+  <button class="btn" data-topup="1" type="button"><span class="ico" data-ico="card" aria-hidden="true"></span> Пополнить</button>
 </div>
  </div>
  <div class="muted" style="margin-top:8px">
@@ -861,6 +871,9 @@
   <button class="btab" data-tab="shop" type="button"><span aria-hidden="true">🛒</span><small>Shop</small></button>
   <button class="btab" data-tab="profile" type="button"><span aria-hidden="true">👤</span><small>Me</small></button>
 </nav>
+
+<!-- Toast notifications -->
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
 
 
 <!-- core logic -->

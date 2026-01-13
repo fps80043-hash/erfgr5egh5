@@ -174,14 +174,32 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const b = document.getElementById("btnInvRefresh");
   if(b) b.addEventListener("click", ()=>window.invPull().catch(()=>{}));
 
-  // theme init
-  const saved = (()=>{ try{return localStorage.getItem("theme");}catch(e){return null;} })();
-  const theme = (saved === "classic") ? "classic" : "pastex";
+  // prefs init
+  const savedTheme = readLS("theme", "pastex");
+  const theme = (savedTheme === "classic") ? "classic" : "pastex";
   applyTheme(theme);
+
+  const savedAbbr = readLS("num_abbr", "0");
+  prefNumAbbr = (savedAbbr === "1");
+
   const sel = document.getElementById("themeSelect");
   if(sel) sel.value = theme;
+  const chk = document.getElementById("numAbbr");
+  if(chk) chk.checked = prefNumAbbr;
+
   const btn = document.getElementById("btnThemeApply");
-  if(btn && sel) btn.addEventListener("click", ()=>applyTheme(sel.value));
+  if(btn){
+    btn.addEventListener("click", async ()=>{
+      if(sel) applyTheme(sel.value);
+      if(chk){
+        prefNumAbbr = !!chk.checked;
+        writeLS("num_abbr", prefNumAbbr ? "1" : "0");
+      }
+      // refresh numbers in UI
+      try{ await refreshMe(); }catch(_e){}
+      toast("Настройки", "Применено", "ok");
+    });
+  }
 
   // particle background
   initParticles();
@@ -266,6 +284,38 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 let accountData = null;
+
+// ---- UI preferences ----
+let prefNumAbbr = false;
+
+function readLS(key, fallback=null){
+  try{ const v = localStorage.getItem(key); return (v===null||v===undefined) ? fallback : v; }catch(_e){ return fallback; }
+}
+function writeLS(key, val){
+  try{ localStorage.setItem(key, val); }catch(_e){}
+}
+
+function formatMoney(val){
+  const n = Math.round(Number(val || 0));
+  if(prefNumAbbr){
+    const abs = Math.abs(n);
+    const sign = n < 0 ? "-" : "";
+    const fmt = (x)=>{
+      const s = x.toFixed(x < 10 ? 1 : 0);
+      return s.replace(/\.0$/, "");
+    };
+    if(abs >= 1_000_000){
+      return sign + fmt(abs/1_000_000) + "M";
+    }
+    if(abs >= 1_000){
+      return sign + fmt(abs/1_000) + "K";
+    }
+    return sign + String(abs);
+  }
+  // grouped number with commas (1,700)
+  try{ return new Intl.NumberFormat("en-US", {maximumFractionDigits:0}).format(n); }
+  catch(_e){ return String(n); }
+}
 
 const toastQ = [];
 let toastBusy = false;
@@ -1142,12 +1192,12 @@ async function refreshMe() {
     if (limitsBox) limitsBox.style.display = "block";
     if (balBox) balBox.style.display = "block";
     if (invBox) invBox.style.display = "block";
-    if (balVal) balVal.textContent = String(currentUser.balance ?? 0);
+    if (balVal) balVal.textContent = formatMoney(currentUser.balance ?? 0);
 
     const topBalBox = $("#topBalanceBox");
     const topBalVal = $("#topBalanceValue");
     if (topBalBox) topBalBox.style.display = "flex";
-    if (topBalVal) topBalVal.textContent = String(currentUser.balance ?? 0);
+    if (topBalVal) topBalVal.textContent = `${formatMoney(currentUser.balance ?? 0)} ₽`;
     if (premPayBox) premPayBox.style.display = "block";
     if (adminBox) adminBox.style.display = (currentUser.is_admin ? "block" : "none");
     if (currentUser.is_admin){
