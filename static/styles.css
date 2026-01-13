@@ -521,6 +521,7 @@ code{
 @media (max-width: 980px){
   .wrap{padding:14px 14px 90px 14px}
   .grid{grid-template-columns:1fr}
+  .top{display:none}
   .nav{display:none}
   .bottomnav{display:flex}
   .row{flex-direction:column; align-items:stretch}
@@ -975,7 +976,7 @@ code{
   #tab-profile .btn{ width:100%; }
   #tab-ai .row{ flex-direction:column; align-items:stretch; }
   #tab-ai .btn{ width:100%; }
-  .toasts{ right:12px; top:68px; }
+  .toasts{ right:12px; top:12px; }
 }
 
 
