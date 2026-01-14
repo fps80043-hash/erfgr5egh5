@@ -61,8 +61,11 @@ function initParticles(forceRestart=false){
 
   function resize(){
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    w = Math.max(1, cv.clientWidth || window.innerWidth);
-    h = Math.max(1, cv.clientHeight || window.innerHeight);
+    // Use viewport size directly. Some mobile layouts can report tiny clientWidth
+    // for the fixed canvas during initial render, which makes effects appear
+    // bunched in the top-left corner.
+    w = Math.max(1, window.innerWidth);
+    h = Math.max(1, window.innerHeight);
     cv.width  = Math.floor(w*dpr);
     cv.height = Math.floor(h*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1343,7 +1346,21 @@ function spawnLogoStar(){
 // Tabs
 // -------------------------
 function setTab(name) {
-  $$(".pane").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
+  const panes = $$(".pane");
+  const next = document.getElementById("tab-" + name);
+  const cur = panes.find(p => p.classList.contains("active"));
+
+  // Cross-fade: animate current out, then switch
+  if (cur && cur !== next) {
+    cur.classList.add("out");
+    cur.classList.remove("active");
+    setTimeout(() => cur.classList.remove("out"), 220);
+  }
+  panes.forEach((p) => {
+    if (p === next) p.classList.add("active");
+    else p.classList.remove("active");
+  });
+
   $$(".navbtn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".btab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
 
@@ -1713,6 +1730,8 @@ async function adminFind(){
     adminSelected = j.user;
     const card = $("#adminUserCard");
     if(card) card.style.display = "block";
+    const hint = $("#adminEmptyHint");
+    if(hint) hint.style.display = "none";
     $("#adm_id").textContent = adminSelected.id;
     $("#adm_username").textContent = adminSelected.username;
     $("#adm_email").textContent = adminSelected.email || "—";
@@ -1733,6 +1752,8 @@ async function adminFind(){
     adminSelected = null;
     const card = $("#adminUserCard");
     if(card) card.style.display = "none";
+    const hint = $("#adminEmptyHint");
+    if(hint) hint.style.display = "block";
     toast("Админ", e.message, "bad");
   }
 }

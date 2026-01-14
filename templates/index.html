@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1768371423" rel="stylesheet"/>
+<link href="/static/styles.css?v=1768406000" rel="stylesheet"/>
 </head>
 <body class="theme-pastex">
 <canvas id="particles"></canvas>
@@ -886,23 +886,27 @@
     <button class="iconBtn" id="btnAdminClose" type="button" aria-label="Close">✕</button>
   </div>
   <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">Поиск пользователя → действия (баланс, бан, ник, уведомления).</div>
+    <div class="muted" style="font-size:12px; margin-bottom:10px">Пользователи → действия (баланс, бан, ник, уведомления). Поиск работает вверху списка.</div>
 
-    <div class="pCard" id="adminUsersBox" style="margin-bottom:12px">
-      <div class="headrow" style="margin-bottom:8px">
-        <div style="font-weight:800">Пользователи</div>
-        <button class="btn tilt" id="btnAdminUsersRefresh" type="button" style="margin-left:auto">Обновить</button>
-      </div>
-      <div class="muted" style="font-size:12px; margin-bottom:8px">Клик по пользователю → загрузка карточки.</div>
-      <div id="adminUsersList" style="display:grid; gap:6px"></div>
-    </div>
+    <div class="adminShell">
+      <aside class="adminSide">
+        <div class="pCard" id="adminUsersBox">
+          <div class="headrow" style="margin-bottom:10px">
+            <div style="font-weight:900">Пользователи</div>
+            <button class="btn tilt" id="btnAdminUsersRefresh" type="button" style="margin-left:auto">Обновить</button>
+          </div>
 
-    <div style="display:flex; gap:10px; flex-wrap:wrap">
-      <input class="input" id="adminIdent" placeholder="username / email / id" style="flex:1; min-width:220px"/>
-      <button class="btn primary tilt" id="btnAdminFind" type="button">Найти</button>
-    </div>
+          <div class="adminFindRow">
+            <input class="input" id="adminIdent" placeholder="username / email / id" />
+            <button class="btn primary tilt" id="btnAdminFind" type="button">Найти</button>
+          </div>
+          <div class="muted" style="font-size:12px; margin:10px 0 8px">Клик по пользователю → загрузка карточки.</div>
+          <div id="adminUsersList" class="adminUsersList"></div>
+        </div>
+      </aside>
 
-    <div class="pCard" id="adminUserCard" style="margin-top:12px; display:none">
+      <main class="adminMain">
+        <div class="pCard" id="adminUserCard" style="display:none">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap">
         <div style="min-width:220px">
           <div style="font-weight:800" id="adm_username">—</div>
@@ -974,6 +978,12 @@
           </div>
         </div>
       </div>
+        </div>
+        <div class="pCard" id="adminEmptyHint">
+          <div style="font-weight:800; margin-bottom:6px">Выберите пользователя</div>
+          <div class="muted" style="font-size:12px">Нажмите на пользователя слева или используйте поиск.</div>
+        </div>
+      </main>
     </div>
   </div>
 </div>
@@ -984,7 +994,7 @@
 
 
 <!-- core logic -->
-<script src="/static/app.js?v=1768400000"></script>
+<script src="/static/app.js?v=1768406000"></script>
 
   <!-- Confirm Modal -->
   <div class="modalBack hidden" id="confirmBack"></div>

@@ -353,6 +353,10 @@ body.theme-night .top{
 .pane.active{display:block}
 @keyframes fade{from{opacity:.6; transform: translateY(8px)}to{opacity:1; transform: translateY(0)}}
 
+/* Smooth cross-tab transition */
+.pane.out{ display:block; animation: fadeOut .18s ease both; }
+@keyframes fadeOut{from{opacity:1; transform: translateY(0)}to{opacity:0; transform: translateY(6px)}}
+
 .grid{
   display:grid;
   grid-template-columns: 1fr 1.25fr;
@@ -602,7 +606,8 @@ code{
   position:fixed;
   right:14px;
   top:72px;
-  z-index:20;
+  /* Must stay above modals on mobile (case modal + captcha toast bug) */
+  z-index:9999;
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -2619,6 +2624,25 @@ body.theme-night .input{
 }
 #adminModal .caseStage{ padding: 14px; }
 #adminModal .caseStage > .pCard{ overflow: hidden; }
+
+/* Redesigned admin shell */
+#adminModal .adminShell{
+  display:grid;
+  grid-template-columns: 340px 1fr;
+  gap:14px;
+  align-items:start;
+}
+#adminModal .adminSide{ position:sticky; top:0; }
+#adminModal .adminUsersList{ display:grid; gap:8px; max-height: calc(86vh - 220px); overflow:auto; padding-right:4px; }
+#adminModal .adminFindRow{ display:flex; gap:8px; }
+#adminModal #adminUsersBox{ margin-bottom:0; }
+#adminModal #adminEmptyHint{ display:block; }
+
+@media (max-width: 980px){
+  #adminModal .adminShell{ grid-template-columns: 1fr; }
+  #adminModal .adminSide{ position:relative; }
+  #adminModal .adminUsersList{ max-height: 260px; }
+}
 @media (max-width: 860px){
   #adminModal [style*="grid-template-columns: 1fr 1fr"]{ grid-template-columns: 1fr !important; }
 }
@@ -2680,7 +2704,11 @@ body.theme-night2 .veil{
 /* =========================
    Cursor themes
    ========================= */
-body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur") 6 6, auto; }
+/*
+  NOTE: Some .cur packs contain large variants which browsers may pick → huge cursor.
+  We ship 32px PNG fallbacks derived from the provided pack to keep sizing consistent.
+*/
+body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.png") 2 2, auto; }
 
 body[data-cursor="neon-purple"] a,
 body[data-cursor="neon-purple"] button,
@@ -2688,9 +2716,14 @@ body[data-cursor="neon-purple"] .btn,
 body[data-cursor="neon-purple"] [role="button"],
 body[data-cursor="neon-purple"] input[type="button"],
 body[data-cursor="neon-purple"] input[type="submit"]{
-  cursor: url("/static/cursors/neon-purple/pointer.cur") 6 3, pointer;
+  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
 }
 body[data-cursor="neon-purple"] input,
-body[data-cursor="neon-purple"] textarea{
-  cursor: url("/static/cursors/neon-purple/text.cur") 8 16, text;
+body[data-cursor="neon-purple"] textarea,
+body[data-cursor="neon-purple"] [contenteditable="true"]{
+  cursor: url("/static/cursors/neon-purple/text.png") 6 14, text;
+}
+body[data-cursor="neon-purple"] select,
+body[data-cursor="neon-purple"] option{
+  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
 }
