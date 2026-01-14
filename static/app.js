@@ -9,13 +9,20 @@ function closeAllSelects(except=null){
 // Theme + particles (UI)
 // -------------------------
 function applyTheme(name){
-  const t = "night"; // Night v2 only
+  const t = (name === "night2") ? "night2" : "night";
   writeLS("theme", t);
   document.body.setAttribute("data-theme", t);
-  document.body.classList.remove("theme-night","theme-event");
-  document.body.classList.add("theme-night");
+  document.body.classList.remove("theme-night","theme-night2");
+  document.body.classList.add(t === "night2" ? "theme-night2" : "theme-night");
 }
 window.applyTheme = applyTheme;
+
+function applyCursor(name){
+  const v = (name === "neon" || name === "neon-purple") ? name : "default";
+  writeLS("cursor", v);
+  document.body.setAttribute("data-cursor", v);
+}
+window.applyCursor = applyCursor;
 
 function initParticles(forceRestart=false){
   const cv = document.getElementById("particles");
@@ -28,12 +35,23 @@ function initParticles(forceRestart=false){
   let w=0,h=0;
   const isMobile = window.matchMedia("(max-width: 980px)").matches;
 
-  // Night v2: soft drifting particles (no lines, no haze)
-  const cfg = {
+  const theme = document.body.getAttribute("data-theme") || readLS("theme","night");
+  const isV2 = (theme === "night2");
+
+  // Night: pastex-like constellation lines
+  // Night v2: soft drifting particles (no lines)
+  const cfg = isV2 ? {
     count: isMobile ? 44 : 84,
     speed: isMobile ? 0.06 : 0.10,
     drift: isMobile ? 0.16 : 0.22,
     maxR:  isMobile ? 2.1 : 2.8,
+    linkDist: 0,
+  } : {
+    count: isMobile ? 38 : 72,
+    speed: isMobile ? 0.05 : 0.08,
+    drift: isMobile ? 0.14 : 0.20,
+    maxR:  isMobile ? 2.2 : 3.2,
+    linkDist: isMobile ? 88 : 124,
   };
 
   let parts = [];
@@ -79,6 +97,30 @@ function initParticles(forceRestart=false){
     const oy = (mouse.y-0.5) * (isMobile ? 6 : 14);
 
     ctx.clearRect(0,0,w,h);
+
+	    // Constellation links (Night)
+	    if(!isV2 && cfg.linkDist > 0){
+	      const md = cfg.linkDist;
+	      const md2 = md*md;
+	      for(let i=0;i<parts.length;i++){
+	        const a = parts[i];
+	        for(let j=i+1;j<parts.length;j++){
+	          const b = parts[j];
+	          const dx = a.x - b.x;
+	          const dy = a.y - b.y;
+	          const d2 = dx*dx + dy*dy;
+	          if(d2 > md2) continue;
+	          const t = 1 - (d2/md2);
+	          const alpha = Math.max(0, Math.min(0.22, 0.22*t));
+	          ctx.beginPath();
+	          ctx.moveTo(a.x+ox, a.y+oy);
+	          ctx.lineTo(b.x+ox, b.y+oy);
+	          ctx.strokeStyle = `rgba(120,160,255,${alpha})`;
+	          ctx.lineWidth = 1;
+	          ctx.stroke();
+	        }
+	      }
+	    }
 
     for(const p of parts){
       p.t += p.ts*dt;
@@ -195,8 +237,11 @@ function renderInv(inv){
 }
 
 async function invPull(){
-  if(!currentUser) return null;
   const j = await apiGet("/api/inventory/list").catch(()=>null);
+  if(!j){
+    // if not authorized or network error – keep current view
+    return null;
+  }
   if(j && j.ok) renderInv(j);
   return j;
 }
@@ -376,8 +421,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   // prefs init
   const savedTheme = readLS("theme", "night");
-  const theme = (savedTheme === "night") ? "night" : "night";
+  const theme = (savedTheme === "night2") ? "night2" : "night";
   applyTheme(theme);
+
+  // Cursor
+  const savedCursor = readLS("cursor", "neon-purple");
+  const cur = (savedCursor === "neon" || savedCursor === "neon-purple") ? savedCursor : "default";
+  applyCursor(cur);
 
   // Number format
   const savedFmt = readLS("num_format", "comma");
@@ -385,6 +435,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   const sel = document.getElementById("themeSelect");
   if(sel) sel.value = theme;
+
+  const curSel = document.getElementById("cursorSelect");
+  if(curSel) curSel.value = cur;
 
   const fmtSel = document.getElementById("numFormatSelect");
   if(fmtSel) fmtSel.value = (prefNumAbbr ? "abbr" : "comma");
@@ -397,6 +450,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
       toast("Тема", "Сохранено", "ok");
       // restart background FX for new theme
       try{ initParticles(true); }catch(_e){}
+    });
+  }
+  if(curSel){
+    curSel.addEventListener("change", ()=>{
+      applyCursor(curSel.value);
+      toast("Курсор", "Сохранено", "ok");
     });
   }
   if(fmtSel){

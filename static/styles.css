@@ -2595,3 +2595,101 @@ body.theme-night .input{
 
 #adminModal .pCard{ background: rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); }
 #adminModal textarea.input{ resize: vertical; }
+
+/* Admin modal layout stability */
+#adminModal{
+  width: min(1100px, calc(100vw - 24px));
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+}
+#adminModal .caseStage{ padding: 14px; }
+#adminModal .caseStage > .pCard{ overflow: hidden; }
+@media (max-width: 860px){
+  #adminModal [style*="grid-template-columns: 1fr 1fr"]{ grid-template-columns: 1fr !important; }
+}
+
+/* =========================
+   Themes: Night / Night v2
+   ========================= */
+
+/* v2: deep black + soft colored haze */
+body.theme-night2{ background:#000; }
+body.theme-night2::before,
+body.theme-night2::after{
+  content:"";
+  position:fixed;
+  inset:-20vmax;
+  pointer-events:none;
+  filter: blur(90px);
+  opacity:.85;
+  z-index:-2;
+}
+body.theme-night2::before{
+  background: radial-gradient(circle at 18% 18%, rgba(110,60,255,.45), transparent 55%),
+              radial-gradient(circle at 88% 28%, rgba(0,220,255,.30), transparent 55%),
+              radial-gradient(circle at 72% 84%, rgba(40,200,120,.18), transparent 60%);
+}
+body.theme-night2::after{
+  background: radial-gradient(circle at 42% 60%, rgba(255,255,255,.06), transparent 60%);
+  opacity:.35;
+}
+
+/* Night (v1): slightly brighter look */
+body.theme-night{ background:#070A10; }
+body.theme-night::before,
+body.theme-night::after{
+  content:"";
+  position:fixed;
+  inset:-18vmax;
+  pointer-events:none;
+  filter: blur(80px);
+  opacity:.95;
+  z-index:-2;
+}
+body.theme-night::before{
+  background: radial-gradient(circle at 14% 18%, rgba(140,80,255,.55), transparent 58%),
+              radial-gradient(circle at 92% 24%, rgba(0,230,255,.36), transparent 58%),
+              radial-gradient(circle at 62% 86%, rgba(60,210,140,.22), transparent 62%);
+}
+body.theme-night::after{
+  background: radial-gradient(circle at 44% 54%, rgba(255,255,255,.08), transparent 65%);
+  opacity:.45;
+}
+
+/* Apply same glass look for both night themes */
+body.theme-night .veil,
+body.theme-night2 .veil{
+  background: rgba(0,0,0,.18);
+}
+
+/* =========================
+   Cursor themes
+   ========================= */
+body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur"), auto; }
+body[data-cursor="neon"]{ cursor: url("/static/cursors/neon/default.cur"), auto; }
+
+body[data-cursor="neon-purple"] a,
+body[data-cursor="neon-purple"] button,
+body[data-cursor="neon-purple"] .btn,
+body[data-cursor="neon-purple"] [role="button"],
+body[data-cursor="neon-purple"] input[type="button"],
+body[data-cursor="neon-purple"] input[type="submit"]{
+  cursor: url("/static/cursors/neon-purple/pointer.cur"), pointer;
+}
+body[data-cursor="neon"] a,
+body[data-cursor="neon"] button,
+body[data-cursor="neon"] .btn,
+body[data-cursor="neon"] [role="button"],
+body[data-cursor="neon"] input[type="button"],
+body[data-cursor="neon"] input[type="submit"]{
+  cursor: url("/static/cursors/neon/pointer.cur"), pointer;
+}
+
+body[data-cursor="neon-purple"] input,
+body[data-cursor="neon-purple"] textarea{
+  cursor: url("/static/cursors/neon-purple/text.cur"), text;
+}
+body[data-cursor="neon"] input,
+body[data-cursor="neon"] textarea{
+  cursor: url("/static/cursors/neon/text.cur"), text;
+}
