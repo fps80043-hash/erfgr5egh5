@@ -9,11 +9,14 @@ function closeAllSelects(except=null){
 // Theme + particles (UI)
 // -------------------------
 function applyTheme(name){
-  const t = (name === "event") ? "event" : "night";
+  const n = String(name || readLS("theme","night")).toLowerCase();
+  const t = (n === "night2") ? "night2" : "night";
   writeLS("theme", t);
   document.body.setAttribute("data-theme", t);
-  document.body.classList.remove("theme-night","theme-event");
+  document.body.classList.remove("theme-night","theme-event","theme-night2");
   document.body.classList.add(`theme-${t}`);
+  // restart background FX to match theme
+  try{ initParticles(true); }catch(_e){}
 }
 window.applyTheme = applyTheme;
 
@@ -30,7 +33,7 @@ function initParticles(forceRestart=false){
   const isMobile = window.matchMedia("(max-width: 980px)").matches;
 
   const theme = String((document.body.getAttribute("data-theme")||readLS("theme","night"))).toLowerCase();
-  let mode = (theme === "event") ? "snow" : "particles";
+  let mode = (theme === "night2") ? "haze" : "particles";
 
   // config
   let COUNT = Math.max(26, Math.min(110, Math.floor((window.innerWidth*window.innerHeight) / 18000)));
@@ -47,7 +50,41 @@ function initParticles(forceRestart=false){
   // init points depending on mode
   function seed(){
     pts.length = 0;
-    if(mode === "snow"){
+    if (mode === "haze") {
+      // Night v2: soft haze particles
+      for (let i=0;i<Math.max(18, Math.floor(COUNT*0.55));i++) {
+        pts.push({
+          x: Math.random()*w,
+          y: Math.random()*h,
+          r: 6.0 + Math.random()*14.0,
+          vy: -0.05 - Math.random()*0.18,
+          vx: -0.10 + Math.random()*0.20,
+          a: 0.06 + Math.random()*0.12,
+          wob: Math.random()*Math.PI*2,
+          wobSp: 0.0015 + Math.random()*0.0045,
+        });
+      }
+    } else if(mode === "haze"){
+      // Night v2: drifting haze blobs
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for(const p of pts){
+        p.wob += p.wobSp * dt;
+        p.x += (p.vx + Math.sin(p.wob)*0.10) * dt;
+        p.y += p.vy * dt;
+
+        if(p.y < -40){ p.y = h + 40; p.x = Math.random()*w; }
+        if(p.x < -60) p.x = w + 60;
+        if(p.x > w + 60) p.x = -60;
+
+        ctx.beginPath();
+        ctx.globalAlpha = p.a;
+        ctx.fillStyle = "rgba(200,220,255,1)";
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if(mode === "snow"){
       const n = isMobile ? 70 : 120;
       for(let i=0;i<n;i++){
         pts.push({
@@ -193,7 +230,7 @@ function renderInv(inv){
   if(!list) return;
   const max = Number(inv.max || 10);
   const cnt = Number(inv.count || 0);
-  const badge = $("#invBadge");
+  const badge = $("#invCount") || $("#invBadge");
   if(badge) badge.textContent = `${cnt}/${max}`;
 
   const premiumOn = isPremiumActive();
@@ -436,9 +473,11 @@ function confirmAction(text, yesLabel="OK"){
 
   back.classList.remove("hidden");
   modal.classList.remove("hidden");
+  modal.classList.add("open");
+  requestAnimationFrame(()=>modal.classList.add("vis"));
 
   const done = (v)=>{
-    try{ back.classList.add("hidden"); modal.classList.add("hidden"); }catch(_e){}
+    try{ modal.classList.remove("vis"); modal.classList.remove("open"); back.classList.add("hidden"); modal.classList.add("hidden"); }catch(_e){}
     const r = _confirmResolve; _confirmResolve = null;
     if(r) r(!!v);
   };
@@ -775,8 +814,8 @@ function initTilt(){
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / Math.max(1, r.width);
       const y = (e.clientY - r.top) / Math.max(1, r.height);
-      const ry = (x - 0.5) * 10;   // deg
-      const rx = -(y - 0.5) * 8;  // deg
+      const ry = (x - 0.5) * 4.5;   // deg (reduced)
+      const rx = -(y - 0.5) * 3.5;  // deg (reduced)  // deg
       el.style.setProperty("--mx", (x*100).toFixed(2) + "%");
       el.style.setProperty("--my", (y*100).toFixed(2) + "%");
       el.style.setProperty("--rx", rx.toFixed(2) + "deg");
@@ -790,7 +829,7 @@ function initTilt(){
 
     el.addEventListener("mousemove", (e)=>{
       // quick, but still smooth
-      el.style.transition = "transform 70ms linear";
+      /* keep transition stable to prevent jitter */
       set(e);
     });
 

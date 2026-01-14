@@ -1716,7 +1716,7 @@ canvas.fx, svg.fx {
   content:"";
   position:absolute;
   inset:-2px;
-  background: radial-gradient(40% 60% at var(--mx,50%) var(--my,50%), rgba(255,255,255,.10), rgba(255,255,255,0) 60%);
+  background: radial-gradient(28% 36% at var(--mx,50%) var(--my,50%), rgba(255,255,255,.10), rgba(255,255,255,0) 60%);
   opacity:0;
   transition: opacity .25s ease;
   pointer-events:none;
@@ -2568,3 +2568,24 @@ body.theme-event::after{
 .confirmBody{ padding:14px 14px 16px; }
 .confirmText{ font-size:14px; opacity:.9; }
 .confirmActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }
+
+
+/* Night v2 */
+.theme-night2{
+  background: radial-gradient(1200px 700px at 20% 10%, rgba(140,200,255,.12), transparent 60%),
+              radial-gradient(900px 600px at 80% 30%, rgba(170,130,255,.10), transparent 55%),
+              radial-gradient(900px 900px at 50% 110%, rgba(0,180,220,.08), transparent 60%),
+              #06070d;
+}
+body.theme-night2::before{
+  content:"";
+  position:fixed; inset:0;
+  background:
+    radial-gradient(900px 520px at 50% 20%, rgba(210,240,255,.08), transparent 60%),
+    radial-gradient(1100px 700px at 60% 80%, rgba(160,210,255,.06), transparent 65%);
+  pointer-events:none;
+  mix-blend-mode:screen;
+  filter: blur(18px);
+  opacity:.85;
+  z-index:0;
+}
