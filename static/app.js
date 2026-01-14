@@ -42,10 +42,10 @@ function initParticles(forceRestart=false){
   // Night (v1): снег
   // Night v2: "старые" частицы с линиями (constellation)
   const cfg = isSnow ? {
-    count: isMobile ? 56 : 110,
+    count: isMobile ? 40 : 90,
     // Snow: intentionally slower and smoother
-    speed: isMobile ? 0.22 : 0.30,
-    drift: isMobile ? 0.12 : 0.18,
+    speed: isMobile ? 0.12 : 0.18,
+    drift: isMobile ? 0.06 : 0.10,
     maxR:  isMobile ? 2.0 : 2.8,
     linkDist: 0,
   } : {
@@ -195,6 +195,15 @@ function _prizeMeta(prize){
   if(p === 'BAL50') return { label: '+50 ₽', img: '' };
   if(p === 'BAL100') return { label: '+100 ₽', img: '' };
 
+
+  // If DB stores human labels (legacy), normalize by substring
+  if(p.includes("АНАЛИЗ")) return { label: '+10 анализов', img: '' };
+  if(p.includes("ГЕНЕРАЦ")) return { label: '+3 генерации', img: '' };
+  if(p.includes("ЗАПРОС")) return { label: '+10 запросов', img: '' };
+  if(p.includes("₽") || p.includes("RUB") || p.includes("BAL")) {
+    // keep as-is
+    return { label: prize, img: '' };
+  }
   // Fallback: try to show prize icon if it exists by convention
   return { label: prize, img: '' };
 }

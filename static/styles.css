@@ -351,11 +351,11 @@ body.theme-night .top{
 .wrap{max-width:1200px; margin:0 auto; padding:16px; position:relative; z-index:3}
 .pane{display:none; animation: fade .22s ease}
 .pane.active{display:block}
-@keyframes fade{from{opacity:.6; transform: translateY(8px)}to{opacity:1; transform: translateY(0)}}
+@keyframes fade{from{opacity:.0}to{opacity:1}}
 
 /* Smooth cross-tab transition */
 .pane.out{ display:block; animation: fadeOut .18s ease both; }
-@keyframes fadeOut{from{opacity:1; transform: translateY(0)}to{opacity:0; transform: translateY(6px)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
 
 .grid{
   display:grid;
@@ -604,6 +604,7 @@ code{
 
 .toasts{
   position:fixed;
+  z-index: 9999;
   right:14px;
   top:72px;
   /* Must stay above modals on mobile (case modal + captcha toast bug) */
@@ -2726,4 +2727,44 @@ body[data-cursor="neon-purple"] [contenteditable="true"]{
 body[data-cursor="neon-purple"] select,
 body[data-cursor="neon-purple"] option{
   cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
+}
+
+#profileBalanceQuick{display:none !important}
+
+
+body[data-cursor="neon-purple"] .cselect-btn,
+body[data-cursor="neon-purple"] .cselect-opt,
+body[data-cursor="neon-purple"] .navbtn,
+body[data-cursor="neon-purple"] .pillbtn{
+  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
+}
+
+
+/* Admin modal layout v2 */
+#adminModal{max-width:1200px !important; width:92vw !important; height:86vh !important; overflow:hidden;}
+#adminModal .caseStage{height:calc(86vh - 64px); overflow:hidden;}
+#adminModal .adminShell{display:grid; grid-template-columns: 380px 1fr; gap:14px; height:100%;}
+#adminModal .adminSide{overflow:hidden;}
+#adminModal .adminUsersList{max-height:calc(100% - 150px); overflow:auto;}
+#adminModal .adminMain{overflow:hidden;}
+#adminModal #adminUserCard{height:100%; overflow:auto;}
+@media (max-width: 980px){
+  #adminModal{height:90vh !important;}
+  #adminModal .adminShell{grid-template-columns:1fr; }
+}
+
+/* Top balance pill */
+#btnTopBalance.balancePill{
+  padding:10px 14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: radial-gradient(120px 70px at 20% 20%, rgba(124,58,237,.30), transparent 60%),
+              radial-gradient(160px 90px at 80% 20%, rgba(34,211,238,.22), transparent 62%),
+              rgba(16,16,20,.55);
+  box-shadow: 0 10px 28px rgba(0,0,0,.55);
+}
+body[data-theme="night2"] #btnTopBalance.balancePill{
+  background: radial-gradient(140px 80px at 20% 20%, rgba(34,211,238,.26), transparent 60%),
+              radial-gradient(160px 90px at 80% 20%, rgba(124,58,237,.26), transparent 62%),
+              rgba(16,16,20,.52);
 }
