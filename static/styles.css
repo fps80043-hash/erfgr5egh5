@@ -349,12 +349,13 @@ body.theme-night .top{
 }
 
 .wrap{max-width:1200px; margin:0 auto; padding:16px; position:relative; z-index:3}
-.pane{display:none; animation: fade .22s ease}
+.pane{display:none}
 .pane.active{display:block}
-@keyframes fade{from{opacity:.0}to{opacity:1}}
 
-/* Smooth cross-tab transition */
+/* Tab transitions: fade out current, then fade in next (no slide) */
+.pane.in{ display:block; animation: fadeIn .18s ease both; }
 .pane.out{ display:block; animation: fadeOut .18s ease both; }
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes fadeOut{from{opacity:1}to{opacity:0}}
 
 .grid{
@@ -392,6 +393,20 @@ body.theme-night .top{
   outline:none;
   transition:.15s border,.15s background,.15s transform;
 }
+
+/* Custom-looking dropdowns (dark) */
+select.input{
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255,255,255,.7) 50%),
+    linear-gradient(135deg, rgba(255,255,255,.7) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat:no-repeat;
+  padding-right:34px;
+}
+select.input option{ background:#0b0d13; color:#e8ecff; }
 .input:focus{
   border-color: rgba(34,211,238,.55);
   background: rgba(255,255,255,.05);
@@ -2709,24 +2724,26 @@ body.theme-night2 .veil{
   NOTE: Some .cur packs contain large variants which browsers may pick → huge cursor.
   We ship 32px PNG fallbacks derived from the provided pack to keep sizing consistent.
 */
-body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.png") 2 2, auto; }
+body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.png") 1 1, auto; }
 
 body[data-cursor="neon-purple"] a,
 body[data-cursor="neon-purple"] button,
+body[data-cursor="neon-purple"] label,
+body[data-cursor="neon-purple"] input[type="checkbox"],
+body[data-cursor="neon-purple"] input[type="radio"],
 body[data-cursor="neon-purple"] .btn,
 body[data-cursor="neon-purple"] [role="button"],
 body[data-cursor="neon-purple"] input[type="button"],
 body[data-cursor="neon-purple"] input[type="submit"]{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
+  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
 }
+/* For text fields keep native I-beam to avoid artifacts (black square/outline) */
 body[data-cursor="neon-purple"] input,
 body[data-cursor="neon-purple"] textarea,
-body[data-cursor="neon-purple"] [contenteditable="true"]{
-  cursor: url("/static/cursors/neon-purple/text.png") 6 14, text;
-}
+body[data-cursor="neon-purple"] [contenteditable="true"]{ cursor: text; }
 body[data-cursor="neon-purple"] select,
 body[data-cursor="neon-purple"] option{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
+  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
 }
 
 #profileBalanceQuick{display:none !important}
@@ -2736,7 +2753,22 @@ body[data-cursor="neon-purple"] .cselect-btn,
 body[data-cursor="neon-purple"] .cselect-opt,
 body[data-cursor="neon-purple"] .navbtn,
 body[data-cursor="neon-purple"] .pillbtn{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 6 3, pointer;
+  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
+}
+
+/* Night themes: avoid extra backdrop behind cards + force dark native UI */
+body.theme-night,
+body.theme-night2{ color-scheme: dark; }
+body.theme-night .pane::before,
+body.theme-night2 .pane::before{ display:none !important; }
+
+/* Ensure cursor stays consistent on common interactive controls */
+body[data-cursor="neon-purple"] label,
+body[data-cursor="neon-purple"] input[type="checkbox"],
+body[data-cursor="neon-purple"] input[type="radio"],
+body[data-cursor="neon-purple"] select,
+body[data-cursor="neon-purple"] summary{
+  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
 }
 
 

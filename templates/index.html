@@ -28,7 +28,7 @@
 </nav>
 <div class="topright">
 <div class="topBalance" id="topBalanceBox" style="display:none">
-<button class="btn mini primary tilt" id="btnTopBalance" class="btn mini tilt balancePill" type="button">
+<button class="btn mini tilt balancePill" id="btnTopBalance" type="button">
 <span class="ico" data-ico="wallet" aria-hidden="true" style="opacity:.95"></span>
 <span id="topBalanceValue">0</span>
 </button>
@@ -566,22 +566,6 @@
     Premium снимает лимиты и открывает чат с ИИ. Можно оформить подписку ниже или выбить Premium в бесплатном кейсе.
   </div>
 </div>
-<div class="card" id="balanceBox" style="display:none">
-<div class="headrow">
-<h3><span class="ico" data-ico="wallet" aria-hidden="true"></span> Баланс</h3>
-<div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-  <div class="balWrap">
-    <div class="balNum" id="balanceValue">0</div>
-    <div class="balHint">₽ доступно</div>
-  </div>
-  <button class="btn" data-topup="1" type="button"><span class="ico" data-ico="card" aria-hidden="true"></span> Пополнить</button>
-</div>
- </div>
- <div class="muted" style="margin-top:8px">
-   Баланс используется для оплаты функций. Пополнить можно через CryptoBot (крипта), промокод, либо вручную через администратора.
- </div>
-</div>
-
 
 <div class="card" id="invBox" style="margin-top:12px; display:none">
   <div class="headrow">
@@ -679,27 +663,6 @@
 <button class="btn primary" id="btnResetConfirm">Сменить пароль</button>
 </div>
 <p class="muted">Если аккаунт с этим email существует — код отправится.</p>
-</div>
-</div>
-<div id="profileTools" style="display:none">
-<div class="divider"></div>
-<h3>📁 Профиль</h3>
-<div class="row">
-<button class="btn tilt" id="btnShowSavedTemplates">Мои шаблоны</button>
-<button class="btn tilt" id="btnShowTx">История транзакций</button>
-</div>
-<p class="muted">Шаблоны сохраняются локально (в браузере). История транзакций — из базы.</p>
-<div class="divider"></div>
-<h3>🔄 Шаблоны</h3>
-<div class="row">
-<button class="btn" id="btnSyncPull">Загрузить</button>
-<button class="btn primary" id="btnSyncPush">Сохранить</button>
-</div>
-<div class="divider"></div>
-<h3>🧹 Чат</h3>
-<div class="row">
-<button class="btn" id="btnChatPull">Загрузить историю</button>
-<button class="btn" id="btnChatClear">Очистить</button>
 </div>
 </div>
 </div>

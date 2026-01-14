@@ -1359,16 +1359,33 @@ function setTab(name) {
   const next = document.getElementById("tab-" + name);
   const cur = panes.find(p => p.classList.contains("active"));
 
-  // Cross-fade: animate current out, then switch
+  // Cross-fade: fade current out, then fade next in
+  const FADE_MS = 180;
+  const IN_MS = 220;
+
+  const activate = () => {
+    panes.forEach((p) => {
+      if (p === next) {
+        p.classList.add("active");
+        p.classList.add("in");
+        setTimeout(() => p.classList.remove("in"), IN_MS);
+      } else {
+        p.classList.remove("active");
+        p.classList.remove("in");
+      }
+    });
+  };
+
   if (cur && cur !== next) {
     cur.classList.add("out");
-    cur.classList.remove("active");
-    setTimeout(() => cur.classList.remove("out"), 220);
+    setTimeout(() => {
+      cur.classList.remove("out");
+      cur.classList.remove("active");
+      activate();
+    }, FADE_MS);
+  } else {
+    activate();
   }
-  panes.forEach((p) => {
-    if (p === next) p.classList.add("active");
-    else p.classList.remove("active");
-  });
 
   $$(".navbtn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".btab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
