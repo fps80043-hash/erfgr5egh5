@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1768337233" rel="stylesheet"/>
+<link href="/static/styles.css?v=1768371423" rel="stylesheet"/>
 </head>
 <body class="theme-pastex">
 <canvas id="particles"></canvas>
@@ -471,6 +471,10 @@
         </div>
         <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
           <div class="badge" id="badgePremium" style="display:none">FREE</div>
+          <button class="iconBtn" id="btnNotifOpen" style="display:none" type="button" aria-label="Уведомления">
+            <span class="ico" data-ico="bell" aria-hidden="true"></span>
+            <span class="badge hidden" id="notifBadge" style="position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 6px; font-size:11px; border-radius:999px">0</span>
+          </button>
           <button class="btn mini" id="btnLogout" style="display:none" type="button">Выйти</button>
         </div>
       </div>
@@ -505,8 +509,7 @@
         <div style="flex:1; min-width:220px">
           <label class="lbl">Выбор темы</label>
           <select class="input" id="themeSelect">
-            <option value="night">Night</option>
-            <option value="night2">Night v2</option>
+            <option value="night">Night v2</option>
           </select>
         </div>
         <div style="flex:1; min-width:220px">
@@ -570,85 +573,30 @@
  </div>
 </div>
 
+
 <div class="card" id="invBox" style="margin-top:12px; display:none">
   <div class="headrow">
-    <h3>🎒 Инвентарь призов</h3>
+    <h3><span class="ico" data-ico="gift" aria-hidden="true"></span> Инвентарь</h3>
     <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
       <div class="badge" id="invCount">0/10</div>
-      <button class="btn mini" id="btnInvRefresh" type="button">Обновить</button>
+      <button class="btn primary" id="btnInvOpen" type="button"><span class="ico" data-ico="eye" aria-hidden="true"></span> Открыть</button>
     </div>
   </div>
   <div class="muted" style="margin-top:8px; font-size:12px">
-    Призы из кейсов попадают сюда. Их можно использовать <b>единоразово</b> в любой момент. Если Premium уже активен — применять Premium-приз нельзя.
+    Призы из кейсов попадают сюда. Их можно использовать <b>единоразово</b> в любой момент. Если Premium уже активен — Premium/лимит-призы тратить нельзя.
   </div>
-  <div class="divider" style="margin-top:12px"></div>
-  <div class="prizeList" id="invList"></div>
 </div>
-<div class="card" id="adminBox" style="margin-top:12px; display:none">
-<div class="headrow">
-<h3>🛠️ Админ-панель</h3>
-<div class="muted" style="margin-left:auto">Баланс / пользователи</div>
+
+<div class="card" id="adminCard" style="margin-top:12px; display:none">
+  <div class="headrow">
+    <h3><span class="ico" data-ico="shield" aria-hidden="true"></span> Админ-панель</h3>
+    <button class="btn primary tilt" id="btnAdminOpen" type="button" style="margin-left:auto">Открыть</button>
+  </div>
+  <div class="muted" style="margin-top:8px; font-size:12px">
+    Модерация пользователей, баны, смена ников, баланс, промокоды, заявки, уведомления.
+  </div>
 </div>
-<div class="row" style="flex-wrap:wrap">
-<div style="flex:1; min-width:220px">
-<label class="lbl">Поиск (username / email / id)</label>
-<input class="input" id="adminIdent" placeholder="Kirill_123 или mail@example.com или 1"/>
-</div>
-<button class="btn" id="btnAdminFind">Найти</button>
-</div>
-<div id="adminUserCard" style="display:none; margin-top:8px">
-<div class="divider"></div>
-<div class="facts">
-<div class="fact"><span>ID</span><b id="adm_id">—</b></div>
-<div class="fact"><span>Логин</span><b id="adm_username">—</b></div>
-<div class="fact"><span>Email</span><b id="adm_email">—</b></div>
-<div class="fact"><span>Баланс</span><b id="adm_balance">—</b></div>
-</div>
-<div class="divider"></div>
-<div class="row" style="flex-wrap:wrap">
-<div style="flex:1; min-width:180px">
-<label class="lbl">Сумма (+ / -)</label>
-<input class="input" id="adm_delta" placeholder="Например: 100 или -50"/>
-</div>
-<div style="flex:2; min-width:220px">
-<label class="lbl">Причина (опционально)</label>
-<input class="input" id="adm_reason" placeholder="Например: выдача за покупку / компенсация"/>
-</div>
-<button class="btn primary" id="btnAdminApply">Применить</button>
-</div>
-<div class="muted" id="adminTxBox" style="margin-top:10px; display:none">
-<b>Последние операции:</b>
-<div id="adminTxList" style="margin-top:6px"></div>
-</div>
-</div>
-<div class="divider" style="margin-top:12px"></div>
-<div class="headrow" style="margin-top:10px">
-<h4 style="margin:0">💳 Пополнения (заявки)</h4>
-<button class="btn" id="btnAdminTopupsRefresh" style="margin-left:auto">Обновить</button>
-</div>
-<div class="muted" id="adminTopupsList" style="margin-top:8px; font-size:12px">—</div>
-<div class="divider" style="margin-top:12px"></div>
-<div class="headrow" style="margin-top:10px">
-<h4 style="margin:0">🏷️ Промокоды</h4>
-<button class="btn" id="btnAdminPromosRefresh" style="margin-left:auto">Список</button>
-</div>
-<div class="row" style="flex-wrap:wrap; margin-top:8px">
-<div style="flex:1; min-width:140px">
-<label class="lbl">Баланс</label>
-<input class="input" id="adm_promo_points" placeholder="например 500"/>
-</div>
-<div style="flex:1; min-width:140px">
-<label class="lbl">Лимит использований</label>
-<input class="input" id="adm_promo_max" placeholder="1"/>
-</div>
-<div style="flex:2; min-width:180px">
-<label class="lbl">Код (опц.)</label>
-<input class="input" id="adm_promo_code" placeholder="FANPAY2026"/>
-</div>
-<button class="btn primary" id="btnAdminPromoCreate">Создать</button>
-</div>
-<div class="muted" id="adminPromoList" style="margin-top:8px; font-size:12px">—</div>
-</div>
+
 <div id="authBox">
 <div class="authTabs">
 <button class="pill active" data-auth="login">Вход</button>
@@ -867,6 +815,26 @@
 </div>
 
 
+
+<!-- Inventory Modal -->
+<div class="modalBack hidden" id="invBack"></div>
+<div class="modal glass hidden" id="invModal" role="dialog" aria-modal="true" aria-label="Инвентарь">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="ico" data-ico="gift" aria-hidden="true"></div>
+      <div class="modalTitle">Инвентарь</div>
+      <div class="badge" id="invModalCount" style="margin-left:8px">0/10</div>
+    </div>
+    <button class="iconBtn" id="btnInvClose" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="caseStage" style="padding:14px">
+    <div class="muted" style="font-size:12px; margin-bottom:10px">
+      Здесь хранятся призы из кейсов. Можно удалить приз или применить его. Если Premium активен — бессмысленные призы применить нельзя.
+    </div>
+    <div class="prizeList" id="invModalList"></div>
+  </div>
+</div>
+
 <!-- Mobile bottom navigation -->
 <nav class="bottomnav" aria-label="Нижняя навигация">
   <button class="btab active" data-tab="home" type="button"><span aria-hidden="true">🏠</span><small>Home</small></button>
@@ -875,12 +843,139 @@
   <button class="btab" data-tab="profile" type="button"><span aria-hidden="true">👤</span><small>Me</small></button>
 </nav>
 
+
+<!-- Notifications Modal -->
+<div class="modalBack hidden" id="notifBack"></div>
+<div class="modal glass hidden" id="notifModal" role="dialog" aria-modal="true" aria-label="Уведомления">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="ico" data-ico="bell" aria-hidden="true"></div>
+      <div class="modalTitle">Уведомления</div>
+      <div class="badge" id="notifCount" style="margin-left:8px">0</div>
+    </div>
+    <button class="iconBtn" id="btnNotifClose" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="caseStage" style="padding:14px">
+    <div class="muted" style="font-size:12px; margin-bottom:10px">Админ может оставлять сообщения. Нажмите «Прочитать всё», чтобы убрать счётчик.</div>
+    <div style="display:flex; gap:8px; margin-bottom:10px">
+      <button class="btn tilt" id="btnNotifRefresh" type="button">Обновить</button>
+      <button class="btn primary tilt" id="btnNotifReadAll" type="button">Прочитать всё</button>
+    </div>
+    <div class="prizeList" id="notifList"></div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modalBack hidden" id="adminBack"></div>
+<div class="modal glass hidden" id="adminModal" role="dialog" aria-modal="true" aria-label="Admin panel">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="ico" data-ico="shield" aria-hidden="true"></div>
+      <div class="modalTitle">Admin panel</div>
+      <div class="badge" id="adminModeBadge" style="margin-left:8px">ON</div>
+    </div>
+    <button class="iconBtn" id="btnAdminClose" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="caseStage" style="padding:14px">
+    <div class="muted" style="font-size:12px; margin-bottom:10px">Поиск пользователя → действия (баланс, бан, ник, уведомления).</div>
+
+    <div class="pCard" id="adminUsersBox" style="margin-bottom:12px">
+      <div class="headrow" style="margin-bottom:8px">
+        <div style="font-weight:800">Пользователи</div>
+        <button class="btn tilt" id="btnAdminUsersRefresh" type="button" style="margin-left:auto">Обновить</button>
+      </div>
+      <div class="muted" style="font-size:12px; margin-bottom:8px">Клик по пользователю → загрузка карточки.</div>
+      <div id="adminUsersList" style="display:grid; gap:6px"></div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap">
+      <input class="input" id="adminIdent" placeholder="username / email / id" style="flex:1; min-width:220px"/>
+      <button class="btn primary tilt" id="btnAdminFind" type="button">Найти</button>
+    </div>
+
+    <div class="pCard" id="adminUserCard" style="margin-top:12px; display:none">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap">
+        <div style="min-width:220px">
+          <div style="font-weight:800" id="adm_username">—</div>
+          <div class="muted" style="font-size:12px">ID: <span class="mono" id="adm_id">—</span> • <span id="adm_email">—</span></div>
+          <div class="muted" style="font-size:12px">Регистрация: <span class="mono" id="adm_created">—</span></div>
+          <div class="muted" style="font-size:12px">Последний вход: <span class="mono" id="adm_seen">—</span></div>
+          <div class="muted" style="font-size:12px">IP: <span class="mono" id="adm_ip">—</span> • <span id="adm_geo">—</span></div>
+          <div class="muted" style="font-size:12px">Бан: <span class="mono" id="adm_ban">—</span></div>
+        </div>
+        <div style="min-width:200px; text-align:right">
+          <div class="muted" style="font-size:12px">Баланс</div>
+          <div class="bigBalance" id="adm_balance" style="justify-content:flex-end">0</div>
+        </div>
+      </div>
+
+      <div class="divider" style="margin:12px 0"></div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+        <div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px">Изменить баланс</div>
+          <div style="display:flex; gap:8px">
+            <input class="input" id="adm_delta" placeholder="+100 / -50" style="flex:1"/>
+            <button class="btn primary tilt" id="btnAdminApply" type="button">Применить</button>
+          </div>
+          <input class="input" id="adm_reason" placeholder="Причина (опционально)" style="margin-top:8px"/>
+          <div class="muted" style="font-size:12px; margin-top:10px">История</div>
+          <div class="pCard" id="adminTxBox" style="margin-top:6px; display:none">
+            <div id="adminTxList"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px">Модерация</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <input class="input" id="adm_newname" placeholder="Новый ник" style="flex:1; min-width:160px"/>
+            <button class="btn tilt" id="btnAdminRename" type="button">Переименовать</button>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px">
+            <input class="input" id="adm_bandays" placeholder="Бан дней (0=перманент)" style="width:170px"/>
+            <button class="btn tilt" id="btnAdminBan" type="button">Забанить</button>
+            <button class="btn tilt" id="btnAdminUnban" type="button">Разбан</button>
+          </div>
+
+          <div class="muted" style="font-size:12px; margin-top:10px">Уведомление пользователю</div>
+          <textarea class="input" id="adm_notif" placeholder="Текст уведомления…" style="margin-top:6px; min-height:86px"></textarea>
+          <button class="btn primary tilt" id="btnAdminNotify" type="button" style="width:100%; margin-top:8px">Отправить</button>
+        </div>
+      </div>
+
+      <div class="divider" style="margin:12px 0"></div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+        <div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px">Заявки на пополнение</div>
+          <button class="btn tilt" id="btnAdminTopupsRefresh" type="button">Обновить</button>
+          <div class="pCard" style="margin-top:8px">
+            <div id="adminTopupsList">—</div>
+          </div>
+        </div>
+        <div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px">Промокоды</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn tilt" id="btnAdminPromosRefresh" type="button">Обновить</button>
+            <button class="btn primary tilt" id="btnAdminPromoCreate" type="button">Создать</button>
+          </div>
+          <div class="pCard" style="margin-top:8px">
+            <div id="adminPromosList">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- Toast notifications -->
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
 
 
 <!-- core logic -->
-<script src="/static/app.js?v=1768337233"></script>
+<script src="/static/app.js?v=1768372500"></script>
 
   <!-- Confirm Modal -->
   <div class="modalBack hidden" id="confirmBack"></div>

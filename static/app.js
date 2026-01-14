@@ -9,14 +9,11 @@ function closeAllSelects(except=null){
 // Theme + particles (UI)
 // -------------------------
 function applyTheme(name){
-  const n = String(name || readLS("theme","night")).toLowerCase();
-  const t = (n === "night2") ? "night2" : "night";
+  const t = "night"; // Night v2 only
   writeLS("theme", t);
   document.body.setAttribute("data-theme", t);
-  document.body.classList.remove("theme-night","theme-event","theme-night2");
-  document.body.classList.add(`theme-${t}`);
-  // restart background FX to match theme
-  try{ initParticles(true); }catch(_e){}
+  document.body.classList.remove("theme-night","theme-event");
+  document.body.classList.add("theme-night");
 }
 window.applyTheme = applyTheme;
 
@@ -24,188 +21,88 @@ function initParticles(forceRestart=false){
   const cv = document.getElementById("particles");
   if(!cv) return;
 
-  // prevent double init
   if(cv.__fxRunning && !forceRestart) return;
   cv.__fxRunning = true;
 
   const ctx = cv.getContext("2d", { alpha: true });
-  let w = 0, h = 0;
+  let w=0,h=0;
   const isMobile = window.matchMedia("(max-width: 980px)").matches;
 
-  const theme = String((document.body.getAttribute("data-theme")||readLS("theme","night"))).toLowerCase();
-  let mode = (theme === "night2") ? "haze" : "particles";
+  // Night v2: soft drifting particles (no lines, no haze)
+  const cfg = {
+    count: isMobile ? 44 : 84,
+    speed: isMobile ? 0.06 : 0.10,
+    drift: isMobile ? 0.16 : 0.22,
+    maxR:  isMobile ? 2.1 : 2.8,
+  };
 
-  // config
-  let COUNT = Math.max(26, Math.min(110, Math.floor((window.innerWidth*window.innerHeight) / 18000)));
-  if(isMobile) COUNT = Math.max(18, Math.min(65, COUNT));
+  let parts = [];
+  let mouse = {x:0.5,y:0.5}, mouseT={x:0.5,y:0.5};
 
-  const pts = [];
   function resize(){
-    w = cv.width = window.innerWidth;
-    h = cv.height = window.innerHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    w = Math.max(1, cv.clientWidth || window.innerWidth);
+    h = Math.max(1, cv.clientHeight || window.innerHeight);
+    cv.width  = Math.floor(w*dpr);
+    cv.height = Math.floor(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
   }
-  resize();
-  window.addEventListener("resize", resize, {passive:true});
 
-  // init points depending on mode
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
   function seed(){
-    pts.length = 0;
-    if (mode === "haze") {
-      // Night v2: soft haze particles
-      for (let i=0;i<Math.max(18, Math.floor(COUNT*0.55));i++) {
-        pts.push({
-          x: Math.random()*w,
-          y: Math.random()*h,
-          r: 6.0 + Math.random()*14.0,
-          vy: -0.05 - Math.random()*0.18,
-          vx: -0.10 + Math.random()*0.20,
-          a: 0.06 + Math.random()*0.12,
-          wob: Math.random()*Math.PI*2,
-          wobSp: 0.0015 + Math.random()*0.0045,
-        });
-      }
-    } else if(mode === "haze"){
-      // Night v2: drifting haze blobs
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      for(const p of pts){
-        p.wob += p.wobSp * dt;
-        p.x += (p.vx + Math.sin(p.wob)*0.10) * dt;
-        p.y += p.vy * dt;
-
-        if(p.y < -40){ p.y = h + 40; p.x = Math.random()*w; }
-        if(p.x < -60) p.x = w + 60;
-        if(p.x > w + 60) p.x = -60;
-
-        ctx.beginPath();
-        ctx.globalAlpha = p.a;
-        ctx.fillStyle = "rgba(200,220,255,1)";
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fill();
-      }
-      ctx.restore();
-    } else if(mode === "snow"){
-      const n = isMobile ? 70 : 120;
-      for(let i=0;i<n;i++){
-        pts.push({
-          x: Math.random()*w,
-          y: Math.random()*h,
-          r: 1.0 + Math.random()*2.3,
-          vy: 0.35 + Math.random()*1.25,
-          vx: -0.25 + Math.random()*0.5,
-          a: 0.35 + Math.random()*0.55,
-          wob: Math.random()*Math.PI*2,
-          wobSp: 0.004 + Math.random()*0.012,
-        });
-      }
-    }else{
-      for(let i=0;i<COUNT;i++){
-        pts.push({
-          x: Math.random()*w,
-          y: Math.random()*h,
-          r: 0.9 + Math.random()*1.6,
-          vx: (Math.random()-.5)*0.22,
-          vy: (Math.random()-.5)*0.22,
-          a: 0.22 + Math.random()*0.55
-        });
-      }
+    parts = [];
+    for(let i=0;i<cfg.count;i++){
+      parts.push({
+        x: rand(0,w), y: rand(0,h),
+        vx: rand(-cfg.speed, cfg.speed),
+        vy: rand(cfg.speed*0.25, cfg.speed*0.95),
+        r:  rand(0.9, cfg.maxR),
+        a:  rand(0.16, 0.52),
+        t:  rand(0, Math.PI*2),
+        ts: rand(0.004, 0.012),
+      });
     }
   }
-  seed();
+
+  resize(); seed();
+  window.addEventListener("resize", ()=>{ resize(); seed(); }, { passive:true });
+  window.addEventListener("mousemove", (e)=>{ mouseT.x = e.clientX/Math.max(1,w); mouseT.y = e.clientY/Math.max(1,h); }, { passive:true });
 
   let last = performance.now();
   function frame(now){
-    const dt = Math.min(32, now-last); last = now;
+    const dt = Math.min(34, now-last); last = now;
+
+    mouse.x += (mouseT.x - mouse.x)*0.08;
+    mouse.y += (mouseT.y - mouse.y)*0.08;
+    const ox = (mouse.x-0.5) * (isMobile ? 8 : 18);
+    const oy = (mouse.y-0.5) * (isMobile ? 6 : 14);
 
     ctx.clearRect(0,0,w,h);
 
-    if(mode === "snow"){
-      // haze
-      ctx.save();
-      ctx.globalAlpha = isMobile ? 0.18 : 0.28;
-      const g = ctx.createRadialGradient(w*0.3,h*0.25, 0, w*0.3,h*0.25, Math.max(w,h)*0.9);
-      g.addColorStop(0, "rgba(200,230,255,0.10)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,w,h);
-      ctx.restore();
+    for(const p of parts){
+      p.t += p.ts*dt;
+      p.x += (p.vx + Math.sin(p.t)*cfg.drift*0.02) * dt;
+      p.y += (p.vy + Math.cos(p.t*0.9)*cfg.drift*0.02) * dt;
 
-      // snowflakes
-      for(const p of pts){
-        p.wob += p.wobSp * dt;
-        p.x += (p.vx + Math.sin(p.wob)*0.12) * dt;
-        p.y += p.vy * dt;
+      if(p.y > h+12){ p.y = -12; p.x = rand(0,w); }
+      if(p.x < -20) p.x = w+20;
+      if(p.x > w+20) p.x = -20;
 
-        if(p.y > h + 10){ p.y = -10; p.x = Math.random()*w; }
-        if(p.x < -20) p.x = w + 20;
-        if(p.x > w + 20) p.x = -20;
+      const tw = Math.sin(p.t)*0.12 + 0.88;
+      const rr = p.r*tw;
+      const aa = p.a*tw;
 
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255,255,255,${p.a})`;
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fill();
-      }
-    }else{
-      // particles
-      for(const p of pts){
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        if(p.x < -10) p.x = w + 10;
-        if(p.x > w + 10) p.x = -10;
-        if(p.y < -10) p.y = h + 10;
-        if(p.y > h + 10) p.y = -10;
-
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255,255,255,${p.a})`;
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fill();
-      }
-
-      // lines only on desktop for perf
-      if(!isMobile){
-        ctx.strokeStyle = "rgba(255,255,255,0.08)";
-        for(let i=0;i<pts.length;i++){
-          for(let j=i+1;j<pts.length;j++){
-            const p=pts[i], q=pts[j];
-            const dx=p.x-q.x, dy=p.y-q.y;
-            const d2 = dx*dx+dy*dy;
-            if(d2 < 110*110){
-              const a = 1 - (Math.sqrt(d2)/110);
-              ctx.globalAlpha = a*0.35;
-              ctx.beginPath();
-              ctx.moveTo(p.x,p.y);
-              ctx.lineTo(q.x,q.y);
-              ctx.stroke();
-            }
-          }
-        }
-        ctx.globalAlpha = 1;
-      }
+      ctx.beginPath();
+      ctx.arc(p.x+ox, p.y+oy, rr, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(210,220,255,${aa})`;
+      ctx.fill();
     }
 
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }
-window.initParticles = initParticles;
-
-// -------------------------
-// Inventory (case prizes)
-// -------------------------
-function _prizeMeta(key){
-  const map = {
-    GEN10: {label: "+10 анализов", icon:"🧾"},
-    AI3: {label: "+3 генерации (AI+анализ)", icon:"🤖"},
-    P6H: {label: "Premium 6ч", img:"/static/prizes/premium_6h.png"},
-    P12H: {label: "Premium 12ч", img:"/static/prizes/premium_12h.png"},
-    P24H: {label: "Premium 24ч", img:"/static/prizes/premium_24h.png"},
-    P2D: {label: "Premium 2д", img:"/static/prizes/premium_2d.png"},
-    P3D: {label: "Premium 3д", img:"/static/prizes/premium_3d.png"},
-    P7D: {label: "Premium 7д", img:"/static/prizes/premium_7d.png"},
-  };
-  return map[key] || {label: key, icon:"🎁"};
-}
-
 function isPremiumActive(){
   try{
     if(!currentUser) return false;
@@ -226,12 +123,14 @@ function isWastePrizeWhilePremium(prize){
 }
 
 function renderInv(inv){
-  const list = $("#invList");
+  const list = $("#invModalList") || $("#invList");
   if(!list) return;
   const max = Number(inv.max || 10);
   const cnt = Number(inv.count || 0);
   const badge = $("#invCount") || $("#invBadge");
+  const badge2 = $("#invModalCount");
   if(badge) badge.textContent = `${cnt}/${max}`;
+  if(badge2) badge2.textContent = `${cnt}/${max}`;
 
   const premiumOn = isPremiumActive();
   const items = (inv.items || []);
@@ -302,9 +201,178 @@ async function invPull(){
   return j;
 }
 window.invPull = invPull;
+
+// ===== Inventory Modal (open from profile card) =====
+function openInvModal(){
+  const back = document.getElementById("invBack");
+  const modal = document.getElementById("invModal");
+  if(!back || !modal) return;
+  back.classList.remove("hidden");
+  modal.classList.remove("hidden");
+  modal.classList.add("open");
+  requestAnimationFrame(()=>modal.classList.add("vis"));
+  // Pull latest when opened
+  window.invPull && window.invPull().catch(()=>{});
+}
+function closeInvModal(){
+  const back = document.getElementById("invBack");
+  const modal = document.getElementById("invModal");
+  if(!back || !modal) return;
+  modal.classList.remove("vis");
+  modal.classList.remove("open");
+  back.classList.add("hidden");
+  modal.classList.add("hidden");
+}
+window.openInvModal = openInvModal;
+window.closeInvModal = closeInvModal;
+
+// ===== Notifications Modal =====
+let notifCache = { items: [], unread: 0 };
+
+function openNotifModal(){
+  const back = document.getElementById("notifBack");
+  const modal = document.getElementById("notifModal");
+  if(!back || !modal) return;
+  back.classList.remove("hidden");
+  modal.classList.remove("hidden");
+  modal.classList.add("open");
+  requestAnimationFrame(()=>modal.classList.add("vis"));
+  notifPull().catch(()=>{});
+}
+function closeNotifModal(){
+  const back = document.getElementById("notifBack");
+  const modal = document.getElementById("notifModal");
+  if(!back || !modal) return;
+  modal.classList.remove("vis");
+  modal.classList.remove("open");
+  back.classList.add("hidden");
+  modal.classList.add("hidden");
+}
+window.openNotifModal = openNotifModal;
+window.closeNotifModal = closeNotifModal;
+
+function renderNotifications(){
+  const list = document.getElementById("notifList");
+  const badge = document.getElementById("notifBadge");
+  const cnt = document.getElementById("notifCount");
+  if(cnt) cnt.textContent = String(notifCache.unread || 0);
+  if(badge){
+    const n = Number(notifCache.unread || 0);
+    badge.textContent = (n > 99 ? "99+" : String(n));
+    badge.classList.toggle("hidden", n <= 0);
+  }
+  if(!list) return;
+  const items = notifCache.items || [];
+  if(items.length === 0){
+    list.innerHTML = `<div class="muted">Нет уведомлений</div>`;
+    return;
+  }
+  list.innerHTML = items.map(it=>{
+    const when = it.created_at ? new Date(it.created_at).toLocaleString() : "";
+    const isRead = Number(it.is_read || 0) === 1;
+    return `<div class="invItem ${isRead ? "" : "unread"}" data-id="${it.id}" style="align-items:flex-start">
+      <div style="flex:1; min-width:0">
+        <div style="font-weight:750; line-height:1.25">${escapeHtml(it.text || "")}</div>
+        <div class="muted" style="font-size:12px; margin-top:4px">${when}</div>
+      </div>
+      ${isRead ? "" : `<span class="badge" style="margin-left:10px">new</span>`}
+    </div>`;
+  }).join("");
+}
+
+async function notifPull(){
+  if(!currentUser) return;
+  const j = await apiGet("/api/user/notifications?limit=50").catch(()=>null);
+  if(j && j.ok){
+    notifCache.items = j.items || [];
+    notifCache.unread = j.unread || 0;
+    renderNotifications();
+  }
+}
+
+async function notifReadAll(){
+  if(!currentUser) return;
+  await apiPost("/api/user/notifications/read", {all:true});
+  await notifPull();
+}
+
 document.addEventListener("DOMContentLoaded", ()=>{
   const b = document.getElementById("btnInvRefresh");
   if(b) b.addEventListener("click", ()=>window.invPull().catch(()=>{}));
+
+  // Inventory modal open/close
+  const invOpen = document.getElementById("btnInvOpen") || document.getElementById("invCard") || document.getElementById("invBox");
+  if(invOpen) invOpen.addEventListener("click", (e)=>{
+    // avoid opening when clicking inner buttons that have their own action
+    const t = e.target;
+    if(t && (t.closest && t.closest("button")) && (t.closest("#btnInvOpen")===null) && (t.closest("#invBox")===null) && (t.closest("#invCard")===null)){
+      return;
+    }
+    openInvModal();
+  });
+
+  const invClose = document.getElementById("btnInvClose");
+  const invBack = document.getElementById("invBack");
+  if(invClose) invClose.addEventListener("click", closeInvModal);
+  if(invBack) invBack.addEventListener("click", (e)=>{ if(e.target===invBack) closeInvModal(); });
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape"){ closeInvModal(); closeNotifModal(); closeAdminModal(); } });
+
+
+
+  // Notifications modal
+  const nOpen = document.getElementById("btnNotifOpen");
+  const nClose = document.getElementById("btnNotifClose");
+  const nBack = document.getElementById("notifBack");
+  const nRefresh = document.getElementById("btnNotifRefresh");
+  const nReadAll = document.getElementById("btnNotifReadAll");
+  if(nOpen) nOpen.addEventListener("click", ()=>openNotifModal());
+  if(nClose) nClose.addEventListener("click", ()=>closeNotifModal());
+  if(nBack) nBack.addEventListener("click", (e)=>{ if(e.target===nBack) closeNotifModal(); });
+  if(nRefresh) nRefresh.addEventListener("click", ()=>notifPull().catch(()=>{}));
+  if(nReadAll) nReadAll.addEventListener("click", ()=>notifReadAll().catch(()=>{}));
+
+  // Admin modal
+  const aOpen = document.getElementById("btnAdminOpen") || document.getElementById("adminCard");
+  const aClose = document.getElementById("btnAdminClose");
+  const aBack = document.getElementById("adminBack");
+  if(aOpen) aOpen.addEventListener("click", ()=>{
+    openAdminModal();
+    adminUsersRefresh("").catch(()=>{});
+    adminTopupsRefresh().catch(()=>{});
+    adminPromosRefresh().catch(()=>{});
+  });
+  if(aClose) aClose.addEventListener("click", ()=>closeAdminModal());
+  if(aBack) aBack.addEventListener("click", (e)=>{ if(e.target===aBack) closeAdminModal(); });
+
+  const btnFind = document.getElementById("btnAdminFind");
+  const btnUsers = document.getElementById("btnAdminUsersRefresh");
+  const btnApply = document.getElementById("btnAdminApply");
+  const btnRename = document.getElementById("btnAdminRename");
+  const btnBan = document.getElementById("btnAdminBan");
+  const btnUnban = document.getElementById("btnAdminUnban");
+  const btnNotify = document.getElementById("btnAdminNotify");
+  const btnTop = document.getElementById("btnAdminTopupsRefresh");
+  const btnPromo = document.getElementById("btnAdminPromosRefresh");
+  const btnPromoCreate = document.getElementById("btnAdminPromoCreate");
+  if(btnFind) btnFind.addEventListener("click", ()=>adminFind());
+  if(btnUsers) btnUsers.addEventListener("click", ()=>adminUsersRefresh((document.getElementById("adminIdent")?.value||"").trim()));
+  if(btnApply) btnApply.addEventListener("click", ()=>adminApply());
+  if(btnRename) btnRename.addEventListener("click", ()=>adminRename());
+  if(btnBan) btnBan.addEventListener("click", ()=>adminBan());
+  if(btnUnban) btnUnban.addEventListener("click", ()=>adminUnban());
+  if(btnNotify) btnNotify.addEventListener("click", ()=>adminNotify());
+  if(btnTop) btnTop.addEventListener("click", ()=>adminTopupsRefresh());
+  if(btnPromo) btnPromo.addEventListener("click", ()=>adminPromosRefresh());
+  if(btnPromoCreate) btnPromoCreate.addEventListener("click", ()=>adminPromoCreate());
+
+  // Debounced user list refresh while typing in ident field
+  const identInp = document.getElementById("adminIdent");
+  if(identInp){
+    identInp.addEventListener("input", ()=>{
+      clearTimeout(_adminUsersDeb);
+      _adminUsersDeb = setTimeout(()=>adminUsersRefresh((identInp.value||"").trim()), 250);
+    });
+  }
 
   // prefs init
   const savedTheme = readLS("theme", "night");
@@ -473,11 +541,16 @@ function confirmAction(text, yesLabel="OK"){
 
   back.classList.remove("hidden");
   modal.classList.remove("hidden");
-  modal.classList.add("open");
-  requestAnimationFrame(()=>modal.classList.add("vis"));
+  // modal system uses .open/.vis for animations; add them so it's actually visible
+  try{ modal.classList.add("open"); requestAnimationFrame(()=>modal.classList.add("vis")); }catch(_e){}
 
   const done = (v)=>{
-    try{ modal.classList.remove("vis"); modal.classList.remove("open"); back.classList.add("hidden"); modal.classList.add("hidden"); }catch(_e){}
+    try{
+      modal.classList.remove("vis");
+      modal.classList.remove("open");
+      back.classList.add("hidden");
+      modal.classList.add("hidden");
+    }catch(_e){}
     const r = _confirmResolve; _confirmResolve = null;
     if(r) r(!!v);
   };
@@ -803,47 +876,62 @@ const DEFAULT_DESC = `✨ Аккаунт готов к игре!
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function initTilt(){
-  // Touch devices: skip tilt to avoid broken taps
+  // Touch devices: skip tilt to avoid broken taps + keep perf
   if(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
 
   const els = $$(".tilt");
   els.forEach(el=>{
     if(el.matches(":disabled")) return;
 
-    const set = (e)=>{
+    // Reduce jitter on heavy cards (products) by limiting angles and throttling updates
+    const isProduct = el.classList.contains("productCard") || el.closest(".productGrid");
+
+    const maxY = isProduct ? 5.5 : 7.0;   // deg
+    const maxX = isProduct ? 4.0 : 5.5;   // deg
+
+    let raf = 0;
+    let lastEvt = null;
+
+    const apply = ()=>{
+      raf = 0;
+      if(!lastEvt) return;
+      const e = lastEvt;
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / Math.max(1, r.width);
       const y = (e.clientY - r.top) / Math.max(1, r.height);
-      const ry = (x - 0.5) * 4.5;   // deg (reduced)
-      const rx = -(y - 0.5) * 3.5;  // deg (reduced)  // deg
+      const ry = (x - 0.5) * maxY;
+      const rx = -(y - 0.5) * maxX;
       el.style.setProperty("--mx", (x*100).toFixed(2) + "%");
       el.style.setProperty("--my", (y*100).toFixed(2) + "%");
       el.style.setProperty("--rx", rx.toFixed(2) + "deg");
       el.style.setProperty("--ry", ry.toFixed(2) + "deg");
     };
 
+    const schedule = (e)=>{
+      lastEvt = e;
+      if(raf) return;
+      raf = requestAnimationFrame(apply);
+    };
+
     el.addEventListener("mouseenter", (e)=>{
-      el.style.transition = "transform 140ms ease, box-shadow 160ms ease, border-color 160ms ease";
-      set(e);
+      // keep transition stable (avoid flicker)
+      el.style.transition = "transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease";
+      schedule(e);
     });
 
     el.addEventListener("mousemove", (e)=>{
-      // quick, but still smooth
-      /* keep transition stable to prevent jitter */
-      set(e);
+      schedule(e);
     });
 
     el.addEventListener("mouseleave", ()=>{
-      // smooth return (prevents jerky re-hover)
-      el.style.transition = "transform 280ms ease";
+      el.style.transition = "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease";
       el.style.setProperty("--rx", "0deg");
       el.style.setProperty("--ry", "0deg");
       el.style.setProperty("--mx", "50%");
-      el.style.setProperty("--my", "50%");
+      el.style.setProperty("--my", "20%");
     });
   });
 }
-
 // -------------------------
 
 function escapeHtml(s) {
@@ -1153,86 +1241,8 @@ function spawnLogoStar(){
   setTimeout(()=> e.remove(), 1300);
 }
 
-function initParticles() {
-  const canvas = document.getElementById("particles");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  let w = 0,
-    h = 0,
-    dpr = 1;
-  let particles = [];
-  let N = 90;
 
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = canvas.width = Math.floor(window.innerWidth * dpr);
-    h = canvas.height = Math.floor(window.innerHeight * dpr);
-    canvas.style.width = window.innerWidth + "px";
-    canvas.style.height = window.innerHeight + "px";
-    N = window.innerWidth < 520 ? 55 : 90;
-    particles = [];
-    for (let i = 0; i < N; i++) particles.push(make());
-  }
-
-  function rnd(a, b) {
-    return a + Math.random() * (b - a);
-  }
-  function make() {
-    return {
-      x: rnd(0, w),
-      y: rnd(0, h),
-      r: rnd(0.7, 2.2) * dpr,
-      vx: rnd(-0.25, 0.25) * dpr,
-      vy: rnd(-0.18, 0.22) * dpr,
-      a: rnd(0.15, 0.85),
-    };
-  }
-
-  function tick() {
-    ctx.clearRect(0, 0, w, h);
-    // dots
-    for (const p of particles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.x < -20) p.x = w + 20;
-      if (p.x > w + 20) p.x = -20;
-      if (p.y < -20) p.y = h + 20;
-      if (p.y > h + 20) p.y = -20;
-
-      ctx.beginPath();
-      ctx.globalAlpha = p.a;
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffffff";
-      ctx.fill();
-    }
-
-    // links
-    ctx.globalAlpha = 0.08;
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const a = particles[i],
-          b = particles[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 130 * dpr) {
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(tick);
-  }
-
-  window.addEventListener("resize", resize);
-  resize();
-  tick();
-}
+// (legacy particles init removed in Night v2)
 
 // -------------------------
 // Tabs
@@ -1363,8 +1373,9 @@ async function refreshMe() {
   const premDesc = $("#premiumDesc");
   const btnTopUp = $("#btnTopUp");
   const btnBuyPremium = $("#btnBuyPremium");
-  const adminBox = $("#adminBox");
+  const adminCard = $("#adminCard");
   const adminUserCard = $("#adminUserCard");
+  const btnNotifOpen = $("#btnNotifOpen");
 
   if (currentUser) {
     if(!topupCfg) await loadTopupConfig();
@@ -1387,10 +1398,12 @@ async function refreshMe() {
     if (topBalBox) topBalBox.style.display = "flex";
     if (topBalVal) topBalVal.textContent = `${formatMoney(currentUser.balance ?? 0)} ₽`;
     if (premPayBox) premPayBox.style.display = "block";
-    if (adminBox) adminBox.style.display = (currentUser.is_admin ? "block" : "none");
+    if (adminCard) adminCard.style.display = (currentUser.is_admin ? "block" : "none");
+    if (btnNotifOpen) btnNotifOpen.style.display = "inline-flex";
+    notifPull().catch(()=>{});
     if (currentUser.is_admin){
       const tbox = $("#adminTopupsList");
-      const pbox = $("#adminPromoList");
+      const pbox = $("#adminPromosList");
       if(tbox && (tbox.textContent || "").trim() === "—") adminTopupsRefresh();
       if(pbox && (pbox.textContent || "").trim() === "—") adminPromosRefresh();
     }
@@ -1477,7 +1490,8 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
     const topBalBox = $("#topBalanceBox");
     if (topBalBox) topBalBox.style.display = "none";
     if (premPayBox) premPayBox.style.display = "none";
-    if (adminBox) adminBox.style.display = "none";
+    if (adminCard) adminCard.style.display = "none";
+    if (btnNotifOpen) btnNotifOpen.style.display = "none";
     if (adminUserCard) adminUserCard.style.display = "none";
 
     // also hide chat input if logged out
@@ -1490,9 +1504,80 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
 
 
 // -------------------------
-// Admin: balance management
+// Admin modal + management
 // -------------------------
+function openAdminModal(){
+  const back = document.getElementById("adminBack");
+  const modal = document.getElementById("adminModal");
+  if(!back || !modal) return;
+  back.classList.remove("hidden");
+  modal.classList.remove("hidden");
+  modal.classList.add("open");
+  requestAnimationFrame(()=>modal.classList.add("vis"));
+}
+function closeAdminModal(){
+  const back = document.getElementById("adminBack");
+  const modal = document.getElementById("adminModal");
+  if(!back || !modal) return;
+  modal.classList.remove("vis");
+  modal.classList.remove("open");
+  back.classList.add("hidden");
+  modal.classList.add("hidden");
+}
+window.openAdminModal = openAdminModal;
+window.closeAdminModal = closeAdminModal;
+
+// Existing admin functions below
+
 let adminSelected = null;
+
+function renderAdminUsers(users){
+  const box = document.getElementById("adminUsersList");
+  if(!box) return;
+  const arr = Array.isArray(users) ? users : [];
+  if(arr.length === 0){
+    box.innerHTML = `<div class="muted" style="font-size:12px">Нет пользователей</div>`;
+    return;
+  }
+  box.innerHTML = arr.map(u=>{
+    const isAdmin = Number(u.is_admin||0)===1;
+    const isBanned = !!u.banned_until;
+    const tag = isBanned ? `<span class="badge" style="margin-left:8px">BAN</span>` : (isAdmin ? `<span class="badge" style="margin-left:8px">ADMIN</span>` : "");
+    const sub = [u.last_country, u.last_city].filter(Boolean).join(", ") || "—";
+    const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : "";
+    return `<button class="btn tilt" data-uid="${u.id}" type="button" style="width:100%; justify-content:space-between; text-align:left; padding:10px 12px; border-radius:14px">
+      <span style="display:flex; flex-direction:column; gap:2px; min-width:0">
+        <span style="display:flex; align-items:center; gap:8px; min-width:0">
+          <b style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(u.username||("#"+u.id))}</b>
+          ${tag}
+        </span>
+        <span class="muted" style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">ID ${u.id} • ${sub}${created?` • ${created}`:""}</span>
+      </span>
+      <span class="mono" style="opacity:.85">${formatMoney(u.balance||0)} ₽</span>
+    </button>`;
+  }).join("");
+
+  // click to load
+  box.querySelectorAll("button[data-uid]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const uid = btn.getAttribute("data-uid");
+      const inp = document.getElementById("adminIdent");
+      if(inp) inp.value = uid;
+      adminFind();
+    });
+  });
+}
+
+let _adminUsersDeb = null;
+async function adminUsersRefresh(q=""){
+  try{
+    const j = await apiGet(`/api/admin/users?q=${encodeURIComponent(q||"")}`);
+    if(j && j.ok) renderAdminUsers(j.users||[]);
+  }catch(e){
+    const box = document.getElementById("adminUsersList");
+    if(box) box.innerHTML = `<div class="muted" style="font-size:12px">Ошибка загрузки пользователей</div>`;
+  }
+}
 
 function renderAdminTx(tx){
   const box = $("#adminTxBox");
@@ -1537,6 +1622,16 @@ async function adminFind(){
     $("#adm_username").textContent = adminSelected.username;
     $("#adm_email").textContent = adminSelected.email || "—";
     $("#adm_balance").textContent = String(adminSelected.balance ?? 0);
+    const created = adminSelected.created_at ? new Date(adminSelected.created_at).toLocaleString() : "—";
+    $("#adm_created").textContent = created;
+    const seen = adminSelected.last_seen_at ? new Date(adminSelected.last_seen_at).toLocaleString() : "—";
+    $("#adm_seen").textContent = seen;
+    $("#adm_ip").textContent = adminSelected.last_ip || "—";
+    const geo = [adminSelected.last_country, adminSelected.last_city].filter(Boolean).join(", ");
+    $("#adm_geo").textContent = geo || "—";
+    const bu = adminSelected.banned_until ? new Date(adminSelected.banned_until).toLocaleString() : "—";
+    $("#adm_ban").textContent = bu;
+
     await adminLoadTx(adminSelected.id);
     toast("Админ", "Пользователь найден", "ok");
   }catch(e){
@@ -1574,6 +1669,67 @@ async function adminApply(){
   }
 }
 
+
+
+async function adminRename(){
+  if(!adminSelected) return toast("Админ", "Сначала найди пользователя", "warn");
+  const nu = ($("#adm_newname")?.value || "").trim();
+  if(!nu) return toast("Админ", "Введите новый ник", "warn");
+  try{
+    const j = await apiPost("/api/admin/user/rename", {user_id: adminSelected.id, new_username: nu});
+    adminSelected.username = j.username;
+    $("#adm_username").textContent = j.username;
+    $("#adm_newname").value = "";
+    toast("Админ", "Ник обновлён", "ok");
+  }catch(e){
+    toast("Админ", e.message || "Ошибка", "bad");
+  }
+}
+
+async function adminBan(){
+  if(!adminSelected) return toast("Админ", "Сначала найди пользователя", "warn");
+  const daysRaw = ($("#adm_bandays")?.value || "").trim();
+  let days = null;
+  if(daysRaw !== ""){
+    const d = parseInt(daysRaw, 10);
+    if(Number.isFinite(d)) days = d;
+  }
+  let reason = "";
+  try{ reason = prompt("Причина бана (опционально):", "") || ""; }catch(_e){}
+  try{
+    const j = await apiPost("/api/admin/user/ban", {user_id: adminSelected.id, days, reason});
+    adminSelected.banned_until = j.banned_until;
+    $("#adm_ban").textContent = new Date(j.banned_until).toLocaleString();
+    toast("Админ", "Забанен", "ok");
+  }catch(e){
+    toast("Админ", e.message || "Ошибка", "bad");
+  }
+}
+
+async function adminUnban(){
+  if(!adminSelected) return toast("Админ", "Сначала найди пользователя", "warn");
+  try{
+    await apiPost("/api/admin/user/unban", {user_id: adminSelected.id});
+    adminSelected.banned_until = "";
+    $("#adm_ban").textContent = "—";
+    toast("Админ", "Разбан", "ok");
+  }catch(e){
+    toast("Админ", e.message || "Ошибка", "bad");
+  }
+}
+
+async function adminNotify(){
+  if(!adminSelected) return toast("Админ", "Сначала найди пользователя", "warn");
+  const text = ($("#adm_notif")?.value || "").trim();
+  if(!text) return toast("Админ", "Введите текст", "warn");
+  try{
+    await apiPost("/api/admin/notify", {user_id: adminSelected.id, text});
+    $("#adm_notif").value = "";
+    toast("Админ", "Отправлено", "ok");
+  }catch(e){
+    toast("Админ", e.message || "Ошибка", "bad");
+  }
+}
 
 async function adminTopupsRefresh(){
   const box = $("#adminTopupsList");
@@ -1626,7 +1782,7 @@ async function adminTopupsRefresh(){
 }
 
 async function adminPromosRefresh(){
-  const box = $("#adminPromoList");
+  const box = $("#adminPromosList");
   if(!box) return;
   box.textContent = "Загрузка…";
   try{

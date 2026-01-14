@@ -845,6 +845,15 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance INTEGER NOT NULL DEFAULT 0")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0")
 
+        # moderation / audit fields
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ip TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_city TEXT")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TEXT")
+
+
         # Stripe subscription fields
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_sub_id TEXT")
@@ -957,6 +966,28 @@ def db_init():
               ts TEXT NOT NULL
             )
         """)
+
+        # user notifications (admin -> user)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS user_notifications(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              text TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              is_read INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_un_user_read ON user_notifications(user_id, is_read, id DESC)""")
+
+        # simple IP -> Geo cache (best-effort)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS ip_geo_cache(
+              ip TEXT PRIMARY KEY,
+              country TEXT,
+              city TEXT,
+              fetched_at TEXT NOT NULL
+            )
+        """)
         con.commit()
         con.close()
         return
@@ -997,6 +1028,22 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL DEFAULT 0")
     if "is_admin" not in cols:
         con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
+    # Migrations: moderation / audit fields
+    cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+    if "banned_until" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN banned_until TEXT")
+    if "ban_reason" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT")
+    if "last_ip" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN last_ip TEXT")
+    if "last_country" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN last_country TEXT")
+    if "last_city" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN last_city TEXT")
+    if "last_seen_at" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT")
+
 
     # Stripe subscription fields
     cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
@@ -1057,6 +1104,30 @@ def db_init():
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_balance_tx_user_ts ON balance_tx(user_id, ts)")
+
+    # user notifications (admin -> user)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_notifications(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          is_read INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_un_user_read ON user_notifications(user_id, is_read, id DESC)")
+
+    # simple IP -> Geo cache (best-effort)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS ip_geo_cache(
+          ip TEXT PRIMARY KEY,
+          country TEXT,
+          city TEXT,
+          fetched_at TEXT NOT NULL
+        )
+    """)
+
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS payments(
@@ -1141,6 +1212,7 @@ def require_user(request: Request) -> Dict[str, Any]:
     u = get_current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Auth required")
+    _check_user_ban(int(u["id"]))
     return u
 
 def require_premium(request: Request) -> Dict[str, Any]:
@@ -1184,7 +1256,7 @@ def sync_admin_users():
 
 def get_user_row(uid: int) -> Optional[Dict[str, Any]]:
     con = db_conn()
-    row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE id=?", (uid,)).fetchone()
+    row = con.execute("SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users WHERE id=?", (uid,)).fetchone()
     con.close()
     if not row:
         return None
@@ -1212,6 +1284,93 @@ def require_admin(request: Request) -> Dict[str, Any]:
 
 
 
+
+# ----------------------------
+# IP + Geo helpers (best-effort)
+# ----------------------------
+def _client_ip(request: Request) -> str:
+    # Render / proxies: trust X-Forwarded-For first hop
+    try:
+        xff = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+        if xff:
+            ip = xff.split(",")[0].strip()
+            if ip:
+                return ip
+    except Exception:
+        pass
+    try:
+        if request.client and request.client.host:
+            return str(request.client.host)
+    except Exception:
+        pass
+    return ""
+
+def _geo_lookup_ip(ip: str) -> Tuple[str, str]:
+    """Returns (country, city) for the given ip using a free public API. Best-effort."""
+    ip = (ip or "").strip()
+    if not ip or ip.startswith("127.") or ip == "0.0.0.0" or ip == "::1":
+        return ("", "")
+    try:
+        # ipapi.co supports https://ipapi.co/<ip>/json/
+        r = requests.get(f"https://ipapi.co/{ip}/json/", timeout=4)
+        if r.status_code != 200:
+            return ("", "")
+        j = r.json() if r.text else {}
+        country = (j.get("country_name") or j.get("country") or "").strip()
+        city = (j.get("city") or "").strip()
+        return (country, city)
+    except Exception:
+        return ("", "")
+
+def _geo_cached(con, ip: str) -> Tuple[str, str]:
+    ip = (ip or "").strip()
+    if not ip:
+        return ("", "")
+    try:
+        row = con.execute("SELECT country, city, fetched_at FROM ip_geo_cache WHERE ip=?", (ip,)).fetchone()
+    except Exception:
+        row = None
+    if row:
+        return (str(_rget(row, "country") or ""), str(_rget(row, "city") or ""))
+    country, city = _geo_lookup_ip(ip)
+    try:
+        con.execute(
+            "INSERT INTO ip_geo_cache(ip,country,city,fetched_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(ip) DO UPDATE SET country=excluded.country, city=excluded.city, fetched_at=excluded.fetched_at",
+            (ip, country, city, _now_utc_iso()),
+        )
+    except Exception:
+        try:
+            con.execute("INSERT OR REPLACE INTO ip_geo_cache(ip,country,city,fetched_at) VALUES(?,?,?,?)", (ip, country, city, _now_utc_iso()))
+        except Exception:
+            pass
+    return (country, city)
+
+def _touch_user_seen(uid: int, request: Request):
+    ip = _client_ip(request)
+    if not ip:
+        return
+    con = db_conn()
+    try:
+        country, city = _geo_cached(con, ip)
+        con.execute(
+            "UPDATE users SET last_ip=?, last_country=?, last_city=?, last_seen_at=? WHERE id=?",
+            (ip, country, city, _now_utc_iso(), int(uid)),
+        )
+        con.commit()
+    finally:
+        con.close()
+
+def _check_user_ban(uid: int):
+    con = db_conn()
+    row = con.execute("SELECT banned_until, ban_reason FROM users WHERE id=?", (int(uid),)).fetchone()
+    con.close()
+    if not row:
+        return
+    bu = _parse_iso(str(_rget(row, "banned_until") or ""))
+    if bu and _now_utc() < bu:
+        reason = str(_rget(row, "ban_reason") or "").strip() or "Banned"
+        raise HTTPException(status_code=403, detail=f"banned:{reason}")
 # ----------------------------
 # Template helpers
 # ----------------------------
@@ -1527,8 +1686,13 @@ def auth_me(request: Request):
     if not u:
         return {"ok": True, "user": None}
 
+    try:
+        _touch_user_seen(int(u["id"]), request)
+    except Exception:
+        pass
+
     con = db_conn()
-    row = con.execute("SELECT email, balance, is_admin FROM users WHERE id=?", (u["id"],)).fetchone()
+    row = con.execute("SELECT username, email, balance, is_admin FROM users WHERE id=?", (u["id"],)).fetchone()
     # env fallback: allow making new users admins without restart
     db_admin = int(_rget(row, "is_admin") or 0) if row else 0
     env_admin = ((u["username"] or "").lower() in ADMIN_USERS_LC)
@@ -1543,7 +1707,7 @@ def auth_me(request: Request):
 
     lim = user_limits(int(u["id"]))
     return {"ok": True, "user": {
-        "username": u["username"],
+        "username": (str(_rget(row, "username") or (u["username"] or "")) if row else (u["username"] or "")),
         "email": (_rget(row, "email") if row else ""),
         "balance": int(_rget(row, "balance") or 0),
         "is_admin": is_admin,
@@ -2283,12 +2447,12 @@ def admin_users(request: Request, q: str = ""):
     if q:
         like = f"%{q}%"
         rows = con.execute(
-            "SELECT id, username, email, balance, is_admin FROM users WHERE lower(username) LIKE ? OR lower(email) LIKE ? ORDER BY id DESC LIMIT 25",
+            "SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users WHERE lower(username) LIKE ? OR lower(email) LIKE ? ORDER BY id DESC LIMIT 25",
             (like, like),
         ).fetchall()
     else:
         rows = con.execute(
-            "SELECT id, username, email, balance, is_admin FROM users ORDER BY id DESC LIMIT 25"
+            "SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users ORDER BY id DESC LIMIT 25"
         ).fetchall()
     con.close()
     out = []
@@ -2299,6 +2463,11 @@ def admin_users(request: Request, q: str = ""):
             "email": str(_rget(r, "email") or ""),
             "balance": int(_rget(r, "balance") or 0),
             "is_admin": int(_rget(r, "is_admin") or 0),
+            "created_at": str(_rget(r, "created_at") or ""),
+            "banned_until": str(_rget(r, "banned_until") or ""),
+            "last_country": str(_rget(r, "last_country") or ""),
+            "last_city": str(_rget(r, "last_city") or ""),
+            "last_seen_at": str(_rget(r, "last_seen_at") or ""),
         })
     return {"ok": True, "users": out}
 
@@ -2311,11 +2480,11 @@ def admin_user(request: Request, ident: str = ""):
     con = db_conn()
     row = None
     if ident.isdigit():
-        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE id=?", (int(ident),)).fetchone()
+        row = con.execute("SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users WHERE id=?", (int(ident),)).fetchone()
     if not row and "@" in ident:
-        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE lower(email)=?", (ident.lower(),)).fetchone()
+        row = con.execute("SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users WHERE lower(email)=?", (ident.lower(),)).fetchone()
     if not row:
-        row = con.execute("SELECT id, username, email, balance, is_admin FROM users WHERE lower(username)=?", (ident.lower(),)).fetchone()
+        row = con.execute("SELECT id, username, email, balance, is_admin, created_at, banned_until, ban_reason, last_ip, last_country, last_city, last_seen_at FROM users WHERE lower(username)=?", (ident.lower(),)).fetchone()
     con.close()
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
@@ -2325,9 +2494,148 @@ def admin_user(request: Request, ident: str = ""):
         "email": str(_rget(row, "email") or ""),
         "balance": int(_rget(row, "balance") or 0),
         "is_admin": int(_rget(row, "is_admin") or 0),
+        "created_at": str(_rget(row, "created_at") or ""),
+        "banned_until": str(_rget(row, "banned_until") or ""),
+        "ban_reason": str(_rget(row, "ban_reason") or ""),
+        "last_ip": str(_rget(row, "last_ip") or ""),
+        "last_country": str(_rget(row, "last_country") or ""),
+        "last_city": str(_rget(row, "last_city") or ""),
+        "last_seen_at": str(_rget(row, "last_seen_at") or ""),
     }}
 
 
+
+# ----------------------------
+# Admin moderation + user notifications
+# ----------------------------
+@app.post("/api/admin/user/ban")
+def admin_user_ban(request: Request, payload: Dict[str, Any]):
+    admin = require_admin(request)
+    user_id = int(payload.get("user_id") or 0)
+    days = payload.get("days")
+    reason = (payload.get("reason") or "").strip()
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if days is None:
+        days_i = 3650  # ~10 years
+    else:
+        try:
+            days_i = int(days)
+        except Exception:
+            days_i = 7
+        if days_i <= 0:
+            days_i = 3650
+        days_i = min(days_i, 3650)
+    until = (_now_utc() + datetime.timedelta(days=days_i)).isoformat()
+    con = db_conn()
+    con.execute("UPDATE users SET banned_until=?, ban_reason=? WHERE id=?", (until, reason[:140], user_id))
+    con.commit()
+    con.close()
+    return {"ok": True, "banned_until": until}
+
+@app.post("/api/admin/user/unban")
+def admin_user_unban(request: Request, payload: Dict[str, Any]):
+    require_admin(request)
+    user_id = int(payload.get("user_id") or 0)
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    con = db_conn()
+    con.execute("UPDATE users SET banned_until=NULL, ban_reason=NULL WHERE id=?", (user_id,))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+@app.post("/api/admin/user/rename")
+def admin_user_rename(request: Request, payload: Dict[str, Any]):
+    require_admin(request)
+    user_id = int(payload.get("user_id") or 0)
+    new_username = (payload.get("new_username") or "").strip()
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if not re.match(r"^[A-Za-z0-9_\-\.]{3,24}$", new_username):
+        raise HTTPException(status_code=400, detail="Bad username (3-24: a-z A-Z 0-9 _ - .)")
+    con = db_conn()
+    # uniqueness check
+    row = con.execute("SELECT id FROM users WHERE lower(username)=? AND id<>?", (new_username.lower(), user_id)).fetchone()
+    if row:
+        con.close()
+        raise HTTPException(status_code=400, detail="Username already taken")
+    con.execute("UPDATE users SET username=? WHERE id=?", (new_username, user_id))
+    con.commit()
+    con.close()
+    return {"ok": True, "username": new_username}
+
+@app.post("/api/admin/notify")
+def admin_notify(request: Request, payload: Dict[str, Any]):
+    require_admin(request)
+    user_id = int(payload.get("user_id") or 0)
+    text = (payload.get("text") or "").strip()
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    if len(text) > 500:
+        raise HTTPException(status_code=400, detail="text is too long")
+    con = db_conn()
+    con.execute(
+        "INSERT INTO user_notifications(user_id,text,created_at,is_read) VALUES(?,?,?,0)",
+        (user_id, text, _now_utc_iso()),
+    )
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+@app.get("/api/user/notifications")
+def user_notifications(request: Request, limit: int = 50):
+    u = require_user(request)
+    uid = int(u["id"])
+    try:
+        limit_i = int(limit)
+    except Exception:
+        limit_i = 50
+    limit_i = max(1, min(limit_i, 100))
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, text, created_at, is_read FROM user_notifications WHERE user_id=? ORDER BY id DESC LIMIT ?",
+        (uid, limit_i),
+    ).fetchall()
+    rowc = con.execute(
+        "SELECT COUNT(*) AS c FROM user_notifications WHERE user_id=? AND is_read=0",
+        (uid,),
+    ).fetchone()
+    con.close()
+    items = []
+    for r in rows or []:
+        items.append({
+            "id": int(_rget(r, "id") or 0),
+            "text": str(_rget(r, "text") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+            "is_read": int(_rget(r, "is_read") or 0),
+        })
+    return {"ok": True, "items": items, "unread": int(_rget(rowc, "c") or 0)}
+
+@app.post("/api/user/notifications/read")
+def user_notifications_read(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    ids = payload.get("ids") or []
+    mark_all = bool(payload.get("all") or False)
+    con = db_conn()
+    if mark_all:
+        con.execute("UPDATE user_notifications SET is_read=1 WHERE user_id=? AND is_read=0", (uid,))
+    else:
+        clean = []
+        for x in ids:
+            try:
+                clean.append(int(x))
+            except Exception:
+                pass
+        if clean:
+            qmarks = ",".join(["?"] * len(clean))
+            con.execute(f"UPDATE user_notifications SET is_read=1 WHERE user_id=? AND id IN ({qmarks})", (uid, *clean))
+    con.commit()
+    con.close()
+    return {"ok": True}
 @app.get("/api/user/tx")
 def api_user_tx(request: Request, limit: int = 50):
     """Returns current user's balance transaction history."""
@@ -2645,13 +2953,23 @@ def auth_login(request: Request, payload: Dict[str, Any]):
     con = db_conn()
     # allow login by username or email
     if "@" in ident:
-        row = con.execute("SELECT id, username, password_hash FROM users WHERE lower(email)=?", (ident.strip().lower(),)).fetchone()
+        row = con.execute("SELECT id, username, password_hash, banned_until, ban_reason FROM users WHERE lower(email)=?", (ident.strip().lower(),)).fetchone()
     else:
-        row = con.execute("SELECT id, username, password_hash FROM users WHERE username=?", (ident,)).fetchone()
+        row = con.execute("SELECT id, username, password_hash, banned_until, ban_reason FROM users WHERE username=?", (ident,)).fetchone()
     con.close()
 
     if not row or not verify_password(password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Wrong login or password")
+
+    bu = _parse_iso(str(_rget(row, "banned_until") or ""))
+    if bu and _now_utc() < bu:
+        reason = str(_rget(row, "ban_reason") or "").strip() or "Banned"
+        raise HTTPException(status_code=403, detail=f"Banned: {reason}")
+
+    try:
+        _touch_user_seen(int(_rget(row, "id") or 0), request)
+    except Exception:
+        pass
 
     token = make_token(int(row["id"]), row["username"])
     jr = JSONResponse({"ok": True, "user": {"username": row["username"]}})

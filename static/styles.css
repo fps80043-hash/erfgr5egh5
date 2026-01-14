@@ -1298,7 +1298,7 @@ code{
 .tilt{
   position: relative;
   transform-style: preserve-3d;
-  perspective: 700px;
+  perspective: 620px;
   will-change: transform;
   transition: transform 280ms ease;
   transform: translateY(0px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
@@ -1310,10 +1310,20 @@ code{
   inset:0;
   border-radius:inherit;
   pointer-events:none;
-  background: radial-gradient(380px 380px at var(--mx,50%) var(--my,20%), rgba(124,92,255,.14), transparent 62%);
+  background: radial-gradient(320px 320px at var(--mx,50%) var(--my,20%), rgba(124,92,255,.14), transparent 62%);
   opacity:0;
   transition: opacity .18s ease;
 }
+
+.ico[data-ico="bell"]{
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 0 0-6-7.75V2a2 2 0 1 0-4 0v1.25A8 8 0 0 0 4 11v5l-2 2v1h22v-1l-2-2z'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 0 0-6-7.75V2a2 2 0 1 0-4 0v1.25A8 8 0 0 0 4 11v5l-2 2v1h22v-1l-2-2z'/></svg>");
+}
+.ico[data-ico="shield"]{
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 2l8 4v7c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-4zm0 3.1L6 7.1V13c0 3.8 2.3 7.2 6 8.7 3.7-1.5 6-4.9 6-8.7V7.1l-6-2z'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 2l8 4v7c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-4zm0 3.1L6 7.1V13c0 3.8 2.3 7.2 6 8.7 3.7-1.5 6-4.9 6-8.7V7.1l-6-2z'/></svg>");
+}
+
 .tilt:hover::after{opacity:1}
 .tilt:hover{
   transform: translateY(-2px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
@@ -1324,6 +1334,11 @@ code{
 .btn.tilt{position:relative}
 .tile.tilt{position:relative}
 .productCard.tilt{position:relative}
+
+.productCard.tilt::after{
+  background: radial-gradient(220px 220px at var(--mx,50%) var(--my,20%), rgba(124,92,255,.12), transparent 62%);
+}
+.productCard.tilt:hover{ transform: translateY(-1px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); }
 .hero.tilt{position:relative}
 .packBtn.tilt{position:relative}
 
@@ -1716,7 +1731,7 @@ canvas.fx, svg.fx {
   content:"";
   position:absolute;
   inset:-2px;
-  background: radial-gradient(28% 36% at var(--mx,50%) var(--my,50%), rgba(255,255,255,.10), rgba(255,255,255,0) 60%);
+  background: radial-gradient(40% 60% at var(--mx,50%) var(--my,50%), rgba(255,255,255,.10), rgba(255,255,255,0) 60%);
   opacity:0;
   transition: opacity .25s ease;
   pointer-events:none;
@@ -2123,6 +2138,10 @@ body.theme-night::after{
 .modalTitleRow{ display:flex; align-items:center; gap:10px; }
 .modalTitle{ font-weight:800; letter-spacing:.2px; }
 .iconBtn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   width:36px; height:36px;
   border-radius:12px;
   border:1px solid rgba(255,255,255,.10);
@@ -2498,35 +2517,9 @@ body.theme-night .input{
 
 
 
-/* ===== Event theme (snow + cold haze) ===== */
-body.theme-event{
-  background: radial-gradient(1200px 700px at 20% 10%, rgba(120,180,255,.18), transparent 60%),
-              radial-gradient(900px 600px at 80% 30%, rgba(160,120,255,.14), transparent 55%),
-              radial-gradient(900px 900px at 50% 110%, rgba(0,140,180,.10), transparent 60%),
-              #07090f;
-}
-body.theme-event::before{
-  content:"";
-  position:fixed; inset:0;
-  background:
-    radial-gradient(900px 520px at 50% 20%, rgba(180,220,255,.10), transparent 60%),
-    radial-gradient(1100px 700px at 60% 80%, rgba(140,190,255,.08), transparent 65%);
-  pointer-events:none;
-  mix-blend-mode:screen;
-  filter: blur(16px);
-  opacity:.9;
-  z-index:0;
-}
-body.theme-event::after{
-  content:"";
-  position:fixed; inset:-60px;
-  background: radial-gradient(800px 300px at 30% 30%, rgba(255,255,255,.05), transparent 60%);
-  pointer-events:none;
-  filter: blur(26px);
-  opacity:.6;
-  z-index:0;
-}
 
+
+/* (Event theme removed; Night v2 only) */
 
 /* ===== Inventory redesign ===== */
 #invList.prizeList{ display:flex; flex-direction:column; gap:10px; }
@@ -2570,22 +2563,35 @@ body.theme-event::after{
 .confirmActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }
 
 
-/* Night v2 */
-.theme-night2{
-  background: radial-gradient(1200px 700px at 20% 10%, rgba(140,200,255,.12), transparent 60%),
-              radial-gradient(900px 600px at 80% 30%, rgba(170,130,255,.10), transparent 55%),
-              radial-gradient(900px 900px at 50% 110%, rgba(0,180,220,.08), transparent 60%),
-              #06070d;
+/* Inventory modal scroll */
+#invModal .prizeList{
+  max-height: 52vh;
+  overflow:auto;
+  padding-right: 6px;
 }
-body.theme-night2::before{
-  content:"";
-  position:fixed; inset:0;
-  background:
-    radial-gradient(900px 520px at 50% 20%, rgba(210,240,255,.08), transparent 60%),
-    radial-gradient(1100px 700px at 60% 80%, rgba(160,210,255,.06), transparent 65%);
-  pointer-events:none;
-  mix-blend-mode:screen;
-  filter: blur(18px);
-  opacity:.85;
-  z-index:0;
+#invModal .prizeList::-webkit-scrollbar{ width:10px; }
+#invModal .prizeList::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.10);
+  border-radius: 10px;
+  border: 2px solid rgba(0,0,0,0);
+  background-clip: padding-box;
 }
+
+/* notifications badge */
+.notifBadge{
+  position:absolute;
+  top:-6px; right:-6px;
+  min-width:18px; height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800;
+  color:#fff;
+  background: rgba(255,70,90,.95);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
+}
+.notifBadge.hidden{ display:none; }
+
+#adminModal .pCard{ background: rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); }
+#adminModal textarea.input{ resize: vertical; }
