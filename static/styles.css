@@ -2131,6 +2131,18 @@ body.theme-night::after{
 .modal:not(#payModal).glass{
   backdrop-filter: blur(14px);
 }
+
+/* Wider modals: inventory + admin should not be cramped */
+#invModal{
+  width: min(760px, calc(100vw - 24px));
+}
+#adminModal{
+  width: min(1120px, calc(100vw - 24px));
+}
+#adminModal .caseStage{
+  max-height: calc(88vh - 92px);
+  overflow:auto;
+}
 .modalHeader{
   display:flex;
   justify-content:space-between;
@@ -2668,7 +2680,7 @@ body.theme-night2 .veil{
 /* =========================
    Cursor themes
    ========================= */
-body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur"), auto; }
+body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur") 6 6, auto; }
 
 body[data-cursor="neon-purple"] a,
 body[data-cursor="neon-purple"] button,
@@ -2676,9 +2688,9 @@ body[data-cursor="neon-purple"] .btn,
 body[data-cursor="neon-purple"] [role="button"],
 body[data-cursor="neon-purple"] input[type="button"],
 body[data-cursor="neon-purple"] input[type="submit"]{
-  cursor: url("/static/cursors/neon-purple/pointer.cur"), pointer;
+  cursor: url("/static/cursors/neon-purple/pointer.cur") 6 3, pointer;
 }
 body[data-cursor="neon-purple"] input,
 body[data-cursor="neon-purple"] textarea{
-  cursor: url("/static/cursors/neon-purple/text.cur"), text;
+  cursor: url("/static/cursors/neon-purple/text.cur") 8 16, text;
 }

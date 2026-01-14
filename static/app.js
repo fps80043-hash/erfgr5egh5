@@ -43,8 +43,9 @@ function initParticles(forceRestart=false){
   // Night v2: "старые" частицы с линиями (constellation)
   const cfg = isSnow ? {
     count: isMobile ? 56 : 110,
-    speed: isMobile ? 0.55 : 0.80,
-    drift: isMobile ? 0.25 : 0.35,
+    // Snow: intentionally slower and smoother
+    speed: isMobile ? 0.22 : 0.30,
+    drift: isMobile ? 0.12 : 0.18,
     maxR:  isMobile ? 2.0 : 2.8,
     linkDist: 0,
   } : {
@@ -75,7 +76,7 @@ function initParticles(forceRestart=false){
       parts.push({
         x: rand(0,w), y: rand(0,h),
         vx: isSnow ? rand(-cfg.drift, cfg.drift) : rand(-cfg.speed, cfg.speed),
-        vy: isSnow ? rand(cfg.speed*0.60, cfg.speed*1.25) : rand(cfg.speed*0.25, cfg.speed*0.95),
+        vy: isSnow ? rand(cfg.speed*0.45, cfg.speed*0.90) : rand(cfg.speed*0.25, cfg.speed*0.95),
         r:  rand(0.9, cfg.maxR),
         a:  rand(0.16, 0.52),
         t:  rand(0, Math.PI*2),
@@ -170,6 +171,29 @@ function isWastePrizeWhilePremium(prize){
   if(p === "GEN10") return true;          // +Generations
   if(p === "REQ10" || p === "Q10") return true; // safety if you rename
   return false;
+}
+
+// Prize metadata (label + image) for inventory UI.
+// Keep this mapping small and deterministic; unknown prizes fall back to raw code.
+function _prizeMeta(prize){
+  const p = String(prize || '').toUpperCase();
+
+  // Premium prizes
+  if(p === 'P6')  return { label: 'Premium 6ч',  img: '/static/prizes/premium_6h.png' };
+  if(p === 'P12') return { label: 'Premium 12ч', img: '/static/prizes/premium_12h.png' };
+  if(p === 'P24') return { label: 'Premium 24ч', img: '/static/prizes/premium_24h.png' };
+  if(p === 'P2D') return { label: 'Premium 2д',  img: '/static/prizes/premium_2d.png' };
+  if(p === 'P3D') return { label: 'Premium 3д',  img: '/static/prizes/premium_3d.png' };
+
+  // Limits / bonuses
+  if(p === 'AI3')   return { label: '+3 генерации', img: '' };
+  if(p === 'GEN10') return { label: '+10 анализов', img: '' };
+  if(p === 'REQ10' || p === 'Q10') return { label: '+10 запросов', img: '' };
+  if(p === 'BAL50') return { label: '+50 ₽', img: '' };
+  if(p === 'BAL100') return { label: '+100 ₽', img: '' };
+
+  // Fallback: try to show prize icon if it exists by convention
+  return { label: prize, img: '' };
 }
 
 function renderInv(inv){
