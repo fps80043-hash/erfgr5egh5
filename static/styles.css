@@ -49,6 +49,9 @@ body{
   z-index:0;
   pointer-events:none;
   opacity:.9;
+  display:block;
+  width:100vw;
+  height:100vh;
 }
 
 .veil{
@@ -2666,7 +2669,6 @@ body.theme-night2 .veil{
    Cursor themes
    ========================= */
 body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur"), auto; }
-body[data-cursor="neon"]{ cursor: url("/static/cursors/neon/default.cur"), auto; }
 
 body[data-cursor="neon-purple"] a,
 body[data-cursor="neon-purple"] button,
@@ -2676,20 +2678,7 @@ body[data-cursor="neon-purple"] input[type="button"],
 body[data-cursor="neon-purple"] input[type="submit"]{
   cursor: url("/static/cursors/neon-purple/pointer.cur"), pointer;
 }
-body[data-cursor="neon"] a,
-body[data-cursor="neon"] button,
-body[data-cursor="neon"] .btn,
-body[data-cursor="neon"] [role="button"],
-body[data-cursor="neon"] input[type="button"],
-body[data-cursor="neon"] input[type="submit"]{
-  cursor: url("/static/cursors/neon/pointer.cur"), pointer;
-}
-
 body[data-cursor="neon-purple"] input,
 body[data-cursor="neon-purple"] textarea{
   cursor: url("/static/cursors/neon-purple/text.cur"), text;
-}
-body[data-cursor="neon"] input,
-body[data-cursor="neon"] textarea{
-  cursor: url("/static/cursors/neon/text.cur"), text;
 }

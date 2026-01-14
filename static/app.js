@@ -18,7 +18,7 @@ function applyTheme(name){
 window.applyTheme = applyTheme;
 
 function applyCursor(name){
-  const v = (name === "neon" || name === "neon-purple") ? name : "default";
+  const v = (name === "neon-purple") ? "neon-purple" : "default";
   writeLS("cursor", v);
   document.body.setAttribute("data-cursor", v);
 }
@@ -36,15 +36,16 @@ function initParticles(forceRestart=false){
   const isMobile = window.matchMedia("(max-width: 980px)").matches;
 
   const theme = document.body.getAttribute("data-theme") || readLS("theme","night");
-  const isV2 = (theme === "night2");
+  const isSnow = (theme === "night");
+  const isConst = (theme === "night2");
 
-  // Night: pastex-like constellation lines
-  // Night v2: soft drifting particles (no lines)
-  const cfg = isV2 ? {
-    count: isMobile ? 44 : 84,
-    speed: isMobile ? 0.06 : 0.10,
-    drift: isMobile ? 0.16 : 0.22,
-    maxR:  isMobile ? 2.1 : 2.8,
+  // Night (v1): снег
+  // Night v2: "старые" частицы с линиями (constellation)
+  const cfg = isSnow ? {
+    count: isMobile ? 56 : 110,
+    speed: isMobile ? 0.55 : 0.80,
+    drift: isMobile ? 0.25 : 0.35,
+    maxR:  isMobile ? 2.0 : 2.8,
     linkDist: 0,
   } : {
     count: isMobile ? 38 : 72,
@@ -73,8 +74,8 @@ function initParticles(forceRestart=false){
     for(let i=0;i<cfg.count;i++){
       parts.push({
         x: rand(0,w), y: rand(0,h),
-        vx: rand(-cfg.speed, cfg.speed),
-        vy: rand(cfg.speed*0.25, cfg.speed*0.95),
+        vx: isSnow ? rand(-cfg.drift, cfg.drift) : rand(-cfg.speed, cfg.speed),
+        vy: isSnow ? rand(cfg.speed*0.60, cfg.speed*1.25) : rand(cfg.speed*0.25, cfg.speed*0.95),
         r:  rand(0.9, cfg.maxR),
         a:  rand(0.16, 0.52),
         t:  rand(0, Math.PI*2),
@@ -98,8 +99,8 @@ function initParticles(forceRestart=false){
 
     ctx.clearRect(0,0,w,h);
 
-	    // Constellation links (Night)
-	    if(!isV2 && cfg.linkDist > 0){
+	    // Constellation links (Night v2)
+	    if(isConst && cfg.linkDist > 0){
 	      const md = cfg.linkDist;
 	      const md2 = md*md;
 	      for(let i=0;i<parts.length;i++){
@@ -137,7 +138,14 @@ function initParticles(forceRestart=false){
 
       ctx.beginPath();
       ctx.arc(p.x+ox, p.y+oy, rr, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(210,220,255,${aa})`;
+      if(isSnow){
+        ctx.shadowColor = 'rgba(240,245,255,.35)';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(245,248,255,${Math.min(0.75, aa+0.10)})`;
+      }else{
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = `rgba(210,220,255,${aa})`;
+      }
       ctx.fill();
     }
 
@@ -237,13 +245,16 @@ function renderInv(inv){
 }
 
 async function invPull(){
-  const j = await apiGet("/api/inventory/list").catch(()=>null);
-  if(!j){
-    // if not authorized or network error – keep current view
+  try{
+    const j = await apiGet("/api/inventory/list");
+    if(j && j.ok) renderInv(j);
+    return j;
+  }catch(e){
+    // Render empty state so the modal isn't blank
+    renderInv({max:10, count:0, items:[]});
+    toast("Инвентарь", e?.message || "Не удалось загрузить", "bad");
     return null;
   }
-  if(j && j.ok) renderInv(j);
-  return j;
 }
 window.invPull = invPull;
 
@@ -426,7 +437,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   // Cursor
   const savedCursor = readLS("cursor", "neon-purple");
-  const cur = (savedCursor === "neon" || savedCursor === "neon-purple") ? savedCursor : "default";
+  const cur = (savedCursor === "neon-purple") ? "neon-purple" : "default";
   applyCursor(cur);
 
   // Number format
@@ -1038,7 +1049,7 @@ function setStatus(el, text, cls = "") {
 // API helpers
 // -------------------------
 async function apiGet(path) {
-  const r = await fetch(path, { method: "GET" });
+  const r = await fetch(path, { method: "GET", credentials: "include" });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.detail || `HTTP ${r.status}`);
   return j;
@@ -1047,6 +1058,7 @@ async function apiGet(path) {
 async function apiPost(path, payload) {
   const r = await fetch(path, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload || {}),
   });
