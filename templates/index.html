@@ -230,6 +230,11 @@
 <div class="headrow">
 <h2>🧩 Шаблоны</h2>
 <div class="headtools">
+<label class="miniToggle" title="Автоматически обновлять результат при изменении шаблона">
+  <input type="checkbox" id="autoPreview" checked>
+  <span>Авто</span>
+</label>
+<button class="btn mini" id="btnBuildPreview" title="Собрать результат по текущим фактам" type="button">⚡ Собрать</button>
 <button class="btn mini" id="btnSaveTpl">💾</button>
 <button class="btn mini" id="btnResetTpl">↺</button>
 </div>
@@ -251,6 +256,7 @@
 <input class="input" id="outTitle" readonly=""/>
 <label class="lbl">Описание</label>
 <textarea class="input mono" id="outDesc" readonly="" rows="12"></textarea>
+<div class="varsRow" id="varsRow" aria-label="Переменные"></div>
 <div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
 </div>
 </div>
@@ -368,7 +374,7 @@
   </div>
 </div>
 
-<div class="productGrid">
+<div class="productGrid" id="shopGrid">
 <div class="productCard tilt pxtCard" id="prodTopup">
   <div class="prodMedia">
     <div class="prodMediaGlow"></div>
@@ -494,13 +500,16 @@
         <button class="btn" id="btnTopUp" type="button"><span class="ico" data-ico="card" aria-hidden="true"></span> Пополнить</button>
         <button class="btn" id="btnShowTx" type="button"><span class="ico" data-ico="receipt" aria-hidden="true"></span> Транзакции</button>
         <button class="btn" id="btnShowSavedTemplates" type="button"><span class="ico" data-ico="folder" aria-hidden="true"></span> Шаблоны</button>
-      </div>
+      
+<button class="btn" id="btnSettings" type="button"><span class="ico" data-ico="gear" aria-hidden="true"></span> Настройки</button>
+<button class="btn adminOnly" id="btnShopPanel" type="button"><span class="ico" data-ico="edit" aria-hidden="true"></span> Панель магазина</button>
+</div>
 
       <div class="divider" style="margin-top:12px"></div>
       <div class="muted" style="font-size:12px">Быстрые действия: пополнение, история, шаблоны. Всё остальное — справа.</div>
     </div>
 
-    <div class="card" id="themeBox">
+    <div class="card" id="themeBox" style="display:none">
       <div class="headrow">
         <h3><span class="ico" data-ico="palette" aria-hidden="true"></span> Тема</h3>
         <div class="badge" style="margin-left:auto">Оформление</div>
@@ -590,81 +599,140 @@
   </div>
 </div>
 
-<div id="authBox">
-<div class="authTabs">
-<button class="pill active" data-auth="login">Вход</button>
-<button class="pill" data-auth="register">Регистрация</button>
-<button class="pill" data-auth="reset">Сброс</button>
+<div id="authBox" class="authBoxCenter">
+  <div class="authTabs">
+    <button class="pill active" data-auth="login" type="button">Войти</button>
+    <button class="pill" data-auth="register" type="button">Зарегистрироваться</button>
+    <button class="pill" data-auth="reset" type="button">Сбросить пароль</button>
+  </div>
+
+  <!-- LOGIN WIZARD -->
+  <div class="authPane" id="authPaneLogin">
+    <div class="authTitleRow">
+      <div class="authTitle">Вход</div>
+      <div class="authStepHint" id="loginStepHint">Шаг 1 из 3 — логин или email</div>
+    </div>
+
+    <div class="authSteps" data-flow="login">
+      <div class="authStep active" data-step="1">
+        <label class="lbl">Логин или Email</label>
+        <input class="input" id="loginUser" autocomplete="username" placeholder="Kirill_123 или mail@example.com"/>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnLoginNext1" type="button">Далее</button>
+        </div>
+      </div>
+
+      <div class="authStep" data-step="2">
+        <button class="authBack" type="button" data-flow="login" data-to="1" aria-label="Назад">←</button>
+        <label class="lbl">Пароль</label>
+        <input class="input" id="loginPass" autocomplete="current-password" placeholder="••••••" type="password"/>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnLoginNext2" type="button">Войти</button>
+        </div>
+      </div>
+
+      <div class="authStep" data-step="3">
+        <button class="authBack" type="button" data-flow="login" data-to="2" aria-label="Назад">←</button>
+        <label class="lbl">Код из письма (2FA)</label>
+        <input class="input" id="loginCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnLoginConfirm" type="button">Подтвердить</button>
+        </div>
+        <p class="muted" style="margin-top:10px">Если кода нет — проверь «Спам». Можно запросить код повторно, просто нажав «Войти» на предыдущем шаге.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER WIZARD -->
+  <div class="authPane" id="authPaneRegister" style="display:none">
+    <div class="authTitleRow">
+      <div class="authTitle">Регистрация</div>
+      <div class="authStepHint" id="regStepHint">Шаг 1 из 3 — логин и email</div>
+    </div>
+
+    <div class="authSteps" data-flow="reg">
+      <div class="authStep active" data-step="1">
+        <div class="row">
+          <div style="flex:1">
+            <label class="lbl">Логин</label>
+            <input class="input" id="regUser" autocomplete="username" placeholder="Kirill_123"/>
+          </div>
+          <div style="flex:1">
+            <label class="lbl">Email</label>
+            <input class="input" id="regEmail" autocomplete="email" placeholder="mail@example.com"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnRegNext1" type="button">Далее</button>
+        </div>
+      </div>
+
+      <div class="authStep" data-step="2">
+        <button class="authBack" type="button" data-flow="reg" data-to="1" aria-label="Назад">←</button>
+        <div class="row">
+          <div style="flex:1">
+            <label class="lbl">Пароль</label>
+            <input class="input" id="regPass" autocomplete="new-password" placeholder="••••••" type="password"/>
+          </div>
+          <div style="flex:1">
+            <label class="lbl">Повтори пароль</label>
+            <input class="input" id="regPass2" autocomplete="new-password" placeholder="••••••" type="password"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnRegSendCode" type="button">Отправить код</button>
+        </div>
+        <p class="muted" style="margin-top:10px">Код придёт на почту. Если письма нет — проверь «Спам».</p>
+      </div>
+
+      <div class="authStep" data-step="3">
+        <button class="authBack" type="button" data-flow="reg" data-to="2" aria-label="Назад">←</button>
+        <label class="lbl">Код подтверждения</label>
+        <input class="input" id="regCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnRegConfirm" type="button">Зарегистрироваться</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESET WIZARD -->
+  <div class="authPane" id="authPaneReset" style="display:none">
+    <div class="authTitleRow">
+      <div class="authTitle">Сброс пароля</div>
+      <div class="authStepHint" id="resetStepHint">Шаг 1 из 2 — email</div>
+    </div>
+
+    <div class="authSteps" data-flow="reset">
+      <div class="authStep active" data-step="1">
+        <label class="lbl">Email</label>
+        <input class="input" id="resetEmail" autocomplete="email" placeholder="mail@example.com"/>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnResetSendCode" type="button">Далее</button>
+        </div>
+        <p class="muted" style="margin-top:10px">Если аккаунт с этим email существует — код отправится.</p>
+      </div>
+
+      <div class="authStep" data-step="2">
+        <button class="authBack" type="button" data-flow="reset" data-to="1" aria-label="Назад">←</button>
+        <div class="row">
+          <div style="flex:1">
+            <label class="lbl">Код</label>
+            <input class="input" id="resetCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
+          </div>
+          <div style="flex:1">
+            <label class="lbl">Новый пароль</label>
+            <input class="input" id="resetPass" autocomplete="new-password" placeholder="••••••" type="password"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnResetConfirm" type="button">Сменить пароль</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-<!-- LOGIN -->
-<div class="authPane" id="authPaneLogin">
-<div class="row">
-<div style="flex:1">
-<label class="lbl">Логин или Email</label>
-<input class="input" id="loginUser" placeholder="Kirill_123 или mail@example.com"/>
-</div>
-<div style="flex:1">
-<label class="lbl">Пароль</label>
-<input class="input" id="loginPass" placeholder="••••••" type="password"/>
-</div>
-</div>
-<div class="row">
-<button class="btn primary" id="btnLogin">Войти</button>
-</div>
-</div>
-<!-- REGISTER -->
-<div class="authPane" id="authPaneRegister" style="display:none">
-<div class="row">
-<div style="flex:1">
-<label class="lbl">Логин</label>
-<input class="input" id="regUser" placeholder="Kirill_123"/>
-</div>
-<div style="flex:1">
-<label class="lbl">Email</label>
-<input class="input" id="regEmail" placeholder="mail@example.com"/>
-</div>
-</div>
-<div class="row">
-<div style="flex:1">
-<label class="lbl">Пароль</label>
-<input class="input" id="regPass" placeholder="••••••" type="password"/>
-</div>
-<div style="flex:1">
-<label class="lbl">Код</label>
-<input class="input" id="regCode" placeholder="000000"/>
-</div>
-</div>
-<div class="row">
-<button class="btn" id="btnRegStart">Отправить код</button>
-<button class="btn primary" id="btnRegConfirm">Подтвердить</button>
-</div>
-<p class="muted">Код придёт на почту (Brevo). Если письма нет — проверь «Спам».</p>
-</div>
-<!-- RESET -->
-<div class="authPane" id="authPaneReset" style="display:none">
-<div class="row">
-<div style="flex:1">
-<label class="lbl">Email</label>
-<input class="input" id="resetEmail" placeholder="mail@example.com"/>
-</div>
-</div>
-<div class="row">
-<div style="flex:1">
-<label class="lbl">Код</label>
-<input class="input" id="resetCode" placeholder="000000"/>
-</div>
-<div style="flex:1">
-<label class="lbl">Новый пароль</label>
-<input class="input" id="resetPass" placeholder="••••••" type="password"/>
-</div>
-</div>
-<div class="row">
-<button class="btn" id="btnResetStart">Отправить код</button>
-<button class="btn primary" id="btnResetConfirm">Сменить пароль</button>
-</div>
-<p class="muted">Если аккаунт с этим email существует — код отправится.</p>
-</div>
-</div>
+
 </div>
 </div>
 </section>
@@ -974,6 +1042,192 @@
       </div>
     </div>
   </div>
+
+<!-- 2FA Recommendation -->
+<div id="twofaRecBack" class="modalBack hidden"></div>
+<div id="twofaRecModal" class="modal glass hidden" role="dialog" aria-modal="true" style="max-width:520px">
+  <div class="modalHeader">
+    <div class="modalTitle">🔐 Рекомендуем включить 2FA</div>
+    <button class="iconBtn" id="btnTwofaRecClose" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="muted" style="margin-top:6px">
+    Двухфакторная защита по почте заметно повышает безопасность аккаунта.
+  </div>
+  <div class="row" style="margin-top:14px; justify-content:flex-end; gap:10px; flex-wrap:wrap">
+    <button class="btn" id="btnTwofaRecLater" type="button">Позже</button>
+    <button class="btn" id="btnTwofaRecNever" type="button">Больше не напоминать</button>
+    <button class="btn primary" id="btnTwofaRecEnable" type="button">Поставить 2FA</button>
+  </div>
+</div>
+
+<!-- 2FA Enable Wizard -->
+<div id="twofaSetBack" class="modalBack hidden"></div>
+<div id="twofaSetModal" class="modal glass hidden" role="dialog" aria-modal="true" style="max-width:520px">
+  <div class="modalHeader">
+    <div class="modalTitle">Настройка 2FA</div>
+    <button class="iconBtn" id="btnTwofaSetClose" type="button" aria-label="Close">✕</button>
+  </div>
+
+  <div id="twofaSetStep1">
+    <div class="muted" style="margin-top:6px">Код будет отправлен на твою почту, привязанную к аккаунту.</div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="btnTwofaSend" type="button">Отправить код</button>
+      <button class="btn" id="btnTwofaDisable" type="button" style="margin-left:auto">Выключить 2FA</button>
+    </div>
+  </div>
+
+  <div id="twofaSetStep2" style="display:none">
+    <label class="lbl">Код из письма</label>
+    <input class="input" id="twofaEnableCode" inputmode="numeric" maxlength="6" placeholder="000000"/>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="btnTwofaConfirm" type="button">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+
+<!-- Transactions Modal -->
+<div class="modal modalFull" id="txModal" aria-hidden="true">
+  <div class="modalCard">
+    <div class="modalHead">
+      <div class="modalTitle">Транзакции</div>
+      <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
+        <button class="iconBtn" id="btnTxRefresh" type="button" title="Обновить">↻</button>
+        <button class="iconBtn" id="btnTxClose" type="button" aria-label="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="modalBody">
+      <div id="txList" class="txList">
+        <div class="muted">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Templates Modal -->
+<div class="modal modalFull" id="templatesModal" aria-hidden="true">
+  <div class="modalCard">
+    <div class="modalHead">
+      <div class="modalTitle">Шаблоны</div>
+      <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
+        <button class="iconBtn" id="btnTemplatesClose" type="button" aria-label="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="modalBody">
+      <div id="templatesList" class="templatesList">
+        <div class="muted">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal modalFull" id="settingsModal" aria-hidden="true">
+  <div class="modalCard tilt">
+    <div class="modalHead">
+      <div class="modalTitle">Настройки</div>
+      <button class="iconBtn" id="btnSettingsClose" type="button" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modalTabs">
+      <button class="pill active" data-stab="appearance" type="button">Оформление</button>
+      <button class="pill" data-stab="security" type="button">Безопасность</button>
+    </div>
+
+    <div class="modalBody">
+      <div class="modalPane" id="settingsPaneAppearance">
+        <div id="settingsAppearanceMount"></div>
+        <div class="muted" style="margin-top:10px; font-size:12px">
+          Оформление сохраняется в браузере. Доступно после входа.
+        </div>
+      </div>
+
+      <div class="modalPane" id="settingsPaneSecurity" style="display:none">
+        <div class="card" style="padding:14px; margin:0">
+          <div class="headrow">
+            <h3><span class="ico" data-ico="lock" aria-hidden="true"></span> 2FA по почте</h3>
+            <div class="badge" id="twofaStateBadge" style="margin-left:auto">OFF</div>
+          </div>
+          <div class="muted" style="margin-top:8px; font-size:12px">
+            При включении — при входе будет запрашиваться код из письма.
+          </div>
+          <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
+            <button class="btn primary" id="btnTwofaEnable" type="button">Включить 2FA</button>
+            <button class="btn" id="btnTwofaDisable" type="button">Выключить</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="secGrid">
+            <div class="secCol">
+              <div class="secTitle">Смена пароля</div>
+              <label class="lbl">Текущий пароль</label>
+              <input class="input" id="secCurPw" type="password" placeholder="Текущий пароль"/>
+              <label class="lbl" style="margin-top:10px">Новый пароль</label>
+              <input class="input" id="secNewPw" type="password" placeholder="Новый пароль"/>
+              <label class="lbl" style="margin-top:10px">Повтори новый пароль</label>
+              <input class="input" id="secNewPw2" type="password" placeholder="Повтори новый пароль"/>
+              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
+                <button class="btn primary" id="btnSecPwSave" type="button">Изменить пароль</button>
+              </div>
+              <div class="muted" style="margin-top:8px; font-size:12px">Совет: используй пароль от 8+ символов.</div>
+            </div>
+
+            <div class="secCol">
+              <div class="secTitle">Смена почты</div>
+              <label class="lbl">Пароль (для подтверждения)</label>
+              <input class="input" id="secEmailPw" type="password" placeholder="Пароль"/>
+              <label class="lbl" style="margin-top:10px">Новая почта</label>
+              <input class="input" id="secNewEmail" type="email" placeholder="new@email.com"/>
+              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
+                <button class="btn" id="btnSecEmailSend" type="button">Отправить код</button>
+              </div>
+
+              <div class="divider" style="margin:14px 0"></div>
+              <label class="lbl">Код подтверждения</label>
+              <input class="input" id="secEmailCode" inputmode="numeric" placeholder="6-значный код"/>
+              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
+                <button class="btn primary" id="btnSecEmailConfirm" type="button">Подтвердить почту</button>
+              </div>
+              <div class="muted" style="margin-top:8px; font-size:12px">Код отправим на новую почту.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Shop panel modal -->
+<div class="modal modalFull" id="shopPanelModal" aria-hidden="true">
+  <div class="modalCard tilt" style="max-width:900px">
+    <div class="modalHead">
+      <div class="modalTitle">Панель магазина</div>
+      <button class="iconBtn" id="btnShopPanelClose" type="button" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div class="muted" style="margin:8px 0 10px 0; font-size:12px">
+      Перетаскивай товары, меняй текст/цену/баннер и сохраняй — изменения сразу применяются на сайте (и на телефоне).
+    </div>
+
+    <div class="row" id="shopGate" style="gap:10px; flex-wrap:wrap; margin:10px 0 12px 0">
+      <button class="btn primary" id="btnShopGoBuilder" type="button">Перейти в конструктор магазина</button>
+      <button class="btn" id="btnShopGoManage" type="button">Изменить / добавить товар</button>
+    </div>
+
+    <div class="shopBuilder" id="shopBuilderWrap" style="display:none">
+      <div class="shopBuilderList" id="shopBuilderList"></div>
+
+      <div class="shopBuilderActions">
+        <button class="btn primary" id="btnShopSave" type="button">Сохранить изменения</button>
+        <button class="btn" id="btnShopReset" type="button">Сбросить</button>
+      </div>
+
+      <div class="muted" style="margin-top:10px; font-size:12px">
+        Подсказка: на мобильном используй кнопки ↑ ↓ для изменения порядка.
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

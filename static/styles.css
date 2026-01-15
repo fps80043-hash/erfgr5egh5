@@ -477,6 +477,42 @@ code{
   background: rgba(0,0,0,.16);
 }
 .rawbox summary{cursor:pointer; font-weight:950}
+
+/* Generator: small toggle + variable chips */
+.miniToggle{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  color: rgba(255,255,255,.86);
+  font-weight:900;
+  font-size:12px;
+  user-select:none;
+}
+.miniToggle input{ width:16px; height:16px; }
+
+.varsRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+.varChip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  color: rgba(255,255,255,.90);
+  font-weight:900;
+  font-size:12px;
+}
+.varChip:hover{ background: rgba(255,255,255,.06); }
 .raw{
   margin:10px 0 0 0;
   padding:10px;
@@ -2128,7 +2164,7 @@ body.theme-night::after{
   backdrop-filter: blur(5px);
   z-index:1200;
 }
-.modal:not(#payModal){
+.modal:not(#payModal):not(.modalFull){
   position:fixed;
   inset: auto; /* override any global/inherited inset */
   left:50%; top:50%;
@@ -2145,10 +2181,10 @@ body.theme-night::after{
   opacity:0;
   transition: opacity .18s ease, transform .18s ease;
 }
-.modal:not(#payModal).open{ display:block; }
-.modal:not(#payModal).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
-.modal:not(#payModal).open{ display:block; }
-.modal:not(#payModal).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+.modal:not(#payModal):not(.modalFull).open{ display:block; }
+.modal:not(#payModal):not(.modalFull).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+.modal:not(#payModal):not(.modalFull).open{ display:block; }
+.modal:not(#payModal):not(.modalFull).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
 .modal:not(#payModal).glass{
   backdrop-filter: blur(14px);
 }
@@ -2447,10 +2483,17 @@ body.theme-night .input{
   inset:0;
   width:100%;
   height:100%;
+  /* Fill the media area (prevents "banner looks narrower" effect). */
   object-fit: cover;
   opacity: .95;
-  transform: scale(1.02);
-  filter: saturate(1.15) contrast(1.05);
+  transform: none;
+  filter: saturate(1.10) contrast(1.03);
+  object-position: center;
+}
+
+/* SVG banners often have built-in padding; keep them contained to avoid cropping. */
+.productCard.pxtCard .prodMediaArt[src$=".svg"]{
+  object-fit: contain;
 }
 .productCard.pxtCard .prodMediaGlow{
   position:absolute; inset:-40%;
@@ -2721,40 +2764,75 @@ body.theme-night2 .veil{
    Cursor themes
    ========================= */
 /*
-  NOTE: Some .cur packs contain large variants which browsers may pick → huge cursor.
-  We ship 32px PNG fallbacks derived from the provided pack to keep sizing consistent.
+  Cursor packs sometimes include multiple sizes.
+  Prefer .cur (multi-size) and keep PNG as a strict fallback.
 */
-body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.png") 1 1, auto; }
+body[data-cursor="neon-purple"]{ cursor: url("/static/cursors/neon-purple/default.cur"), url("/static/cursors/neon-purple/default.png") 3 3, auto; }
+body[data-cursor="neon"]{ cursor: url("/static/cursors/neon/default.cur"), url("/static/cursors/neon/default.png") 3 3, auto; }
 
+/* Interactive elements: use native pointer to avoid oversized cursor on hover in some browsers */
 body[data-cursor="neon-purple"] a,
+body[data-cursor="neon"] a,
 body[data-cursor="neon-purple"] button,
+body[data-cursor="neon"] button,
 body[data-cursor="neon-purple"] label,
+body[data-cursor="neon"] label,
 body[data-cursor="neon-purple"] input[type="checkbox"],
+body[data-cursor="neon"] input[type="checkbox"],
 body[data-cursor="neon-purple"] input[type="radio"],
+body[data-cursor="neon"] input[type="radio"],
 body[data-cursor="neon-purple"] .btn,
+body[data-cursor="neon"] .btn,
 body[data-cursor="neon-purple"] [role="button"],
+body[data-cursor="neon"] [role="button"],
 body[data-cursor="neon-purple"] input[type="button"],
-body[data-cursor="neon-purple"] input[type="submit"]{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
+body[data-cursor="neon"] input[type="button"],
+body[data-cursor="neon-purple"] input[type="submit"],
+body[data-cursor="neon"] input[type="submit"],
+body[data-cursor="neon-purple"] summary,
+body[data-cursor="neon"] summary,
+body[data-cursor="neon-purple"] .cselect-btn,
+body[data-cursor="neon"] .cselect-btn,
+body[data-cursor="neon-purple"] .cselect-opt,
+body[data-cursor="neon"] .cselect-opt,
+body[data-cursor="neon-purple"] .navbtn,
+body[data-cursor="neon"] .navbtn,
+body[data-cursor="neon-purple"] .pillbtn,
+body[data-cursor="neon"] .pillbtn{
+  cursor: pointer !important;
 }
-/* For text fields keep native I-beam to avoid artifacts (black square/outline) */
+
+/* Some UI chips/tags are <span>/<div>, not buttons. Ensure pointer cursor stays normal-sized. */
+body[data-cursor="neon-purple"] .chip,
+body[data-cursor="neon"] .chip,
+body[data-cursor="neon-purple"] .tag,
+body[data-cursor="neon"] .tag,
+body[data-cursor="neon-purple"] .tagpill,
+body[data-cursor="neon"] .tagpill,
+body[data-cursor="neon-purple"] .toolTag,
+body[data-cursor="neon"] .toolTag,
+body[data-cursor="neon-purple"] .segbtn,
+body[data-cursor="neon"] .segbtn,
+body[data-cursor="neon-purple"] .tabPill,
+body[data-cursor="neon"] .tabPill{
+  cursor: pointer !important;
+}
+
+/* Some sections use .pillTag for category chips (e.g., generator tags). */
+body[data-cursor="neon-purple"] .pillTag,
+body[data-cursor="neon"] .pillTag{
+  cursor: pointer !important;
+}
+
+/* For text fields keep native I-beam */
 body[data-cursor="neon-purple"] input,
+body[data-cursor="neon"] input,
 body[data-cursor="neon-purple"] textarea,
-body[data-cursor="neon-purple"] [contenteditable="true"]{ cursor: text; }
-body[data-cursor="neon-purple"] select,
-body[data-cursor="neon-purple"] option{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
-}
+body[data-cursor="neon"] textarea,
+body[data-cursor="neon-purple"] [contenteditable="true"],
+body[data-cursor="neon"] [contenteditable="true"]{ cursor: text !important; }
 
 #profileBalanceQuick{display:none !important}
-
-
-body[data-cursor="neon-purple"] .cselect-btn,
-body[data-cursor="neon-purple"] .cselect-opt,
-body[data-cursor="neon-purple"] .navbtn,
-body[data-cursor="neon-purple"] .pillbtn{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
-}
 
 /* Night themes: avoid extra backdrop behind cards + force dark native UI */
 body.theme-night,
@@ -2762,14 +2840,7 @@ body.theme-night2{ color-scheme: dark; }
 body.theme-night .pane::before,
 body.theme-night2 .pane::before{ display:none !important; }
 
-/* Ensure cursor stays consistent on common interactive controls */
-body[data-cursor="neon-purple"] label,
-body[data-cursor="neon-purple"] input[type="checkbox"],
-body[data-cursor="neon-purple"] input[type="radio"],
-body[data-cursor="neon-purple"] select,
-body[data-cursor="neon-purple"] summary{
-  cursor: url("/static/cursors/neon-purple/pointer.png") 3 1, pointer;
-}
+/* (kept above) */
 
 
 /* Admin modal layout v2 */
@@ -2783,6 +2854,23 @@ body[data-cursor="neon-purple"] summary{
 @media (max-width: 980px){
   #adminModal{height:90vh !important;}
   #adminModal .adminShell{grid-template-columns:1fr; }
+}
+
+/* =========================
+   FINAL: stable tilt (prevents flicker / "merцание")
+   ========================= */
+.tilt{
+  backface-visibility: hidden;
+  contain: paint;
+  transform: translate3d(0,0,0) translateY(0px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+.tilt:hover{
+  transform: translate3d(0,0,0) translateY(-2px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+.tilt.isLeaving{
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
 }
 
 /* Top balance pill */
@@ -2799,4 +2887,348 @@ body[data-theme="night2"] #btnTopBalance.balancePill{
   background: radial-gradient(140px 80px at 20% 20%, rgba(34,211,238,.26), transparent 60%),
               radial-gradient(160px 90px at 80% 20%, rgba(124,58,237,.26), transparent 62%),
               rgba(16,16,20,.52);
+}
+
+
+/* =========================
+   Guest auth center + hide left profile blocks
+   ========================= */
+body.guest #tab-profile .profileSide { display:none !important; }
+body.guest #tab-profile .profileLayout { grid-template-columns: 1fr !important; }
+body.guest #tab-profile .profileMain { align-items:center; }
+body.guest #authBox { width:min(620px, 100%); margin:0 auto; }
+body.guest #tab-profile .profileMain { display:flex; justify-content:center; padding-top:26px; }
+body.guest #tab-profile .profileMain > .card:not(#authBox) { display:none !important; }
+body.guest #themeBox { display:none !important; }
+
+.authBoxCenter{
+  padding:18px 18px 16px;
+}
+.authTitleRow{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+}
+.authTitle{ font-size:18px; font-weight:800; letter-spacing:.2px; }
+.authStepHint{ font-size:12px; opacity:.7; }
+
+.authSteps{ position:relative; min-height:170px; }
+.authStep{
+  position:absolute; inset:0;
+  opacity:0;
+  transform: translateY(8px) scale(.99);
+  pointer-events:none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.authStep.active{
+  opacity:1;
+  transform: translateY(0) scale(1);
+  pointer-events:auto;
+  position:relative;
+}
+.authBack{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:38px; height:34px;
+  border-radius:12px;
+  margin-bottom:10px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  color: rgba(255,255,255,.9);
+}
+.authBack:hover{ background: rgba(255,255,255,.10); }
+
+
+
+/* -------------------------
+   Modal (settings / shop panel)
+--------------------------*/
+.modal{
+  position:fixed; inset:0;
+  display:none;
+  align-items:center; justify-content:center;
+  padding:18px;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+}
+.modal.open{ display:flex; }
+.modalCard{
+  width:min(720px, 100%);
+  border-radius:26px;
+  border:1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  box-shadow: 0 30px 110px rgba(0,0,0,.75);
+  padding:14px;
+}
+.modalHead{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 6px 10px 6px;
+}
+.modalTitle{ font-weight:950; font-size:18px; letter-spacing:.2px; }
+.modalTabs{ display:flex; gap:10px; padding:0 6px 10px 6px; flex-wrap:wrap; }
+.modalBody{ padding:6px; }
+.modalPane{ animation: fadeUp .16s ease both; }
+@keyframes fadeUp{ from{opacity:0; transform: translateY(8px);} to{opacity:1; transform: translateY(0);} }
+
+/* Shop builder */
+.shopBuilderList{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.shopItem{
+  display:grid;
+  grid-template-columns: 38px 1fr;
+  gap:10px;
+  padding:12px;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+}
+.shopDrag{
+  width:38px; height:38px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  background: rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  cursor: grab;
+}
+.shopRow{
+  display:grid;
+  grid-template-columns: 1fr 140px;
+  gap:10px;
+}
+.shopRow .input{ width:100%; }
+.shopMiniBtns{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+.shopBuilderActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap; }
+
+/* Shop constructor (inside Shop tab) */
+.shopCatsBar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0 10px 0; }
+.shopCatsLeft{ display:flex; gap:8px; flex-wrap:wrap; }
+.shopCatsRight{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Shop category tabs (prettier pills) */
+#shopCatsLeft .pillbtn{
+  padding:10px 14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+#shopCatsLeft .pillbtn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.05);
+  border-color: rgba(160,150,255,.28);
+}
+#shopCatsLeft .pillbtn.active{
+  background: radial-gradient(120px 70px at 18% 20%, rgba(124,58,237,.35), transparent 60%),
+              radial-gradient(180px 90px at 85% 30%, rgba(34,211,238,.22), transparent 62%),
+              rgba(255,255,255,.04);
+  border-color: rgba(140,125,255,.45);
+  box-shadow: 0 12px 30px rgba(0,0,0,.50), 0 0 0 1px rgba(140,125,255,.20) inset;
+}
+#shopCatsLeft .pillbtn.active:hover{ transform: translateY(-2px); }
+
+.shopEditorPanel{
+  margin-top:12px;
+  border-radius:24px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  padding:14px;
+}
+.shopEdHead{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.shopEdTitle{ font-weight:950; font-size:16px; }
+.shopEdBody{ display:grid; grid-template-columns: 320px 1fr; gap:12px; }
+.shopEdCol{ min-width:0; }
+.shopEdBlock{ border-radius:18px; border:1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.02); padding:12px; }
+.shopEdCat{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.shopEdCat .btn{ width:100%; justify-content:flex-start; }
+.shopEdCatBtns{ display:flex; gap:6px; }
+.shopEdItem{ display:grid; grid-template-columns: 24px 1fr 44px; gap:8px; align-items:center; padding:10px; border-radius:16px; border:1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.02); margin-bottom:8px; cursor:pointer; }
+.shopEdItem.active{ border-color: rgba(120,110,255,.55); box-shadow: 0 0 0 2px rgba(120,110,255,.18) inset; }
+.shopEdDrag{ width:24px; height:24px; border-radius:10px; display:grid; place-items:center; background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.10); cursor:grab; }
+.shopEdItemTitle{ font-weight:850; font-size:13px; }
+.shopEdGrid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+
+.shopOverlayTools{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.shopRulerX{ position:absolute; top:0; bottom:0; width:1px; background: rgba(120,110,255,.35); box-shadow: 0 0 12px rgba(120,110,255,.25); pointer-events:none; }
+.shopRulerY{ position:absolute; left:0; right:0; height:1px; background: rgba(120,110,255,.35); box-shadow: 0 0 12px rgba(120,110,255,.25); pointer-events:none; }
+
+body.shopGridOn #tab-shop .card{ background-image:
+  repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0, rgba(255,255,255,.05) 1px, transparent 1px, transparent 20px),
+  repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0, rgba(255,255,255,.05) 1px, transparent 1px, transparent 20px);
+  background-size: 20px 20px;
+}
+
+#tab-shop .productCard.shopDraggable{ outline: 1px dashed rgba(120,110,255,.35); }
+
+@media (max-width: 980px){
+  .shopEdBody{ grid-template-columns: 1fr; }
+  .shopEdGrid2{ grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px){
+  .shopRow{ grid-template-columns: 1fr; }
+  .modalCard{ padding:12px; border-radius:22px; }
+}
+
+
+/* settings scroll */
+.modalCard .modalBody{
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding-right: 6px;
+}
+.modalCard .modalBody::-webkit-scrollbar{ width: 8px; }
+.modalCard .modalBody::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+}
+.secGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+.secCol{ padding:12px; border:1px solid rgba(255,255,255,.08); border-radius:16px; background: rgba(255,255,255,.03); }
+.secTitle{ font-weight:700; margin-bottom:10px; }
+@media (max-width: 860px){
+  .secGrid{ grid-template-columns: 1fr; }
+}
+.txAmt.pos{ color: #7CFFB2; }
+.txAmt.neg{ color: #FF7C9B; }
+
+
+/* -------------------------
+   Transactions + templates modal UI
+--------------------------*/
+.txRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px 14px;
+  border-radius:16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  margin:10px 0;
+  backdrop-filter: blur(10px);
+}
+.txMain{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+.txTitle{ font-weight:700; letter-spacing:.2px; }
+.txMeta{ font-size:12px; opacity:.75; }
+.txAmt{ font-weight:800; font-size:14px; white-space:nowrap; }
+.txAmt.pos{ color: #6fffb1; }
+.txAmt.neg{ color: #ff6f8b; }
+
+.tplRow{
+  padding:12px 14px;
+  border-radius:16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  margin:10px 0;
+}
+.tplHead{ display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
+.tplTitle{ font-weight:800; }
+.tplMeta{ font-size:12px; opacity:.7; white-space:nowrap; }
+.tplBody{
+  margin-top:8px;
+  font-size:13px;
+  line-height:1.45;
+  opacity:.9;
+  white-space:pre-wrap;
+  max-height:160px;
+  overflow:auto;
+  padding-right:6px;
+}
+.tplBtns{ margin-top:10px; display:flex; justify-content:flex-end; }
+
+
+/* -------------------------
+   Shop builder page
+--------------------------*/
+.shopBuilderPage{ padding:0; }
+.shopBuilderPage .topBar{
+  position:sticky;
+  top:0;
+  z-index:50;
+  display:flex;
+  gap:14px;
+  align-items:center;
+  padding:14px 18px;
+  background: rgba(0,0,0,.35);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(12px);
+}
+.builderLayout{
+  display:grid;
+  grid-template-columns: 340px 1fr;
+  gap:16px;
+  padding:18px;
+}
+.builderSide{
+  border-radius:22px;
+  padding:14px;
+  height: calc(100vh - 86px);
+  position: sticky;
+  top: 76px;
+  overflow:auto;
+}
+.builderSideHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.builderSideHead .h{ font-size:14px; font-weight:800; }
+.catList{ margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.catBtn{
+  text-align:left;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+}
+.catBtn.active{ background: rgba(120,120,255,.12); border-color: rgba(140,140,255,.25); }
+.builderMain{ display:flex; flex-direction:column; gap:16px; }
+.builderPreview, .builderEditor{
+  border-radius:22px;
+  padding:14px;
+}
+.builderPreviewHead{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.builderPreviewHead .h{ font-size:15px; font-weight:900; }
+.shopSections{ display:flex; flex-direction:column; gap:14px; }
+.shopSection{ border-radius:22px; padding:14px; }
+.shopSectionHead{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; gap:10px; }
+.shopSectionHead .h{ font-size:14px; font-weight:900; }
+.shopGrid2{ display:grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap:14px; }
+.shopBuilderList{ display:flex; flex-direction:column; gap:12px; max-height: 56vh; overflow:auto; padding-right:6px; }
+.shopItem.active{ outline: 2px solid rgba(140,140,255,.25); }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.grid2 .span2{ grid-column: 1 / span 2; }
+
+@media (max-width: 980px){
+  .builderLayout{ grid-template-columns: 1fr; }
+  .builderSide{ position: relative; top: 0; height: auto; }
+  .shopGrid2{ grid-template-columns: 1fr; }
+}
+
+/* ---- Profile action buttons visibility gates ---- */
+body.guest #btnSettings,
+body.guest #btnShopPanel {
+  display: none !important;
+}
+
+/* Show settings for any authed user */
+body.authed #btnSettings {
+  display: inline-flex;
+}
+
+/* Shop panel is admin-only */
+body:not(.admin) #btnShopPanel {
+  display: none !important;
 }

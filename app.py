@@ -34,7 +34,7 @@ import base64
 from typing import Any, Dict, List, Tuple, Optional
 
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -781,6 +781,9 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS case_next_at TEXT")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance INTEGER NOT NULL DEFAULT 0")
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS twofa_email_enabled INTEGER NOT NULL DEFAULT 0")
+        con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_2fa_reminder INTEGER NOT NULL DEFAULT 0")
+
 
         # moderation / audit fields
         con.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TEXT")
@@ -925,6 +928,16 @@ def db_init():
               fetched_at TEXT NOT NULL
             )
         """)
+
+        # shop layout/config (admin editable)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS shop_config(
+              id SERIAL PRIMARY KEY,
+              key TEXT UNIQUE NOT NULL,
+              json TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
         con.commit()
         con.close()
         return
@@ -965,6 +978,12 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL DEFAULT 0")
     if "is_admin" not in cols:
         con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
+    cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+    if "twofa_email_enabled" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN twofa_email_enabled INTEGER NOT NULL DEFAULT 0")
+    if "hide_2fa_reminder" not in cols:
+        con.execute("ALTER TABLE users ADD COLUMN hide_2fa_reminder INTEGER NOT NULL DEFAULT 0")
 
     # Migrations: moderation / audit fields
     cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
@@ -1064,6 +1083,18 @@ def db_init():
           fetched_at TEXT NOT NULL
         )
     """)
+
+
+
+    # shop layout/config (admin editable)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS shop_config(
+          key TEXT PRIMARY KEY,
+          json TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+    """)
+
 
 
     cur.execute("""
@@ -1629,7 +1660,7 @@ def auth_me(request: Request):
         pass
 
     con = db_conn()
-    row = con.execute("SELECT username, email, balance, is_admin FROM users WHERE id=?", (u["id"],)).fetchone()
+    row = con.execute("SELECT username, email, balance, is_admin, twofa_email_enabled, hide_2fa_reminder FROM users WHERE id=?", (u["id"],)).fetchone()
     # env fallback: allow making new users admins without restart
     db_admin = int(_rget(row, "is_admin") or 0) if row else 0
     env_admin = ((u["username"] or "").lower() in ADMIN_USERS_LC)
@@ -1648,6 +1679,8 @@ def auth_me(request: Request):
         "email": (_rget(row, "email") if row else ""),
         "balance": int(_rget(row, "balance") or 0),
         "is_admin": is_admin,
+        "twofa_email_enabled": int(_rget(row, "twofa_email_enabled") or 0) if row else 0,
+        "hide_2fa_reminder": int(_rget(row, "hide_2fa_reminder") or 0) if row else 0,
         "limits": lim,
     }}
 
@@ -1658,6 +1691,69 @@ def api_balance(request: Request):
     row = con.execute("SELECT balance FROM users WHERE id=?", (u["id"],)).fetchone()
     con.close()
     return {"ok": True, "balance": int(_rget(row, "balance") or 0)}
+
+
+# ----------------------------
+# Transactions + Templates (profile)
+# ----------------------------
+
+@app.get("/api/tx")
+def api_tx(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    rows = con.execute(
+        "SELECT id, delta, reason, ts, admin_id FROM balance_tx WHERE user_id=? ORDER BY id DESC LIMIT 50",
+        (int(u["id"]),),
+    ).fetchall()
+    con.close()
+
+    tx = []
+    for r in rows or []:
+        tx.append({
+            "id": int(_rget(r, "id") or 0),
+            "admin_id": int(_rget(r, "admin_id") or 0) if _rget(r, "admin_id") is not None else None,
+            "delta": int(_rget(r, "delta") or 0),
+            "reason": str(_rget(r, "reason") or ""),
+            "ts": str(_rget(r, "ts") or ""),
+        })
+    return {"ok": True, "tx": tx}
+
+
+    def _row(r):
+        return {
+            "id": _rget(r, "id"),
+            "created_at": _rget(r, "created_at"),
+            "title": _rget(r, "title") or _rget(r, "type") or "Операция",
+            "type": _rget(r, "type") or "tx",
+            "amount": int(_rget(r, "amount") or 0),
+            "status": _rget(r, "status") or "ok",
+            "meta": _rget(r, "meta") or "",
+        }
+
+    return {"ok": True, "items": [_row(r) for r in rows]}
+
+
+@app.get("/api/templates")
+def api_templates(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    try:
+        rows = con.execute(
+            "SELECT id, created_at, title FROM templates WHERE user_id=? ORDER BY id DESC LIMIT 50",
+            (u["id"],),
+        ).fetchall()
+    except Exception:
+        rows = []
+    con.close()
+
+    def _row(r):
+        return {
+            "id": _rget(r, "id"),
+            "created_at": _rget(r, "created_at"),
+            "title": _rget(r, "title") or "Шаблон",
+        }
+
+    return {"ok": True, "items": [_row(r) for r in rows]}
 
 
 
@@ -2880,6 +2976,7 @@ def auth_reset_confirm(payload: Dict[str, Any]):
     return {"ok": True}
 
 
+
 @app.post("/api/auth/login")
 def auth_login(request: Request, payload: Dict[str, Any]):
     ident = (payload.get("username") or "").strip()
@@ -2890,18 +2987,135 @@ def auth_login(request: Request, payload: Dict[str, Any]):
     con = db_conn()
     # allow login by username or email
     if "@" in ident:
-        row = con.execute("SELECT id, username, password_hash, banned_until, ban_reason FROM users WHERE lower(email)=?", (ident.strip().lower(),)).fetchone()
+        row = con.execute(
+            "SELECT id, username, password_hash, banned_until, ban_reason, email, twofa_email_enabled FROM users WHERE lower(email)=?",
+            (ident.strip().lower(),),
+        ).fetchone()
     else:
-        row = con.execute("SELECT id, username, password_hash, banned_until, ban_reason FROM users WHERE username=?", (ident,)).fetchone()
-    con.close()
+        row = con.execute(
+            "SELECT id, username, password_hash, banned_until, ban_reason, email, twofa_email_enabled FROM users WHERE username=?",
+            (ident,),
+        ).fetchone()
 
     if not row or not verify_password(password, row["password_hash"]):
+        con.close()
         raise HTTPException(status_code=401, detail="Wrong login or password")
 
     bu = _parse_iso(str(_rget(row, "banned_until") or ""))
     if bu and _now_utc() < bu:
         reason = str(_rget(row, "ban_reason") or "").strip() or "Banned"
+        con.close()
         raise HTTPException(status_code=403, detail=f"Banned: {reason}")
+
+    try:
+        _touch_user_seen(int(_rget(row, "id") or 0), request)
+    except Exception:
+        pass
+
+    # If email-2FA enabled, send code and require confirm
+    twofa_on = int(_rget(row, "twofa_email_enabled") or 0) == 1
+    email = str(_rget(row, "email") or "").strip().lower()
+
+    if twofa_on and email and BREVO_API_KEY and BREVO_SENDER_EMAIL:
+        code = gen_otp_code()
+        code_h = otp_hash(code)
+        con.execute("DELETE FROM email_otps WHERE email=? AND purpose='login2fa'", (email,))
+        exp = (datetime.datetime.utcnow() + datetime.timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
+        payload_obj = {"user_id": int(_rget(row, "id") or 0), "username": str(_rget(row, "username") or "")}
+        con.execute(
+            "INSERT INTO email_otps(email,purpose,code_hash,payload,expires_at,attempts,created_at) VALUES(?,?,?,?,?,?,?)",
+            (email, "login2fa", code_h, json.dumps(payload_obj), exp, 0, datetime.datetime.utcnow().isoformat()),
+        )
+        con.commit()
+        con.close()
+
+        text = f"Код входа (2FA): {code}\n\nКод действует {OTP_TTL_MINUTES} минут."
+        html = f"<div style='font-family:Arial,sans-serif'><h3>Код входа</h3><p style='font-size:18px'><b>{code}</b></p><p>Действует {OTP_TTL_MINUTES} минут.</p></div>"
+        send_brevo_email(email, "Код входа (2FA)", text, html)
+
+        return {"ok": True, "needs_2fa": True}
+
+    # Normal login (or 2FA bypass if email/provider not configured)
+    token = make_token(int(row["id"]), row["username"])
+    con.close()
+    jr = JSONResponse({"ok": True, "user": {"username": row["username"]}})
+    jr.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=cookie_secure(request),
+        max_age=60*60*24*14,
+        path="/",
+    )
+    return jr
+
+
+@app.post("/api/auth/login_confirm")
+def auth_login_confirm(request: Request, payload: Dict[str, Any]):
+    ident = (payload.get("username") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not ident or not code:
+        raise HTTPException(status_code=400, detail="Username/email and code are required")
+
+    con = db_conn()
+    if "@" in ident:
+        row = con.execute(
+            "SELECT id, username, banned_until, ban_reason, email FROM users WHERE lower(email)=?",
+            (ident.strip().lower(),),
+        ).fetchone()
+    else:
+        row = con.execute(
+            "SELECT id, username, banned_until, ban_reason, email FROM users WHERE username=?",
+            (ident,),
+        ).fetchone()
+
+    if not row:
+        con.close()
+        raise HTTPException(status_code=401, detail="Wrong login")
+
+    bu = _parse_iso(str(_rget(row, "banned_until") or ""))
+    if bu and _now_utc() < bu:
+        reason = str(_rget(row, "ban_reason") or "").strip() or "Banned"
+        con.close()
+        raise HTTPException(status_code=403, detail=f"Banned: {reason}")
+
+    email = str(_rget(row, "email") or "").strip().lower()
+    if not email:
+        con.close()
+        raise HTTPException(status_code=400, detail="No email bound to account")
+
+    otp = con.execute(
+        "SELECT id, code_hash, expires_at, attempts FROM email_otps WHERE email=? AND purpose='login2fa' ORDER BY id DESC LIMIT 1",
+        (email,),
+    ).fetchone()
+    if not otp:
+        con.close()
+        raise HTTPException(status_code=400, detail="Code not found. Try login again.")
+
+    exp = _parse_iso(str(_rget(otp, "expires_at") or ""))
+    if not exp or _now_utc() > exp:
+        con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Code expired. Try login again.")
+
+    attempts = int(_rget(otp, "attempts") or 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Too many attempts")
+
+    if otp_hash(code) != _rget(otp, "code_hash"):
+        con.execute("UPDATE email_otps SET attempts=attempts+1 WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Wrong code")
+
+    con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+    con.commit()
+    con.close()
 
     try:
         _touch_user_seen(int(_rget(row, "id") or 0), request)
@@ -2926,6 +3140,241 @@ def auth_logout():
     jr = JSONResponse({"ok": True})
     jr.delete_cookie(SESSION_COOKIE, path="/")
     return jr
+
+# -------------------------
+# 2FA (email) settings
+# -------------------------
+
+@app.post("/api/user/twofa_hide_reminder")
+def api_twofa_hide_reminder(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    con.execute("UPDATE users SET hide_2fa_reminder=1 WHERE id=?", (u["id"],))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+@app.post("/api/user/twofa_enable_start")
+def api_twofa_enable_start(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    row = con.execute("SELECT email FROM users WHERE id=?", (u["id"],)).fetchone()
+    email = str(_rget(row, "email") or "").strip().lower() if row else ""
+    if not email or "@" not in email:
+        con.close()
+        raise HTTPException(status_code=400, detail="Bind email in profile first")
+    if not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
+        con.close()
+        raise HTTPException(status_code=500, detail="Email provider is not configured")
+
+    code = gen_otp_code()
+    code_h = otp_hash(code)
+    con.execute("DELETE FROM email_otps WHERE email=? AND purpose='twofa_enable'", (email,))
+    exp = (datetime.datetime.utcnow() + datetime.timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
+    con.execute(
+        "INSERT INTO email_otps(email,purpose,code_hash,payload,expires_at,attempts,created_at) VALUES(?,?,?,?,?,?,?)",
+        (email, "twofa_enable", code_h, json.dumps({"user_id": int(u["id"])}), exp, 0, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+
+    text = f"Код для включения 2FA: {code}\n\nКод действует {OTP_TTL_MINUTES} минут."
+    html = f"<div style='font-family:Arial,sans-serif'><h3>Включение 2FA</h3><p style='font-size:18px'><b>{code}</b></p><p>Действует {OTP_TTL_MINUTES} минут.</p></div>"
+    send_brevo_email(email, "Код для включения 2FA", text, html)
+    return {"ok": True}
+
+@app.post("/api/user/twofa_enable_confirm")
+def api_twofa_enable_confirm(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    code = (payload.get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+
+    con = db_conn()
+    row = con.execute("SELECT email FROM users WHERE id=?", (u["id"],)).fetchone()
+    email = str(_rget(row, "email") or "").strip().lower() if row else ""
+    if not email:
+        con.close()
+        raise HTTPException(status_code=400, detail="No email")
+
+    otp = con.execute(
+        "SELECT id, code_hash, expires_at, attempts FROM email_otps WHERE email=? AND purpose='twofa_enable' ORDER BY id DESC LIMIT 1",
+        (email,),
+    ).fetchone()
+    if not otp:
+        con.close()
+        raise HTTPException(status_code=400, detail="Code not found")
+
+    exp = _parse_iso(str(_rget(otp, "expires_at") or ""))
+    if not exp or _now_utc() > exp:
+        con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Code expired")
+
+    attempts = int(_rget(otp, "attempts") or 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Too many attempts")
+
+    if otp_hash(code) != _rget(otp, "code_hash"):
+        con.execute("UPDATE email_otps SET attempts=attempts+1 WHERE id=?", (otp["id"],))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Wrong code")
+
+    con.execute("DELETE FROM email_otps WHERE id=?", (otp["id"],))
+    con.execute("UPDATE users SET twofa_email_enabled=1, hide_2fa_reminder=0 WHERE id=?", (u["id"],))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+@app.post("/api/user/twofa_disable")
+def api_twofa_disable(request: Request):
+    u = require_user(request)
+    con = db_conn()
+    con.execute("UPDATE users SET twofa_email_enabled=0 WHERE id=?", (u["id"],))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+
+# ----------------------------
+# Security settings: change password / change email
+# ----------------------------
+
+@app.post("/api/security/password")
+def api_security_change_password(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    current = (payload.get("current") or "").strip()
+    new_password = (payload.get("new") or "").strip()
+    new2 = (payload.get("new2") or "").strip()
+
+    if not current or not new_password or not new2:
+        raise HTTPException(status_code=400, detail="Missing fields")
+    if new_password != new2:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password too short")
+
+    con = db_conn()
+    row = con.execute("SELECT password_hash FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    if not row or not verify_password(current, _rget(row, "password_hash") or ""):
+        con.close()
+        raise HTTPException(status_code=400, detail="Current password invalid")
+
+    ph = hash_password(new_password)
+    con.execute("UPDATE users SET password_hash=? WHERE id=?", (ph, int(u["id"])))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+
+@app.post("/api/security/email_start")
+def api_security_email_start(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    password = (payload.get("password") or "").strip()
+    new_email = (payload.get("new_email") or "").strip().lower()
+
+    if not password or not new_email:
+        raise HTTPException(status_code=400, detail="Missing fields")
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
+        raise HTTPException(status_code=400, detail="Invalid email")
+
+    con = db_conn()
+    row = con.execute("SELECT email, password_hash FROM users WHERE id=?", (int(u["id"]),)).fetchone()
+    if not row or not verify_password(password, _rget(row, "password_hash") or ""):
+        con.close()
+        raise HTTPException(status_code=400, detail="Password invalid")
+
+    # email already used?
+    ex = con.execute("SELECT id FROM users WHERE lower(email)=lower(?) AND id<>?", (new_email, int(u["id"]))).fetchone()
+    if ex:
+        con.close()
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    if not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
+        con.close()
+        raise HTTPException(status_code=500, detail="Email provider is not configured")
+
+    code = gen_otp_code()
+    code_h = otp_hash(code)
+    con.execute("DELETE FROM email_otps WHERE email=? AND purpose='email_change'", (new_email,))
+    exp = (datetime.datetime.utcnow() + datetime.timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
+    con.execute(
+        "INSERT INTO email_otps(email,purpose,code_hash,payload,expires_at,attempts,created_at) VALUES(?,?,?,?,?,?,?)",
+        (new_email, "email_change", code_h, json.dumps({"user_id": int(u["id"]), "new_email": new_email}), exp, 0, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
+
+    send_brevo_email(
+        new_email,
+        "RST: подтверждение смены почты",
+        f"Ваш код подтверждения: {code}\n\nЕсли это были не вы — просто игнорируйте письмо.",
+    )
+    return {"ok": True}
+
+
+@app.post("/api/security/email_confirm")
+def api_security_email_confirm(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    new_email = (payload.get("new_email") or "").strip().lower()
+    code = (payload.get("code") or "").strip()
+
+    if not new_email or not code:
+        raise HTTPException(status_code=400, detail="Missing fields")
+
+    con = db_conn()
+    row = con.execute(
+        "SELECT id, code_hash, payload, expires_at, attempts FROM email_otps WHERE email=? AND purpose='email_change' ORDER BY id DESC LIMIT 1",
+        (new_email,),
+    ).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=400, detail="Code not found")
+
+    # reuse verify otp logic
+    exp = datetime.datetime.fromisoformat(_rget(row, "expires_at"))
+    if datetime.datetime.utcnow() > exp:
+        con.execute("DELETE FROM email_otps WHERE id=?", (int(_rget(row, "id")),))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Code expired")
+
+    attempts = int(_rget(row, "attempts") or 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        con.execute("DELETE FROM email_otps WHERE id=?", (int(_rget(row, "id")),))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Too many attempts")
+
+    if otp_hash(code) != (_rget(row, "code_hash") or ""):
+        con.execute("UPDATE email_otps SET attempts=attempts+1 WHERE id=?", (int(_rget(row, "id")),))
+        con.commit()
+        con.close()
+        raise HTTPException(status_code=400, detail="Wrong code")
+
+    payload_db = {}
+    try:
+        payload_db = json.loads(_rget(row, "payload") or "{}")
+    except Exception:
+        payload_db = {}
+
+    if int(payload_db.get("user_id") or 0) != int(u["id"]):
+        con.close()
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # apply
+    con.execute("UPDATE users SET email=? WHERE id=?", (new_email, int(u["id"])))
+    con.execute("DELETE FROM email_otps WHERE id=?", (int(_rget(row, "id")),))
+    con.commit()
+    con.close()
+    return {"ok": True}
+
+
 
 @app.get("/api/user/templates")
 def user_templates_get(request: Request):
@@ -3050,6 +3499,7 @@ def _ensure_case_inventory_table(con):
               meta TEXT
             )
         """)
+
     else:
         con.execute("""
             CREATE TABLE IF NOT EXISTS case_inventory(
@@ -3481,6 +3931,78 @@ def api_chat(request: Request, payload: Dict[str, Any]):
     system = "Ты дружелюбный помощник. Пиши на русском. Не упоминай ИИ."
     out = provider_chat(provider=provider, model=model, system=system, user=message)
     return {"ok": True, "reply": out}
+
+
+# ----------------------------
+# Shop config (admin editable, public readable)
+# ----------------------------
+def _shop_cfg_get():
+    con = db_conn()
+    row = con.execute("SELECT json, updated_at FROM shop_config WHERE key=?", ("main",)).fetchone()
+    con.close()
+    if not row:
+        return None
+    try:
+        return json.loads(_rget(row, "json") or "{}")
+    except Exception:
+        return None
+
+def _shop_cfg_set(cfg: Dict[str, Any]):
+    con = db_conn()
+    now = datetime.datetime.utcnow().isoformat()
+    js = json.dumps(cfg or {}, ensure_ascii=False)
+    # sqlite uses ON CONFLICT(key) DO UPDATE ; postgres supports too with PRIMARY/UNIQUE
+    con.execute(
+        "INSERT INTO shop_config(key,json,updated_at) VALUES(?,?,?) "
+        "ON CONFLICT(key) DO UPDATE SET json=excluded.json, updated_at=excluded.updated_at",
+        ("main", js, now),
+    )
+    con.commit()
+    con.close()
+
+@app.get("/api/shop_config")
+def api_shop_config():
+    cfg = _shop_cfg_get() or {}
+    return {"ok": True, "config": cfg}
+
+@app.post("/api/admin/shop_config")
+def api_admin_shop_config(request: Request, payload: Dict[str, Any]):
+    require_admin(request)
+    cfg = payload.get("config") or {}
+    if not isinstance(cfg, dict):
+        raise HTTPException(status_code=400, detail="config must be object")
+    _shop_cfg_set(cfg)
+    return {"ok": True}
+
+
+
+@app.get("/admin/shop-builder")
+def admin_shop_builder(request: Request):
+    require_admin(request)
+    return templates.TemplateResponse("shop_builder.html", {"request": request})
+
+
+@app.post("/api/admin/upload_banner")
+async def api_admin_upload_banner(request: Request, file: UploadFile = File(...)):
+    require_admin(request)
+    # basic validation
+    fn = (file.filename or "").lower()
+    if not (fn.endswith(".png") or fn.endswith(".jpg") or fn.endswith(".jpeg") or fn.endswith(".webp") or fn.endswith(".gif")):
+        raise HTTPException(status_code=400, detail="unsupported file type")
+    data = await file.read()
+    if not data or len(data) > 6 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="file too large")
+    import uuid, os
+    updir = os.path.join("static", "uploads")
+    os.makedirs(updir, exist_ok=True)
+    ext = os.path.splitext(fn)[1] or ".png"
+    name = f"banner_{uuid.uuid4().hex}{ext}"
+    path = os.path.join(updir, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    return {"ok": True, "url": f"/static/uploads/{name}"}
+
+
 @app.get("/api/health")
 def api_health():
     return {"ok": True}

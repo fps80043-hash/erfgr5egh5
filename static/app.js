@@ -407,7 +407,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const invBack = document.getElementById("invBack");
   if(invClose) invClose.addEventListener("click", closeInvModal);
   if(invBack) invBack.addEventListener("click", (e)=>{ if(e.target===invBack) closeInvModal(); });
-  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape"){ closeInvModal(); closeNotifModal(); closeAdminModal(); } });
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape"){ closeInvModal(); closeNotifModal(); closeAdminModal(); closeSettingsModal(); closeShopPanelModal(); } });
 
 
 
@@ -435,6 +435,111 @@ document.addEventListener("DOMContentLoaded", ()=>{
   });
   if(aClose) aClose.addEventListener("click", ()=>closeAdminModal());
   if(aBack) aBack.addEventListener("click", (e)=>{ if(e.target===aBack) closeAdminModal(); });
+
+  // Settings modal
+  const sOpen = document.getElementById("btnSettings");
+  const sClose = document.getElementById("btnSettingsClose");
+  const sModal = document.getElementById("settingsModal");
+  if(sOpen) sOpen.addEventListener("click", ()=>openSettingsModal());
+  if(sClose) sClose.addEventListener("click", ()=>closeSettingsModal());
+  if(sModal) sModal.addEventListener("click", (e)=>{ if(e.target===sModal) closeSettingsModal(); });
+  
+  // Settings tabs
+  document.querySelectorAll("#settingsModal .modalTabs .pill").forEach((b)=>{
+    b.addEventListener("click", ()=>{
+      document.querySelectorAll("#settingsModal .modalTabs .pill").forEach(x=>x.classList.toggle("active", x===b));
+      const which = b.dataset.stab;
+      const pa = document.getElementById("settingsPaneAppearance");
+      const ps = document.getElementById("settingsPaneSecurity");
+      if(pa) pa.style.display = (which==="appearance"?"block":"none");
+      if(ps) ps.style.display = (which==="security"?"block":"none");
+    });
+  });
+
+  // 2FA controls
+  const tEn = document.getElementById("btnTwofaEnable");
+  const tDis = document.getElementById("btnTwofaDisable");
+  if(tEn) tEn.addEventListener("click", ()=>twofaEnableFlow().catch(()=>{}));
+  if(tDis) tDis.addEventListener("click", ()=>twofaDisable().catch(()=>{}));
+
+  
+  // Security: change password / email
+  const btnPwSave = document.getElementById("btnSecPwSave");
+  const btnEmailSend = document.getElementById("btnSecEmailSend");
+  const btnEmailConfirm = document.getElementById("btnSecEmailConfirm");
+
+  if(btnPwSave) btnPwSave.addEventListener("click", async ()=>{
+    const cur = (document.getElementById("secCurPw")?.value||"").trim();
+    const n1 = (document.getElementById("secNewPw")?.value||"").trim();
+    const n2 = (document.getElementById("secNewPw2")?.value||"").trim();
+    if(!cur || !n1 || !n2) return toast("Заполни поля", "Нужны текущий и новый пароль", "bad");
+    try{
+      const j = await apiPost('/api/security/password', {current:cur, new:n1, new2:n2});
+      if(j.ok){
+        toast("Готово", "Пароль обновлён", "ok");
+        document.getElementById("secCurPw").value="";
+        document.getElementById("secNewPw").value="";
+        document.getElementById("secNewPw2").value="";
+      }else{
+        toast("Ошибка", j.detail||"Не удалось", "bad");
+      }
+    }catch(e){
+      toast("Ошибка", "Не удалось обновить пароль", "bad");
+    }
+  });
+
+  if(btnEmailSend) btnEmailSend.addEventListener("click", async ()=>{
+    const pw = (document.getElementById("secEmailPw")?.value||"").trim();
+    const em = (document.getElementById("secNewEmail")?.value||"").trim();
+    if(!pw || !em) return toast("Заполни поля", "Нужен пароль и новая почта", "bad");
+    try{
+      const j = await apiPost('/api/security/email_start', {password: pw, new_email: em});
+      if(j.ok){
+        toast("Код отправлен", "Проверь новую почту", "ok");
+      }else{
+        toast("Ошибка", j.detail||"Не удалось", "bad");
+      }
+    }catch(e){
+      toast("Ошибка", "Не удалось отправить код", "bad");
+    }
+  });
+
+  if(btnEmailConfirm) btnEmailConfirm.addEventListener("click", async ()=>{
+    const em = (document.getElementById("secNewEmail")?.value||"").trim();
+    const code = (document.getElementById("secEmailCode")?.value||"").trim();
+    if(!em || !code) return toast("Заполни поля", "Нужны почта и код", "bad");
+    try{
+      const j = await apiPost('/api/security/email_confirm', {new_email: em, code});
+      if(j.ok){
+        toast("Готово", "Почта обновлена", "ok");
+        await refreshMe();
+      }else{
+        toast("Ошибка", j.detail||"Не удалось", "bad");
+      }
+    }catch(e){
+      toast("Ошибка", "Не удалось подтвердить почту", "bad");
+    }
+  });
+
+// Admin shop panel
+  const spOpen = document.getElementById("btnShopPanel");
+  const spClose = document.getElementById("btnShopPanelClose");
+  const spModal = document.getElementById("shopPanelModal");
+  if(spOpen) spOpen.addEventListener("click", ()=>openShopPanelModal());
+  const btnGoBuilder = document.getElementById("btnShopGoBuilder");
+  const btnGoManage = document.getElementById("btnShopGoManage");
+  if(btnGoBuilder) btnGoBuilder.addEventListener("click", ()=>{
+    closeShopPanelModal();
+    openShopConstructor({mode:"builder"});
+  });
+  if(btnGoManage) btnGoManage.addEventListener("click", ()=>{
+    closeShopPanelModal();
+    openShopConstructor({mode:"manage"});
+  });
+
+  if(spClose) spClose.addEventListener("click", ()=>closeShopPanelModal());
+  if(spModal) spModal.addEventListener("click", (e)=>{ if(e.target===spModal) closeShopPanelModal(); });
+
 
   const btnFind = document.getElementById("btnAdminFind");
   const btnUsers = document.getElementById("btnAdminUsersRefresh");
@@ -516,6 +621,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   // particle / snow background
   initParticles();
+  loadAndApplyShopConfig().catch(()=>{});
+
+  // Initial auth state + UI (needed for guest layout)
+  refreshMe().catch(()=>{});
 });
 
 function buildOptions(wrap, sel){
@@ -765,6 +874,8 @@ function drainToasts(){
 }
 
 let currentUser = null;
+// legacy alias used by some modules (shop builder, etc.)
+let _me = null;
 
 // Payments (Topups + Premium by balance)
 let topupCfg = null;
@@ -987,54 +1098,75 @@ function initTilt(){
 
   const els = $$(".tilt");
   els.forEach(el=>{
+    // prevent double-binding (it caused flicker / "дёргание" after re-renders)
+    if(el.dataset.tiltBound === "1") return;
+    el.dataset.tiltBound = "1";
+
     if(el.matches(":disabled")) return;
 
-    // Reduce jitter on heavy cards (products) by limiting angles and throttling updates
     const isProduct = el.classList.contains("productCard") || el.closest(".productGrid");
+    const maxY = isProduct ? 5.0 : 7.0;   // deg
+    const maxX = isProduct ? 3.6 : 5.5;   // deg
 
-    const maxY = isProduct ? 5.5 : 7.0;   // deg
-    const maxX = isProduct ? 4.0 : 5.5;   // deg
-
+    // Smooth animation (lerp) to avoid micro-jitter on high DPI / moving backgrounds
+    let hover = false;
     let raf = 0;
-    let lastEvt = null;
+    let target = {rx:0, ry:0, mx:50, my:20};
+    let cur    = {rx:0, ry:0, mx:50, my:20};
 
-    const apply = ()=>{
+    const tick = ()=>{
       raf = 0;
-      if(!lastEvt) return;
-      const e = lastEvt;
+      // lerp
+      const k = 0.18;
+      cur.rx += (target.rx - cur.rx) * k;
+      cur.ry += (target.ry - cur.ry) * k;
+      cur.mx += (target.mx - cur.mx) * k;
+      cur.my += (target.my - cur.my) * k;
+
+      el.style.setProperty("--rx", cur.rx.toFixed(2) + "deg");
+      el.style.setProperty("--ry", cur.ry.toFixed(2) + "deg");
+      el.style.setProperty("--mx", cur.mx.toFixed(2) + "%");
+      el.style.setProperty("--my", cur.my.toFixed(2) + "%");
+
+      if(hover){
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    const schedule = ()=>{
+      if(raf) return;
+      raf = requestAnimationFrame(tick);
+    };
+
+    const setFromEvent = (e)=>{
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / Math.max(1, r.width);
       const y = (e.clientY - r.top) / Math.max(1, r.height);
-      const ry = (x - 0.5) * maxY;
-      const rx = -(y - 0.5) * maxX;
-      el.style.setProperty("--mx", (x*100).toFixed(2) + "%");
-      el.style.setProperty("--my", (y*100).toFixed(2) + "%");
-      el.style.setProperty("--rx", rx.toFixed(2) + "deg");
-      el.style.setProperty("--ry", ry.toFixed(2) + "deg");
-    };
-
-    const schedule = (e)=>{
-      lastEvt = e;
-      if(raf) return;
-      raf = requestAnimationFrame(apply);
+      target.mx = x*100;
+      target.my = y*100;
+      target.ry = (x - 0.5) * maxY;
+      target.rx = -(y - 0.5) * maxX;
+      schedule();
     };
 
     el.addEventListener("mouseenter", (e)=>{
-      // keep transition stable (avoid flicker)
-      el.style.transition = "transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease";
-      schedule(e);
+      hover = true;
+      el.classList.remove("isLeaving");
+      setFromEvent(e);
     });
 
     el.addEventListener("mousemove", (e)=>{
-      schedule(e);
+      if(!hover) return;
+      setFromEvent(e);
     });
 
     el.addEventListener("mouseleave", ()=>{
-      el.style.transition = "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease";
-      el.style.setProperty("--rx", "0deg");
-      el.style.setProperty("--ry", "0deg");
-      el.style.setProperty("--mx", "50%");
-      el.style.setProperty("--my", "20%");
+      hover = false;
+      el.classList.add("isLeaving");
+      target = {rx:0, ry:0, mx:50, my:20};
+      schedule();
+      // after animation, drop leaving-state
+      setTimeout(()=>el.classList.remove("isLeaving"), 260);
     });
   });
 }
@@ -1492,6 +1624,7 @@ async function refreshMe() {
   } catch (_e) {
     currentUser = null;
   }
+  _me = currentUser;
 
   const st = $("#meStatus");
   const pName = $("#pName");
@@ -1514,6 +1647,19 @@ async function refreshMe() {
   const adminCard = $("#adminCard");
   const adminUserCard = $("#adminUserCard");
   const btnNotifOpen = $("#btnNotifOpen");
+
+const btnSettings = $("#btnSettings");
+const btnShopPanel = $("#btnShopPanel");
+
+
+  document.body.classList.toggle("guest", !currentUser);
+  document.body.classList.toggle("authed", !!currentUser);
+  // mark admin in DOM for CSS/UI gates
+  document.body.classList.toggle("admin", !!(currentUser && currentUser.is_admin));
+  if(!currentUser){
+    if ($("#btnSettings")) $("#btnSettings").style.display = "none";
+    if ($("#btnShopPanel")) $("#btnShopPanel").style.display = "none";
+  }
 
   if (currentUser) {
     if(!topupCfg) await loadTopupConfig();
@@ -1538,6 +1684,11 @@ async function refreshMe() {
     if (premPayBox) premPayBox.style.display = "block";
     if (adminCard) adminCard.style.display = (currentUser.is_admin ? "block" : "none");
     if (btnNotifOpen) btnNotifOpen.style.display = "inline-flex";
+    if (btnSettings) btnSettings.style.display = "inline-flex";
+    if (btnShopPanel) btnShopPanel.style.display = (currentUser.is_admin ? "inline-flex" : "none");
+    try{ syncSettingsUI(); }catch(_e){}
+    try{ await loadAndApplyShopConfig(); }catch(_e){}
+
     notifPull().catch(()=>{});
     if (currentUser.is_admin){
       const tbox = $("#adminTopupsList");
@@ -1614,6 +1765,15 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
     if (typeof window.invPull === "function") {
       await window.invPull().catch(() => {});
     }
+
+    // 2FA recommendation (only if 2FA disabled and user didn't dismiss)
+    try{
+      const laterUntil = Number(localStorage.getItem("rst_twofa_later_until") || "0");
+      const canShowLater = !(laterUntil && Date.now() < laterUntil);
+      if (canShowLater && currentUser && !currentUser.twofa_email_enabled && !currentUser.hide_2fa_reminder) {
+        if (typeof window.openTwofaRecommend === "function") window.openTwofaRecommend();
+      }
+    }catch(_e){}
   } else {
     if (st) st.textContent = "не вошёл";
     if (authBox) authBox.style.display = "block";
@@ -2093,13 +2253,65 @@ const CASE_ITEMS = [
   const c = localStorage.getItem("rst_cookie");
   if (c && $("#cookie")) $("#cookie").value = c;
 
+  // generator UX: auto preview toggle + variable chips
+  const autoKey = "rst_auto_preview";
+  const autoPreview = $("#autoPreview");
+  if (autoPreview) {
+    const v = localStorage.getItem(autoKey);
+    autoPreview.checked = (v == null) ? true : (v === "1");
+    autoPreview.addEventListener("change", () => {
+      localStorage.setItem(autoKey, autoPreview.checked ? "1" : "0");
+    });
+  }
+
+  // Remember last focused input for variable insertion
+  let _genLastFocus = null;
+  ["#tplTitle", "#tplDesc"].forEach(sel => {
+    const el = $(sel);
+    if (!el) return;
+    el.addEventListener("focus", () => { _genLastFocus = el; });
+    el.addEventListener("click", () => { _genLastFocus = el; });
+  });
+
+  function insertAtCursor(el, text){
+    if (!el || !text) return;
+    try {
+      const start = el.selectionStart ?? 0;
+      const end = el.selectionEnd ?? 0;
+      const v = el.value || "";
+      el.value = v.slice(0, start) + text + v.slice(end);
+      const pos = start + text.length;
+      el.setSelectionRange(pos, pos);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.focus();
+    } catch (_e) {
+      // fallback
+      el.value = (el.value || "") + text;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.focus();
+    }
+  }
+
+  const varsRow = $("#varsRow");
+  if (varsRow) {
+    const vars = [
+      "{username}", "{robux}", "{rap_tag}", "{donate_tag}", "{year_tag}", "{profile_link}", "{inv_ru}"
+    ];
+    varsRow.innerHTML = vars.map(v => `<button type="button" class="varChip" data-var="${escapeHtml(v)}">${escapeHtml(v)}</button>`).join("");
+    varsRow.querySelectorAll("[data-var]").forEach(b => {
+      b.addEventListener("click", () => insertAtCursor(_genLastFocus || $("#tplDesc") || $("#tplTitle"), b.getAttribute("data-var")));
+    });
+  }
+
+  $("#btnBuildPreview")?.addEventListener("click", () => renderPreview().catch(() => {}));
+
   $("#tplTitle")?.addEventListener("input", () => {
     saveTpl();
-    renderPreview().catch(() => {});
+    if ($("#autoPreview")?.checked) renderPreview().catch(() => {});
   });
   $("#tplDesc")?.addEventListener("input", () => {
     saveTpl();
-    renderPreview().catch(() => {});
+    if ($("#autoPreview")?.checked) renderPreview().catch(() => {});
   });
 
   $("#btnSaveTpl")?.addEventListener("click", () => {
@@ -2238,84 +2450,295 @@ const CASE_ITEMS = [
     if (e.key === "Enter") sendChat();
   });
 
+
   // Auth tabs
   $$(".authTabs .pill").forEach((b) => b.addEventListener("click", () => setAuthPane(b.dataset.auth)));
   setAuthPane("login");
 
-  // Login
-  $("#btnLogin")?.addEventListener("click", async () => {
-    try {
-      const username = $("#loginUser")?.value || "";
+  // --- Auth wizard state (saved locally) ---
+  const AUTH_DRAFT_KEY = "rst_auth_draft_v1";
+  const authDraft = (() => {
+    try { return JSON.parse(localStorage.getItem(AUTH_DRAFT_KEY) || "{}") || {}; } catch(_e){ return {}; }
+  })();
+  const saveDraft = () => {
+    const d = {
+      loginUser: $("#loginUser")?.value || "",
+      loginPass: $("#loginPass")?.value || "",
+      regUser: $("#regUser")?.value || "",
+      regEmail: $("#regEmail")?.value || "",
+      regPass: $("#regPass")?.value || "",
+      regPass2: $("#regPass2")?.value || "",
+      resetEmail: $("#resetEmail")?.value || "",
+    };
+    try { localStorage.setItem(AUTH_DRAFT_KEY, JSON.stringify(d)); } catch(_e){}
+  };
+  const restoreDraft = () => {
+    const map = [
+      ["loginUser","loginUser"],["loginPass","loginPass"],
+      ["regUser","regUser"],["regEmail","regEmail"],["regPass","regPass"],["regPass2","regPass2"],
+      ["resetEmail","resetEmail"]
+    ];
+    map.forEach(([k,id])=>{
+      const el = $("#"+id);
+      if(el && typeof authDraft[k] === "string" && authDraft[k]) el.value = authDraft[k];
+    });
+  };
+  restoreDraft();
+  ["loginUser","loginPass","regUser","regEmail","regPass","regPass2","resetEmail"].forEach(id=>{
+    $("#"+id)?.addEventListener("input", saveDraft);
+  });
+
+  function authShowStep(flow, step){
+    const box = document.querySelector(`.authSteps[data-flow="${flow}"]`);
+    if(!box) return;
+    box.querySelectorAll(".authStep").forEach(st=>{
+      st.classList.toggle("active", String(st.dataset.step) === String(step));
+    });
+
+    // hints
+    if(flow === "login"){
+      const hint = $("#loginStepHint");
+      if(hint) hint.textContent = step === 1 ? "Шаг 1 из 3 — логин или email" : (step === 2 ? "Шаг 2 из 3 — пароль" : "Шаг 3 из 3 — код из письма");
+    }else if(flow === "reg"){
+      const hint = $("#regStepHint");
+      if(hint) hint.textContent = step === 1 ? "Шаг 1 из 3 — логин и email" : (step === 2 ? "Шаг 2 из 3 — пароль" : "Шаг 3 из 3 — код из письма");
+    }else if(flow === "reset"){
+      const hint = $("#resetStepHint");
+      if(hint) hint.textContent = step === 1 ? "Шаг 1 из 2 — email" : "Шаг 2 из 2 — код и новый пароль";
+    }
+  }
+
+  // Back buttons
+  $$(".authBack").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const flow = btn.dataset.flow;
+      const to = Number(btn.dataset.to||"1");
+      authShowStep(flow, to);
+    });
+  });
+
+  // default steps
+  authShowStep("login", 1);
+  authShowStep("reg", 1);
+  authShowStep("reset", 1);
+
+  // Login wizard
+  $("#btnLoginNext1")?.addEventListener("click", ()=>{
+    if(!($("#loginUser")?.value||"").trim()){
+      toast("Вход", "Укажи логин или email", "warn");
+      return;
+    }
+    authShowStep("login", 2);
+    $("#loginPass")?.focus();
+  });
+
+  $("#btnLoginNext2")?.addEventListener("click", async ()=>{
+    try{
+      const username = ($("#loginUser")?.value||"").trim();
       const password = $("#loginPass")?.value || "";
-      await apiPost("/api/auth/login", { username, password });
+      if(!username || !password){
+        toast("Вход", "Заполни логин и пароль", "warn");
+        return;
+      }
+      const res = await apiPost("/api/auth/login", { username, password });
+      if(res && res.needs_2fa){
+        authShowStep("login", 3);
+        $("#loginCode")?.focus();
+        toast("2FA", "Код отправлен на почту", "ok");
+        return;
+      }
       toast("Профиль", "Вход выполнен", "ok");
       await refreshMe();
       await syncPull().catch(() => {});
-      if (currentUser && currentUser.limits && currentUser.limits.premium) {
-        if (currentUser && currentUser.limits && currentUser.limits.premium) { await chatPull().catch(() => {}); }
+      if (currentUser && currentUser.limits && currentUser.limits.premium) { await chatPull().catch(() => {}); }
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnLoginConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const username = ($("#loginUser")?.value||"").trim();
+      const code = ($("#loginCode")?.value||"").trim();
+      if(!code){
+        toast("2FA", "Введи код", "warn");
+        return;
       }
-    } catch (e) {
-      toast("Ошибка", e.message, "bad");
-    }
-  });
-
-  // Register start
-  $("#btnRegStart")?.addEventListener("click", async () => {
-    try {
-      const username = $("#regUser")?.value || "";
-      const email = $("#regEmail")?.value || "";
-      const password = $("#regPass")?.value || "";
-      await apiPost("/api/auth/register_start", { username, email, password });
-      toast("Регистрация", "Код отправлен на почту", "ok");
-      $("#regCode")?.focus();
-    } catch (e) {
-      toast("Ошибка", e.message, "bad");
-    }
-  });
-
-  // Register confirm
-  $("#btnRegConfirm")?.addEventListener("click", async () => {
-    try {
-      const email = $("#regEmail")?.value || "";
-      const code = $("#regCode")?.value || "";
-      await apiPost("/api/auth/register_confirm", { email, code });
-      toast("Регистрация", "Готово — ты вошёл", "ok");
+      await apiPost("/api/auth/login_confirm", { username, code });
+      toast("Профиль", "Вход выполнен", "ok");
+      $("#loginCode").value = "";
       await refreshMe();
       await syncPull().catch(() => {});
-      if (currentUser && currentUser.limits && currentUser.limits.premium) {
-        if (currentUser && currentUser.limits && currentUser.limits.premium) { await chatPull().catch(() => {}); }
-      }
-    } catch (e) {
+      if (currentUser && currentUser.limits && currentUser.limits.premium) { await chatPull().catch(() => {}); }
+    }catch(e){
       toast("Ошибка", e.message, "bad");
     }
   });
 
-  // Reset start
-  $("#btnResetStart")?.addEventListener("click", async () => {
-    try {
-      const email = $("#resetEmail")?.value || "";
+  // Register wizard
+  $("#btnRegNext1")?.addEventListener("click", ()=>{
+    const u = ($("#regUser")?.value||"").trim();
+    const em = ($("#regEmail")?.value||"").trim();
+    if(!u || !em){
+      toast("Регистрация", "Укажи логин и email", "warn");
+      return;
+    }
+    authShowStep("reg", 2);
+    $("#regPass")?.focus();
+  });
+
+  $("#btnRegSendCode")?.addEventListener("click", async ()=>{
+    try{
+      const username = ($("#regUser")?.value||"").trim();
+      const email = ($("#regEmail")?.value||"").trim();
+      const p1 = $("#regPass")?.value || "";
+      const p2 = $("#regPass2")?.value || "";
+      if(!username || !email || !p1){
+        toast("Регистрация", "Заполни все поля", "warn");
+        return;
+      }
+      if(p1 !== p2){
+        toast("Регистрация", "Пароли не совпадают", "warn");
+        return;
+      }
+      await apiPost("/api/auth/register_start", { username, email, password: p1 });
+      toast("Регистрация", "Код отправлен на почту", "ok");
+      authShowStep("reg", 3);
+      $("#regCode")?.focus();
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnRegConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const email = ($("#regEmail")?.value||"").trim();
+      const code = ($("#regCode")?.value||"").trim();
+      await apiPost("/api/auth/register_confirm", { email, code });
+      toast("Регистрация", "Готово — ты вошёл", "ok");
+      $("#regCode").value = "";
+      await refreshMe();
+      await syncPull().catch(() => {});
+      if (currentUser && currentUser.limits && currentUser.limits.premium) { await chatPull().catch(() => {}); }
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  // Reset wizard
+  $("#btnResetSendCode")?.addEventListener("click", async ()=>{
+    try{
+      const email = ($("#resetEmail")?.value||"").trim();
+      if(!email){ toast("Сброс", "Укажи email", "warn"); return; }
       await apiPost("/api/auth/reset_start", { email });
       toast("Сброс", "Если email существует — код отправлен", "ok");
+      authShowStep("reset", 2);
       $("#resetCode")?.focus();
-    } catch (e) {
+    }catch(e){
       toast("Ошибка", e.message, "bad");
     }
   });
 
-  // Reset confirm
-  $("#btnResetConfirm")?.addEventListener("click", async () => {
-    try {
-      const email = $("#resetEmail")?.value || "";
-      const code = $("#resetCode")?.value || "";
+  $("#btnResetConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const email = ($("#resetEmail")?.value||"").trim();
+      const code = ($("#resetCode")?.value||"").trim();
       const new_password = $("#resetPass")?.value || "";
       await apiPost("/api/auth/reset_confirm", { email, code, new_password });
       toast("Сброс", "Пароль обновлён", "ok");
+      authShowStep("reset", 1);
       setAuthPane("login");
-    } catch (e) {
+      authShowStep("login", 1);
+    }catch(e){
       toast("Ошибка", e.message, "bad");
     }
   });
 
+  // 2FA recommendation + setup modals
+  function modalOpen(backId, modalId){
+    const back = $("#"+backId), modal = $("#"+modalId);
+    if(!back || !modal) return;
+    back.classList.remove("hidden");
+    modal.classList.remove("hidden");
+    modal.classList.add("open");
+    requestAnimationFrame(()=>modal.classList.add("vis"));
+  }
+  function modalClose(backId, modalId){
+    const back = $("#"+backId), modal = $("#"+modalId);
+    if(!back || !modal) return;
+    modal.classList.remove("vis");
+    modal.classList.remove("open");
+    back.classList.add("hidden");
+    modal.classList.add("hidden");
+  }
+  window.openTwofaSetup = ()=>{ modalOpen("twofaSetBack","twofaSetModal"); $("#twofaSetStep1").style.display="block"; $("#twofaSetStep2").style.display="none"; };
+  window.closeTwofaSetup = ()=> modalClose("twofaSetBack","twofaSetModal");
+  window.openTwofaRecommend = ()=> modalOpen("twofaRecBack","twofaRecModal");
+  window.closeTwofaRecommend = ()=> modalClose("twofaRecBack","twofaRecModal");
+
+  $("#btnTwofaRecClose")?.addEventListener("click", window.closeTwofaRecommend);
+  $("#twofaRecBack")?.addEventListener("click", window.closeTwofaRecommend);
+
+  $("#btnTwofaRecLater")?.addEventListener("click", ()=>{
+    try{ localStorage.setItem("rst_twofa_later_until", String(Date.now() + 24*60*60*1000)); }catch(_e){}
+    window.closeTwofaRecommend();
+  });
+
+  $("#btnTwofaRecNever")?.addEventListener("click", async ()=>{
+    try{
+      await apiPost("/api/user/twofa_hide_reminder", {});
+      window.closeTwofaRecommend();
+      toast("2FA", "Ок, больше не напомню", "ok");
+      await refreshMe();
+    }catch(e){
+      window.closeTwofaRecommend();
+    }
+  });
+
+  $("#btnTwofaRecEnable")?.addEventListener("click", ()=>{
+    window.closeTwofaRecommend();
+    window.openTwofaSetup();
+  });
+
+  $("#btnTwofaSetClose")?.addEventListener("click", window.closeTwofaSetup);
+  $("#twofaSetBack")?.addEventListener("click", window.closeTwofaSetup);
+
+  $("#btnTwofaSend")?.addEventListener("click", async ()=>{
+    try{
+      await apiPost("/api/user/twofa_enable_start", {});
+      $("#twofaSetStep1").style.display="none";
+      $("#twofaSetStep2").style.display="block";
+      $("#twofaEnableCode")?.focus();
+      toast("2FA", "Код отправлен на почту", "ok");
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnTwofaConfirm")?.addEventListener("click", async ()=>{
+    try{
+      const code = ($("#twofaEnableCode")?.value||"").trim();
+      if(!code){ toast("2FA", "Введи код", "warn"); return; }
+      await apiPost("/api/user/twofa_enable_confirm", { code });
+      $("#twofaEnableCode").value = "";
+      window.closeTwofaSetup();
+      toast("2FA", "Включено", "ok");
+      await refreshMe();
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
+
+  $("#btnTwofaDisable")?.addEventListener("click", async ()=>{
+    try{
+      await apiPost("/api/user/twofa_disable", {});
+      window.closeTwofaSetup();
+      toast("2FA", "Выключено", "warn");
+      await refreshMe();
+    }catch(e){
+      toast("Ошибка", e.message, "bad");
+    }
+  });
   // Logout + sync buttons
   $("#btnLogout")?.addEventListener("click", async () => {
     await apiPost("/api/auth/logout", {});
@@ -2810,3 +3233,1152 @@ $("#btnCaseOpenPaid")?.addEventListener("click", async ()=>{
   };
   document.addEventListener("pointermove", onMove, {passive:true});
 })();
+
+
+
+
+/* -------------------------
+   Transactions modal
+--------------------------*/
+function openTxModal(){
+  const m = $("#txModal");
+  if(!m) { toast("История транзакций скоро будет доступна"); return; }
+  m.classList.add("open");
+  m.setAttribute("aria-hidden","false");
+  // lazy load
+  txRefresh().catch(()=>{});
+}
+function closeTxModal(){
+  const m = $("#txModal");
+  if(!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden","true");
+}
+async function txRefresh(){
+  const box = $("#txList");
+  if(!box) return;
+  if(!currentUser){ box.innerHTML = '<div class="muted">Нужно войти в аккаунт.</div>'; return; }
+
+  box.innerHTML = '<div class="muted">Загрузка…</div>';
+  try{
+    const j = await apiGet('/api/tx');
+    const items = (j.tx||[]);
+    if(!items.length){ box.innerHTML = '<div class="muted">Транзакций пока нет.</div>'; return; }
+
+    box.innerHTML = items.map(it=>{
+      const t = it.ts ? new Date(it.ts).toLocaleString() : '';
+      const delta = Number(it.delta||0);
+      const sign = delta >= 0 ? '+' : '';
+      const amt = sign + String(delta) + ' ₽';
+      const reason = esc(String(it.reason||''));
+      const who = (it.admin_id ? 'admin' : 'system');
+      return `<div class="txRow">
+        <div class="txMain">
+          <div class="txTitle">${reason || 'Операция'}</div>
+          <div class="txMeta">${t} • ${who}</div>
+        </div>
+        <div class="txAmt ${delta>=0?'pos':'neg'}">${amt}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML = '<div class="muted">Не удалось загрузить транзакции.</div>';
+  }
+}
+
+async function templatesRefresh(){
+  const box = $("#templatesList");
+  if(!box) return;
+  if(!currentUser){ box.innerHTML = '<div class="muted">Нужно войти в аккаунт.</div>'; return; }
+  box.innerHTML = '<div class="muted">Загрузка…</div>';
+  try{
+    const j = await apiGet('/api/templates');
+    const items = (j.items||[]);
+    if(!items.length){ box.innerHTML = '<div class="muted">Сохранённых шаблонов пока нет.</div>'; return; }
+    box.innerHTML = items.map(it=>{
+      const t = it.created_at ? new Date(it.created_at).toLocaleString() : '';
+      return `<div class="tplRow">
+        <div class="tplMain">
+          <div class="tplTitle">${escapeHtml(it.title||'Шаблон')}</div>
+          <div class="tplMeta muted">${escapeHtml(t)}</div>
+        </div>
+        <button class="btn mini" data-tpl-id="${escapeHtml(String(it.id||''))}" type="button">Открыть</button>
+      </div>`;
+    }).join('');
+    // open handler
+    box.querySelectorAll('button[data-tpl-id]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-tpl-id');
+        toast('Открытие шаблона: '+id);
+      });
+    });
+  }catch(_e){
+    box.innerHTML = '<div class="muted">Не удалось загрузить шаблоны.</div>';
+  }
+}
+
+/* -------------------------
+   Click delegation (safety)
+--------------------------*/
+document.addEventListener('click', (e)=>{
+  const t = e.target;
+  if(!t) return;
+  if(t.closest && t.closest('#btnSettings')){ try{ openSettingsModal(); }catch(_e){} }
+  if(t.closest && t.closest('#btnShopPanel')){ try{ openShopPanelModal(); }catch(_e){} }
+  if(t.closest && t.closest('#btnShowTx')){ try{ openTxModal(); }catch(_e){} }
+  if(t.closest && t.closest('#btnShowSavedTemplates')){ try{ openSavedTemplates(); }catch(_e){} }
+  if(t.closest && t.closest('#btnTxRefresh')){ try{ txRefresh(); }catch(_e){} }
+  if(t.closest && t.closest('#btnTxClose')){ try{ closeTxModal(); }catch(_e){} }
+  if(t.closest && t.closest('#btnTemplatesClose')){ try{ closeSavedTemplates(); }catch(_e){} }
+}, true);
+
+/* -------------------------
+   Templates modal
+--------------------------*/
+function openSavedTemplates(){
+  const m = $("#templatesModal");
+  if(!m){ toast("Шаблоны скоро будут доступны"); return; }
+  m.classList.add("open");
+  m.setAttribute("aria-hidden","false");
+  templatesRefresh().catch(()=>{});
+}
+function closeSavedTemplates(){
+  const m = $("#templatesModal");
+  if(!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden","true");
+}
+async function templatesRefresh(){
+  const box = $("#templatesList");
+  if(!box) return;
+  if(!currentUser){ box.innerHTML = '<div class="muted">Нужно войти в аккаунт.</div>'; return; }
+  box.innerHTML = '<div class="muted">Загрузка…</div>';
+  try{
+    const j = await apiGet('/api/templates');
+    const items = (j.items||j.templates||[]);
+    if(!items.length){ box.innerHTML = '<div class="muted">Пока нет сохранённых шаблонов.</div>'; return; }
+    box.innerHTML = items.map((it)=>{
+      const t = it.ts ? new Date(it.ts).toLocaleString() : '';
+      const title = esc(it.title||it.name||'Шаблон');
+      const body = esc(it.body||it.text||'');
+      return `<div class="tplRow">
+        <div class="tplHead">
+          <div class="tplTitle">${title}</div>
+          <div class="tplMeta">${t}</div>
+        </div>
+        <div class="tplBody">${body}</div>
+        <div class="tplBtns">
+          <button class="btn mini" type="button" data-tplcopy="${encodeURIComponent(body)}">Копировать</button>
+        </div>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-tplcopy]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const txt = decodeURIComponent(b.getAttribute('data-tplcopy')||'');
+        try{ navigator.clipboard.writeText(txt); toast('Шаблоны','Скопировано','ok'); }catch(e){ toast('Шаблоны','Не удалось скопировать','bad'); }
+      });
+    });
+  }catch(e){
+    box.innerHTML = '<div class="muted">Не удалось загрузить.</div>';
+  }
+}
+
+
+/* -------------------------
+   Settings modal
+--------------------------*/
+function openSettingsModal(){
+  const m = $("#settingsModal");
+  if(!m) return;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden","false");
+  // mount appearance card into modal
+  const mount = $("#settingsAppearanceMount");
+  const themeBox = $("#themeBox");
+  if(mount && themeBox && !mount.contains(themeBox)){
+    mount.appendChild(themeBox);
+    themeBox.style.display = "block";
+  }
+  syncSettingsUI();
+}
+function closeSettingsModal(){
+  const m = $("#settingsModal");
+  if(!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden","true");
+}
+function syncSettingsUI(){
+  const b = $("#twofaStateBadge");
+  if(!b) return;
+  const enabled = !!(currentUser && Number(currentUser.twofa_email_enabled||0)===1);
+  b.textContent = enabled ? "ON" : "OFF";
+  b.style.opacity = enabled ? "1" : ".8";
+  const b2 = $("#twofaStateBadge");
+  if(b2) b2.textContent = enabled ? "ON" : "OFF";
+}
+
+/* -------------------------
+   Shop config (public) + admin builder
+--------------------------*/
+let _shopCfgCache = null;
+
+async function loadAndApplyShopConfig(){
+  try{
+    const j = await apiGet("/api/shop_config");
+    _shopCfgCache = j.config || null;
+    applyShopConfig(_shopCfgCache);
+  }catch(_e){}
+}
+
+function applyShopConfig(cfg){
+  if(!cfg) return;
+  // v2: categories + custom items
+  const norm = normalizeShopCfg(cfg);
+  _shopCfgCache = norm;
+  renderShopFromCfg(norm);
+}
+
+function normalizeShopCfg(cfg){
+  const out = (cfg && typeof cfg === 'object') ? JSON.parse(JSON.stringify(cfg)) : {};
+  out.v = 2;
+  out.items = out.items && typeof out.items==='object' ? out.items : {};
+  // legacy order -> default category
+  if(!Array.isArray(out.categories) || !out.categories.length){
+    const legacyOrder = Array.isArray(out.order) ? out.order.slice() : [];
+    const base = legacyOrder.length ? legacyOrder : ["prodTopup","prodPremium","prodCaseFree","prodCasePaid"].filter(id=>document.getElementById(id));
+    out.categories = [{ id:"main", title:"Основное", order: base }];
+  }else{
+    out.categories = out.categories.map((c,i)=>({
+      id: String(c.id||`cat_${i}`),
+      title: String(c.title||"Категория"),
+      order: Array.isArray(c.order)? c.order.map(String): []
+    }));
+  }
+  // ensure every referenced item exists
+  out.categories.forEach(cat=>{
+    cat.order.forEach(id=>{ if(!out.items[id]) out.items[id] = {}; });
+  });
+  // add defaults for known static cards
+  const def = _defaultShopCfg();
+  Object.entries(def.items||{}).forEach(([id, it])=>{
+    out.items[id] = Object.assign({}, it, out.items[id]||{});
+  });
+  // editor prefs
+  out.editor = out.editor && typeof out.editor==='object' ? out.editor : {};
+  return out;
+}
+
+let _shopActiveCat = "main";
+let _shopEditorEnabled = false;
+let _shopEditorMode = "builder";
+
+function ensureShopInjected(){
+  const tab = document.getElementById('tab-shop');
+  if(!tab) return;
+  if(document.getElementById('shopCatsBar')) return;
+  const card = tab.querySelector('.card');
+  if(!card) return;
+
+  // category bar
+  const cats = document.createElement('div');
+  cats.id = 'shopCatsBar';
+  cats.className = 'shopCatsBar';
+  cats.innerHTML = `
+    <div class="shopCatsLeft" id="shopCatsLeft"></div>
+    <div class="shopCatsRight" id="shopCatsRight" style="display:none">
+      <button class="btn mini" id="btnShopEdGrid" type="button">Сетка</button>
+      <button class="btn mini" id="btnShopEdRuler" type="button">Линейка</button>
+      <button class="btn mini" id="btnShopEdAddCat" type="button">+ Раздел</button>
+      <button class="btn mini" id="btnShopEdAddItem" type="button">+ Товар</button>
+      <button class="btn primary mini" id="btnShopEdSave" type="button">Сохранить</button>
+      <button class="btn mini" id="btnShopEdExit" type="button">Выход</button>
+    </div>
+  `;
+  card.insertBefore(cats, card.querySelector('.shopControls'));
+
+  // editor panel
+  const panel = document.createElement('div');
+  panel.id = 'shopEditorPanel';
+  panel.className = 'shopEditorPanel';
+  panel.style.display = 'none';
+  panel.innerHTML = `
+    <div class="shopEdHead">
+      <div class="shopEdTitle">Конструктор магазина</div>
+      <div class="muted" style="font-size:12px">Перетаскивай карточки, редактируй поля, загружай баннеры — потом жми “Сохранить”.</div>
+    </div>
+    <div class="shopEdBody">
+      <div class="shopEdCol">
+        <div class="shopEdBlock">
+          <div class="lbl" style="margin-bottom:8px">Разделы</div>
+          <div id="shopEdCats"></div>
+        </div>
+        <div class="shopEdBlock" style="margin-top:12px">
+          <div class="lbl" style="margin-bottom:8px">Товары в разделе</div>
+          <div id="shopEdItems"></div>
+        </div>
+      </div>
+      <div class="shopEdCol">
+        <div class="shopEdBlock">
+          <div class="lbl" style="margin-bottom:8px">Редактор товара</div>
+          <div id="shopEdForm" class="muted" style="font-size:12px">Выбери товар слева.</div>
+        </div>
+      </div>
+    </div>
+  `;
+  card.appendChild(panel);
+
+  // overlay tools
+  const overlay = document.createElement('div');
+  overlay.id = 'shopOverlayTools';
+  overlay.className = 'shopOverlayTools';
+  overlay.innerHTML = `<div class="shopRulerX"></div><div class="shopRulerY"></div>`;
+  overlay.style.display = 'none';
+  card.appendChild(overlay);
+
+  // events
+  document.getElementById('btnShopEdGrid')?.addEventListener('click', ()=>{
+    document.body.classList.toggle('shopGridOn');
+  });
+  document.getElementById('btnShopEdRuler')?.addEventListener('click', ()=>{
+    const on = document.body.classList.toggle('shopRulerOn');
+    overlay.style.display = on ? 'block' : 'none';
+  });
+  document.getElementById('btnShopEdAddCat')?.addEventListener('click', ()=>shopEdAddCategory());
+  document.getElementById('btnShopEdAddItem')?.addEventListener('click', ()=>shopEdAddItem());
+  document.getElementById('btnShopEdSave')?.addEventListener('click', ()=>shopEdSave());
+  document.getElementById('btnShopEdExit')?.addEventListener('click', ()=>shopEdExit());
+
+  // ruler follow
+  card.addEventListener('mousemove', (e)=>{
+    if(!document.body.classList.contains('shopRulerOn')) return;
+    const r = card.getBoundingClientRect();
+    const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+    const y = Math.max(0, Math.min(r.height, e.clientY - r.top));
+    overlay.querySelector('.shopRulerX')?.setAttribute('style', `left:${x}px`);
+    overlay.querySelector('.shopRulerY')?.setAttribute('style', `top:${y}px`);
+  });
+}
+
+function renderShopFromCfg(cfg){
+  ensureShopInjected();
+  const catsLeft = document.getElementById('shopCatsLeft');
+  if(!catsLeft) return;
+  catsLeft.innerHTML = '';
+  cfg.categories.forEach(cat=>{
+    const b = document.createElement('button');
+    b.className = 'pillbtn' + (cat.id===_shopActiveCat ? ' active':'' );
+    b.type='button';
+    b.textContent = cat.title;
+    b.addEventListener('click', ()=>{ _shopActiveCat = cat.id; writeLS('shop_cat', _shopActiveCat); renderShopFromCfg(cfg); });
+    catsLeft.appendChild(b);
+  });
+  const saved = readLS('shop_cat', _shopActiveCat);
+  if(saved && cfg.categories.some(c=>c.id===saved)) _shopActiveCat = saved;
+
+  const cat = cfg.categories.find(c=>c.id===_shopActiveCat) || cfg.categories[0];
+  if(cat) _shopActiveCat = cat.id;
+
+  // rebuild grid for category
+  const grid = document.getElementById('shopGrid');
+  if(!grid) return;
+
+  // Keep existing static cards detached safely
+  const allKnownIds = new Set();
+  cfg.categories.forEach(c=>c.order.forEach(id=>allKnownIds.add(id)));
+  // remove custom cards not in active cat
+  Array.from(grid.querySelectorAll('.productCard')).forEach(el=>{
+    // we'll append active ones after
+  });
+
+  // append cards for active cat
+  grid.innerHTML = '';
+  (cat.order||[]).forEach(id=>{
+    const it = cfg.items[id] || (cfg.items[id] = {});
+    const card = ensureShopCard(id, it);
+    if(!card) return;
+    if(it.hidden) card.style.display='none'; else card.style.display='';
+    applyItemToCard(card, it);
+    // enable drag in editor
+    if(_shopEditorEnabled){
+      card.setAttribute('draggable','true');
+      card.classList.add('shopDraggable');
+      card.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', id); card.classList.add('dragging'); });
+      card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); });
+      card.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+      card.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        const from = e.dataTransfer.getData('text/plain');
+        const to = id;
+        if(!from || from===to) return;
+        const a = cat.order.indexOf(from);
+        const b = cat.order.indexOf(to);
+        if(a<0||b<0) return;
+        cat.order.splice(a,1);
+        cat.order.splice(b,0,from);
+        renderShopFromCfg(cfg);
+        shopEdRenderLists();
+      });
+    }else{
+      card.removeAttribute('draggable');
+      card.classList.remove('shopDraggable');
+    }
+    grid.appendChild(card);
+  });
+
+  // update editor toggle UI
+  const right = document.getElementById('shopCatsRight');
+  if(right) right.style.display = (_shopEditorEnabled ? 'flex':'none');
+  const panel = document.getElementById('shopEditorPanel');
+  if(panel) panel.style.display = (_shopEditorEnabled ? 'block':'none');
+  if(_shopEditorEnabled){
+    shopEdRenderLists();
+  }
+
+  // re-init tilt on new cards
+  try{ initTilt(); }catch(_e){}
+}
+
+function ensureShopCard(id, it){
+  let el = document.getElementById(id);
+  if(el) return el;
+  // create custom product card
+  el = document.createElement('div');
+  el.id = id;
+  el.className = 'productCard tilt pxtCard';
+  el.dataset.prod = id;
+  el.innerHTML = `
+    <div class="prodMedia">
+      <img class="prodMediaArt" alt="" loading="lazy" style="display:none"/>
+      <div class="prodMediaGlow"></div>
+    </div>
+    <div class="prodBody">
+      <div class="prodHead">
+        <div class="prodTitle">${esc(it.title||'Товар')}</div>
+        <div class="prodTag">${esc(it.tag||'NEW')}</div>
+      </div>
+      <div class="prodDesc">${esc(it.desc||'Описание товара')}</div>
+      <div class="prodFooter">
+        <button class="btn pxtBtn" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Открыть</button>
+        <div class="prodPrice">
+          <div class="priceHint">Starting at</div>
+          <div class="priceMain">${esc(it.price||'—')}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  // simple action
+  el.querySelector('button')?.addEventListener('click', ()=>toast('Магазин', 'Этот товар пока без обработчика покупки (визуальный товар).', 'warn'));
+  return el;
+}
+
+function applyItemToCard(card, it){
+  const t = card.querySelector('.prodTitle');
+  const d = card.querySelector('.prodDesc');
+  const tag = card.querySelector('.prodTag');
+  const price = card.querySelector('.priceMain');
+  const art = card.querySelector('.prodMediaArt');
+  if(t && it.title) t.textContent = it.title;
+  if(d && it.desc) d.textContent = it.desc;
+  if(tag && it.tag) tag.textContent = it.tag;
+  if(price && it.price!=null) price.textContent = String(it.price);
+  if(art){
+    if(it.banner){ art.style.display='block'; art.src = it.banner; }
+    else { art.style.display='none'; }
+  }
+}
+
+async function openShopConstructor({mode="builder"}={}){
+  // admin-only guard
+  if(!_me || !_me.is_admin){
+    toast('Панель магазина', 'Нет прав администратора', 'bad');
+    return;
+  }
+  _shopEditorEnabled = true;
+  _shopEditorMode = mode;
+  try{ switchTab('shop'); }catch(_e){}
+  try{ window.location.hash = '#shop'; }catch(_e){}
+  ensureShopInjected();
+  const j = await apiGet('/api/shop_config');
+  _shopCfgCache = normalizeShopCfg(j.config||{});
+  if(mode==='manage'){
+    // try select last or first item
+    const cat = _shopCfgCache.categories.find(c=>c.id===_shopActiveCat) || _shopCfgCache.categories[0];
+    _shopEdSelected = (cat?.order?.[0]) || null;
+  }
+  renderShopFromCfg(_shopCfgCache);
+  toast('Конструктор', 'Режим конструктора включён', 'ok');
+}
+
+function shopEdExit(){
+  _shopEditorEnabled = false;
+  document.body.classList.remove('shopGridOn','shopRulerOn');
+  document.getElementById('shopOverlayTools')?.setAttribute('style','display:none');
+  if(_shopCfgCache) renderShopFromCfg(_shopCfgCache);
+}
+
+let _shopEdSelected = null;
+
+function shopEdRenderLists(){
+  if(!_shopCfgCache) return;
+  const cfg = _shopCfgCache;
+  const cats = document.getElementById('shopEdCats');
+  const items = document.getElementById('shopEdItems');
+  const form = document.getElementById('shopEdForm');
+  if(!cats||!items||!form) return;
+
+  cats.innerHTML='';
+  cfg.categories.forEach(cat=>{
+    const row = document.createElement('div');
+    row.className = 'shopEdCat' + (cat.id===_shopActiveCat ? ' active':'');
+    row.innerHTML = `
+      <button class="btn mini" type="button" data-act="sel">${esc(cat.title)}</button>
+      <div class="shopEdCatBtns">
+        <button class="btn mini" type="button" data-act="ren">✎</button>
+        <button class="btn mini" type="button" data-act="del">🗑</button>
+      </div>
+    `;
+    row.querySelector('[data-act="sel"]').addEventListener('click', ()=>{ _shopActiveCat = cat.id; renderShopFromCfg(cfg); });
+    row.querySelector('[data-act="ren"]').addEventListener('click', ()=>{
+      const n = prompt('Название раздела', cat.title||'');
+      if(n){ cat.title = n.trim(); renderShopFromCfg(cfg); }
+    });
+    row.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+      if(cfg.categories.length<=1) return toast('Разделы', 'Нужен минимум 1 раздел', 'bad');
+      if(!confirm('Удалить раздел? Товары из него не удалятся, их можно перенести вручную.')) return;
+      cfg.categories = cfg.categories.filter(c=>c.id!==cat.id);
+      if(_shopActiveCat===cat.id) _shopActiveCat = cfg.categories[0].id;
+      renderShopFromCfg(cfg);
+    });
+    cats.appendChild(row);
+  });
+
+  const active = cfg.categories.find(c=>c.id===_shopActiveCat) || cfg.categories[0];
+  items.innerHTML='';
+  (active.order||[]).forEach(id=>{
+    const it = cfg.items[id] || (cfg.items[id]={});
+    const r = document.createElement('div');
+    r.className = 'shopEdItem' + (_shopEdSelected===id ? ' active':'');
+    r.draggable = true;
+    r.dataset.id = id;
+    r.innerHTML = `
+      <div class="shopEdDrag">≡</div>
+      <div class="shopEdItemMain">
+        <div class="shopEdItemTitle">${esc(it.title||id)}</div>
+        <div class="muted" style="font-size:11px">${esc(it.tag||'')}</div>
+      </div>
+      <button class="btn mini" type="button" data-act="hide">${it.hidden?'🙈':'👁'}</button>
+    `;
+    r.addEventListener('click', ()=>{ _shopEdSelected=id; shopEdRenderLists(); });
+    r.querySelector('[data-act="hide"]').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      it.hidden = !it.hidden;
+      renderShopFromCfg(cfg);
+    });
+    r.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', id); r.classList.add('dragging'); });
+    r.addEventListener('dragend', ()=>r.classList.remove('dragging'));
+    r.addEventListener('dragover', (e)=>e.preventDefault());
+    r.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      const from = e.dataTransfer.getData('text/plain');
+      const to = id;
+      if(!from||from===to) return;
+      const a = active.order.indexOf(from);
+      const b = active.order.indexOf(to);
+      if(a<0||b<0) return;
+      active.order.splice(a,1);
+      active.order.splice(b,0,from);
+      renderShopFromCfg(cfg);
+    });
+    items.appendChild(r);
+  });
+
+  if(!_shopEdSelected){
+    form.innerHTML = `<div class="muted" style="font-size:12px">Выбери товар слева.</div>`;
+    return;
+  }
+  const it = cfg.items[_shopEdSelected] || (cfg.items[_shopEdSelected]={});
+  form.innerHTML = `
+    <label class="lbl">Название</label>
+    <input class="input" id="shopEdTitle" value="${esc(it.title||'')}" />
+    <label class="lbl" style="margin-top:10px">Описание</label>
+    <textarea class="input" id="shopEdDesc" rows="3" style="min-height:90px">${esc(it.desc||'')}</textarea>
+    <div class="shopEdGrid2" style="margin-top:10px">
+      <div>
+        <label class="lbl">Цена/лейбл</label>
+        <input class="input" id="shopEdPrice" value="${esc(it.price||'')}" />
+      </div>
+      <div>
+        <label class="lbl">Тег</label>
+        <input class="input" id="shopEdTag" value="${esc(it.tag||'')}" />
+      </div>
+    </div>
+    <label class="lbl" style="margin-top:10px">Баннер</label>
+    <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap">
+      <input class="input" id="shopEdBanner" value="${esc(it.banner||'')}" placeholder="URL или загрузка ниже" style="flex:1" />
+      <label class="btn mini" style="position:relative; overflow:hidden">
+        Загрузить
+        <input type="file" id="shopEdBannerFile" accept="image/*" style="position:absolute; inset:0; opacity:0; cursor:pointer" />
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap">
+      <button class="btn mini" id="shopEdDelete" type="button">Удалить товар</button>
+      <button class="btn mini" id="shopEdMove" type="button">Переместить в раздел…</button>
+    </div>
+  `;
+
+  const bind = (id, key)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input', ()=>{ it[key] = el.value; renderShopFromCfg(cfg); });
+  };
+  bind('shopEdTitle','title');
+  bind('shopEdDesc','desc');
+  bind('shopEdPrice','price');
+  bind('shopEdTag','tag');
+  bind('shopEdBanner','banner');
+  document.getElementById('shopEdBannerFile')?.addEventListener('change', async (e)=>{
+    const f = e.target.files?.[0];
+    if(!f) return;
+    try{
+      const url = await shopUploadBanner(f);
+      it.banner = url;
+      const inp = document.getElementById('shopEdBanner');
+      if(inp) inp.value = url;
+      renderShopFromCfg(cfg);
+      toast('Баннер', 'Загружено', 'ok');
+    }catch(err){
+      toast('Баннер', err?.message||'Не удалось загрузить', 'bad');
+    }
+  });
+  document.getElementById('shopEdDelete')?.addEventListener('click', ()=>{
+    if(!confirm('Удалить товар из магазина?')) return;
+    cfg.categories.forEach(c=>{ c.order = (c.order||[]).filter(x=>x!==_shopEdSelected); });
+    delete cfg.items[_shopEdSelected];
+    const el = document.getElementById(_shopEdSelected);
+    if(el && el.id.startsWith('custom_')) el.remove();
+    _shopEdSelected = null;
+    renderShopFromCfg(cfg);
+  });
+  document.getElementById('shopEdMove')?.addEventListener('click', ()=>{
+    const to = prompt('ID раздела: ' + cfg.categories.map(c=>c.id+':'+c.title).join(' | '), _shopActiveCat);
+    if(!to) return;
+    const dest = cfg.categories.find(c=>c.id===to.trim());
+    if(!dest) return toast('Раздел', 'Не найден', 'bad');
+    const src = cfg.categories.find(c=>c.id===_shopActiveCat);
+    if(src) src.order = (src.order||[]).filter(x=>x!==_shopEdSelected);
+    dest.order = dest.order||[];
+    if(!dest.order.includes(_shopEdSelected)) dest.order.push(_shopEdSelected);
+    _shopActiveCat = dest.id;
+    renderShopFromCfg(cfg);
+  });
+}
+
+function shopEdAddCategory(){
+  if(!_shopCfgCache) return;
+  const n = prompt('Название раздела', 'Новый раздел');
+  if(!n) return;
+  const id = 'cat_' + Math.random().toString(16).slice(2,8);
+  _shopCfgCache.categories.push({id, title:n.trim(), order:[]});
+  _shopActiveCat = id;
+  renderShopFromCfg(_shopCfgCache);
+}
+
+function shopEdAddItem(){
+  if(!_shopCfgCache) return;
+  const title = prompt('Название товара', 'Новый товар');
+  if(!title) return;
+  const id = 'custom_' + Date.now();
+  _shopCfgCache.items[id] = { title:title.trim(), desc:'', price:'', tag:'NEW', banner:'', hidden:false };
+  const cat = _shopCfgCache.categories.find(c=>c.id===_shopActiveCat) || _shopCfgCache.categories[0];
+  cat.order.push(id);
+  _shopEdSelected = id;
+  renderShopFromCfg(_shopCfgCache);
+  toast('Товар', 'Добавлен (визуальный товар). Настрой поля справа.', 'ok');
+}
+
+async function shopUploadBanner(file){
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/admin/upload_banner', {method:'POST', body: fd, credentials:'include'});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok || !j.ok) throw new Error(j.detail||'upload failed');
+  return j.url;
+}
+
+async function shopEdSave(){
+  if(!_shopCfgCache) return;
+  try{
+    await apiPost('/api/admin/shop_config', {config: _shopCfgCache});
+    toast('Магазин', 'Сохранено', 'ok');
+  }catch(e){
+    toast('Магазин', e?.message||'Ошибка сохранения', 'bad');
+  }
+}
+
+function openShopPanelModal(){
+  const m = $("#shopPanelModal");
+  if(!m) return;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden","false");
+
+  // show gate first
+  const gate = $("#shopGate");
+  const wrap = $("#shopBuilderWrap");
+  if(gate) gate.style.display = "flex";
+  if(wrap) wrap.style.display = "none";
+}
+function closeShopPanelModal(){
+  const m = $("#shopPanelModal");
+  if(!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden","true");
+}
+
+function _defaultShopCfg(){
+  return {
+    order: ["prodCaseFree","prodCasePaid"],
+    items: {
+      prodCaseFree: { title:"Кейс за капчу", desc:"Открытие раз в 2 дня. Призы: бонусы и Premium. Только для авторизованных.", price:"48h", tag:"FREE", banner:"/static/banners/case_free.svg", hidden:false },
+      prodCasePaid: { title:"Кейс за 17₽", desc:"Без капчи. Быстрый кейс за баланс. Призы начисляются в инвентарь.", price:"₽17", tag:"PAID", banner:"/static/banners/case_paid.svg", hidden:false }
+    }
+  };
+}
+
+function buildShopBuilderUI(){
+  const list = $("#shopBuilderList");
+  if(!list) return;
+  list.innerHTML = "";
+  const cfg = (_shopCfgCache ? JSON.parse(JSON.stringify(_shopCfgCache)) : _defaultShopCfg());
+  // ensure ids exist
+  const ids = (cfg.order && cfg.order.length) ? cfg.order.slice() : Object.keys(cfg.items||{});
+  cfg.order = ids;
+
+  function render(){
+    list.innerHTML = "";
+    cfg.order.forEach((id, idx)=>{
+      const it = (cfg.items && cfg.items[id]) ? cfg.items[id] : (cfg.items[id] = {});
+      const row = document.createElement("div");
+      row.className = "shopItem";
+      row.draggable = true;
+      row.dataset.id = id;
+
+      row.innerHTML = `
+        <div class="shopDrag" title="Перетащить">≡</div>
+        <div>
+          <div class="shopRow">
+            <div>
+              <label class="lbl">Название (${id})</label>
+              <input class="input" data-k="title" value="${esc(it.title||"")}" />
+            </div>
+            <div>
+              <label class="lbl">Цена/лейбл</label>
+              <input class="input" data-k="price" value="${esc(it.price||"")}" />
+            </div>
+          </div>
+
+          <label class="lbl" style="margin-top:10px">Описание</label>
+          <input class="input" data-k="desc" value="${esc(it.desc||"")}" />
+
+          <div class="shopRow" style="margin-top:10px">
+            <div>
+              <label class="lbl">Баннер (путь)</label>
+              <input class="input" data-k="banner" value="${esc(it.banner||"")}" placeholder="/static/banners/..." />
+            </div>
+            <div>
+              <label class="lbl">Тег</label>
+              <input class="input" data-k="tag" value="${esc(it.tag||"")}" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap; align-items:center">
+            <label class="check">
+              <input type="checkbox" data-k="hidden" ${it.hidden ? "checked":""}/>
+              <span>Скрыть</span>
+            </label>
+
+            <div class="shopMiniBtns" style="margin-left:auto">
+              <button class="btn mini" data-act="up" type="button">↑</button>
+              <button class="btn mini" data-act="down" type="button">↓</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // inputs binding
+      row.querySelectorAll("[data-k]").forEach(inp=>{
+        const k = inp.dataset.k;
+        inp.addEventListener("input", ()=>{
+          if(inp.type === "checkbox") it[k] = inp.checked;
+          else it[k] = inp.value;
+        });
+        inp.addEventListener("change", ()=>{
+          if(inp.type === "checkbox") it[k] = inp.checked;
+        });
+      });
+
+      row.querySelectorAll("[data-act]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const act = btn.dataset.act;
+          const i = cfg.order.indexOf(id);
+          if(act==="up" && i>0){
+            cfg.order.splice(i,1);
+            cfg.order.splice(i-1,0,id);
+            render();
+          }
+          if(act==="down" && i<cfg.order.length-1){
+            cfg.order.splice(i,1);
+            cfg.order.splice(i+1,0,id);
+            render();
+          }
+        });
+      });
+
+      // drag n drop
+      row.addEventListener("dragstart", (e)=>{
+        e.dataTransfer.setData("text/plain", id);
+        row.style.opacity = ".6";
+      });
+      row.addEventListener("dragend", ()=>{
+        row.style.opacity = "1";
+      });
+      row.addEventListener("dragover", (e)=>{
+        e.preventDefault();
+      });
+      row.addEventListener("drop", (e)=>{
+        e.preventDefault();
+        const from = e.dataTransfer.getData("text/plain");
+        const to = id;
+        if(!from || from===to) return;
+        const a = cfg.order.indexOf(from);
+        const b = cfg.order.indexOf(to);
+        if(a<0||b<0) return;
+        cfg.order.splice(a,1);
+        cfg.order.splice(b,0,from);
+        render();
+      });
+
+      list.appendChild(row);
+    });
+
+    // attach buttons
+    const save = $("#btnShopSave");
+    const reset = $("#btnShopReset");
+    if(save){
+      save.onclick = async ()=>{
+        try{
+          await apiPost("/api/admin/shop_config", {config: cfg});
+          toast("Магазин", "Сохранено", "ok");
+          _shopCfgCache = cfg;
+          applyShopConfig(cfg);
+          closeShopPanelModal();
+        }catch(e){
+          toast("Магазин", (e?.message||"Ошибка сохранения"), "bad");
+        }
+      };
+    }
+    if(reset){
+      reset.onclick = ()=>{
+        _shopCfgCache = _defaultShopCfg();
+        applyShopConfig(_shopCfgCache);
+        buildShopBuilderUI();
+      };
+    }
+  }
+
+  render();
+}
+
+function esc(s){
+  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+}
+
+
+
+/* -------------------------
+   Standalone shop builder page
+--------------------------*/
+async function initShopBuilderPage(){
+  try{
+    const j = await apiGet('/api/shop_config');
+    _shopCfgCache = j.config || {};
+  }catch(e){
+    _shopCfgCache = _defaultShopCfg();
+  }
+  const cfg = (_shopCfgCache ? JSON.parse(JSON.stringify(_shopCfgCache)) : _defaultShopCfg());
+
+  // normalize categories
+  if(!Array.isArray(cfg.categories) || !cfg.categories.length){
+    const all = {id:"all", name:"Все товары", order: Array.isArray(cfg.order)? cfg.order.slice() : Object.keys(cfg.items||{})};
+    cfg.categories = [all];
+  }else{
+    cfg.categories.forEach(c=>{ if(!Array.isArray(c.order)) c.order=[]; if(!c.id) c.id = 'cat_'+Math.random().toString(16).slice(2); });
+  }
+  if(!cfg.items) cfg.items = {};
+  if(!Array.isArray(cfg.order)) cfg.order = Object.keys(cfg.items);
+
+  const catList = document.getElementById('catList');
+  const sections = document.getElementById('shopSections');
+  const editor = document.getElementById('shopBuilderList');
+  const btnCatAdd = document.getElementById('btnCatAdd');
+  const btnShopAdd = document.getElementById('btnShopAdd');
+  const btnSave = document.getElementById('btnShopSave');
+  const btnToShop = document.getElementById('btnBuilderToShop');
+
+  let activeCat = cfg.categories[0]?.id || 'all';
+  let activeItem = null;
+
+  function getCat(id){ return cfg.categories.find(c=>c.id===id); }
+  function ensureItem(id){
+    if(!cfg.items[id]) cfg.items[id] = {title:"", desc:"", price:0, tag:"", banner:"", hidden:false};
+    return cfg.items[id];
+  }
+
+  async function uploadBanner(file){
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/api/admin/upload_banner', {method:'POST', body: fd, credentials:'include'});
+    const j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.detail || 'upload failed');
+    return j.url;
+  }
+
+  function renderCats(){
+    if(!catList) return;
+    catList.innerHTML = '';
+    cfg.categories.forEach(c=>{
+      const b = document.createElement('button');
+      b.type='button';
+      b.className='catBtn' + (c.id===activeCat?' active':'');
+      b.textContent = c.name || 'Раздел';
+      b.addEventListener('click', ()=>{ activeCat=c.id; activeItem=null; renderAll(); });
+      catList.appendChild(b);
+    });
+  }
+
+  function cardHtml(id, it){
+    const price = (it.price != null) ? String(it.price) : '';
+    const tag = it.tag || '';
+    const banner = it.banner || '';
+    return `<div class="productCard tilt" data-pid="${id}" style="${it.hidden?'opacity:.45':''}">
+      <div class="prodArt"><img class="prodMediaArt" src="${esc(banner)}" alt=""></div>
+      <div class="prodBody">
+        <div class="prodTop">
+          <div class="prodTitle">${esc(it.title||id)}</div>
+          <div class="prodTag">${esc(tag)}</div>
+        </div>
+        <div class="prodDesc">${esc(it.desc||'')}</div>
+        <div class="prodBottom">
+          <div class="priceMain">${esc(price)}</div>
+          <button class="btn pri" type="button">Открыть</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderPreview(){
+    if(!sections) return;
+    sections.innerHTML = '';
+    cfg.categories.forEach(cat=>{
+      const wrap = document.createElement('section');
+      wrap.className='shopSection glass';
+      wrap.innerHTML = `<div class="shopSectionHead">
+          <div class="h">${esc(cat.name||'Раздел')}</div>
+          <div class="muted">${cat.order.length} товаров</div>
+        </div>
+        <div class="shopGrid2">${cat.order.map(id=>cardHtml(id, ensureItem(id))).join('')}</div>`;
+      sections.appendChild(wrap);
+    });
+
+    // click select item
+    sections.querySelectorAll('[data-pid]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        activeItem = el.getAttribute('data-pid');
+        renderEditor();
+      });
+    });
+
+    initTilt();
+  }
+
+  function renderEditor(){
+    if(!editor) return;
+    const cat = getCat(activeCat) || cfg.categories[0];
+    const ids = (cat && Array.isArray(cat.order)) ? cat.order : [];
+    editor.innerHTML = ids.map((id)=>{
+      const it = ensureItem(id);
+      const selected = (id===activeItem);
+      return `<div class="shopItem ${selected?'active':''}" draggable="true" data-id="${id}">
+        <div class="shopItemHead">
+          <div class="shopItemId">${esc(id)}</div>
+          <div class="shopMiniBtns">
+            <button class="btn mini" data-act="del" type="button">Удалить</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label class="lbl">Название</label>
+            <input class="input" data-k="title" value="${esc(it.title||"")}" />
+          </div>
+          <div>
+            <label class="lbl">Цена</label>
+            <input class="input" data-k="price" value="${esc(it.price??"")}" />
+          </div>
+          <div class="span2">
+            <label class="lbl">Описание</label>
+            <textarea class="input" data-k="desc" rows="2">${esc(it.desc||"")}</textarea>
+          </div>
+          <div>
+            <label class="lbl">Тег</label>
+            <input class="input" data-k="tag" value="${esc(it.tag||"")}" />
+          </div>
+          <div>
+            <label class="lbl">Раздел</label>
+            <select class="input" data-k="cat">
+              ${cfg.categories.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCat?'selected':''}>${esc(c.name||c.id)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="span2">
+            <label class="lbl">Баннер</label>
+            <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap">
+              <input class="input" data-k="banner" value="${esc(it.banner||"")}" placeholder="URL баннера или загрузи файл" style="flex:1; min-width:240px"/>
+              <input type="file" accept="image/*" data-k="bannerFile" />
+              <button class="btn mini" type="button" data-act="upload">Загрузить</button>
+            </div>
+          </div>
+          <div class="span2 row" style="gap:10px; align-items:center">
+            <label class="check">
+              <input type="checkbox" data-k="hidden" ${it.hidden ? "checked":""}/>
+              <span>Скрыть</span>
+            </label>
+            <button class="btn mini" type="button" data-act="select">Выбрать</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // bind inputs + actions
+    editor.querySelectorAll('.shopItem').forEach(row=>{
+      const id = row.getAttribute('data-id');
+      const it = ensureItem(id);
+      row.querySelectorAll('[data-k]').forEach(inp=>{
+        const k = inp.getAttribute('data-k');
+        if(k==='bannerFile') return;
+        inp.addEventListener('input', ()=>{
+          if(k==='hidden') it.hidden = inp.checked;
+          else if(k==='price') it.price = Number(inp.value||0);
+          else if(k==='cat'){
+            const from = getCat(activeCat);
+            const to = getCat(inp.value);
+            if(from && to && from!==to){
+              from.order = from.order.filter(x=>x!==id);
+              to.order.push(id);
+              activeCat = to.id;
+              renderAll();
+            }
+          }else it[k]=inp.value;
+          renderPreview();
+        });
+        inp.addEventListener('change', ()=>{
+          if(k==='hidden') it.hidden = inp.checked;
+        });
+      });
+
+      row.addEventListener('click', (e)=>{
+        const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+        if(act==='del'){
+          // remove from cat
+          cfg.categories.forEach(c=>c.order = (c.order||[]).filter(x=>x!==id));
+          delete cfg.items[id];
+          if(activeItem===id) activeItem=null;
+          renderAll();
+          e.stopPropagation();
+          return;
+        }
+        if(act==='select'){
+          activeItem=id;
+          renderAll();
+          e.stopPropagation();
+          return;
+        }
+        if(act==='upload'){
+          const f = row.querySelector('input[type="file"][data-k="bannerFile"]')?.files?.[0];
+          if(!f){ toast('Баннер','Выбери файл','bad'); return; }
+          uploadBanner(f).then(url=>{
+            it.banner = url;
+            const inp = row.querySelector('input[data-k="banner"]');
+            if(inp) inp.value = url;
+            toast('Баннер','Загружено','ok');
+            renderPreview();
+          }).catch(err=>toast('Баннер', err.message||'Ошибка', 'bad'));
+          e.stopPropagation();
+          return;
+        }
+      });
+
+      // drag reorder inside cat
+      row.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', id); });
+      row.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+      row.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        const from = e.dataTransfer.getData('text/plain');
+        if(!from || from===id) return;
+        const cat = getCat(activeCat);
+        const arr = cat.order;
+        const a = arr.indexOf(from), b = arr.indexOf(id);
+        if(a<0 || b<0) return;
+        arr.splice(b,0,arr.splice(a,1)[0]);
+        renderAll();
+      });
+    });
+  }
+
+  function renderAll(){
+    renderCats();
+    renderPreview();
+    renderEditor();
+  }
+
+  if(btnCatAdd){
+    btnCatAdd.addEventListener('click', ()=>{
+      const name = prompt('Название раздела:', 'Новый раздел');
+      if(!name) return;
+      const id = 'cat_' + Math.random().toString(16).slice(2);
+      cfg.categories.push({id, name, order: []});
+      activeCat = id;
+      renderAll();
+    });
+  }
+  if(btnShopAdd){
+    btnShopAdd.addEventListener('click', ()=>{
+      const id = 'item_' + Math.random().toString(16).slice(2);
+      ensureItem(id);
+      const cat = getCat(activeCat) || cfg.categories[0];
+      cat.order.push(id);
+      activeItem = id;
+      renderAll();
+      setTimeout(()=>document.querySelector('.shopItem.active')?.scrollIntoView({behavior:'smooth', block:'center'}), 50);
+    });
+  }
+  if(btnSave){
+    btnSave.addEventListener('click', async ()=>{
+      try{
+        // maintain legacy order/items for shop page compatibility
+        cfg.order = cfg.categories.flatMap(c=>c.order);
+        await apiPost('/api/admin/shop_config', {config: cfg});
+        toast('Магазин', 'Сохранено', 'ok');
+      }catch(e){
+        toast('Магазин', e.message||'Ошибка', 'bad');
+      }
+    });
+  }
+  if(btnToShop){
+    btnToShop.addEventListener('click', ()=>{ window.location.href='/#shop'; });
+  }
+
+  renderAll();
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(window.__SHOP_BUILDER_PAGE__){
+    initShopBuilderPage().catch(()=>{});
+  }
+});
