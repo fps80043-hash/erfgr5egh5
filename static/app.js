@@ -1,3 +1,33 @@
+/*__GLOBAL_CASE_MODAL_V9__*/
+(function(){
+  // guaranteed global function for shop case buttons
+  window.openCaseModal = function(mode){
+    try{
+      var m = document.getElementById('caseOpenModal');
+      if(!m) return;
+      m.style.display = 'flex';
+      m.classList.remove('hidden');
+
+      var free = document.getElementById('caseFreeBlock');
+      var paid = document.getElementById('casePaidBlock');
+      var badge = document.getElementById('caseModeBadge');
+
+      if(badge) badge.textContent = (mode==='paid'?'PAID':'FREE');
+
+      if(mode==='paid'){
+        if(paid) paid.style.display='flex';
+        if(free) free.style.display='none';
+      } else {
+        if(free) free.style.display='flex';
+        if(paid) paid.style.display='none';
+      }
+
+      var res = document.getElementById('caseResult');
+      if(res) res.textContent = '—';
+    } catch(e){ console.warn('openCaseModal failed', e); }
+  };
+})();
+
 function closeAllSelects(except=null){
   document.querySelectorAll(".cselect.open").forEach(w=>{
     if(except && w === except) return;
@@ -2960,8 +2990,8 @@ function closeCaseModal(){
 }
 
 // hooks
-$("#btnOpenCaseFree")?.addEventListener("click", ()=>openCaseModal("free"));
-$("#btnOpenCasePaid")?.addEventListener("click", ()=>openCaseModal("paid"));
+$("#btnOpenCaseFree")?.addEventListener("click", ()=>window.openCaseModal("free"));
+$("#btnOpenCasePaid")?.addEventListener("click", ()=>window.openCaseModal("paid"));
 $("#btnCaseModalClose")?.addEventListener("click", closeCaseModal);
 $("#caseOpenBack")?.addEventListener("click", closeCaseModal);
 
@@ -3486,7 +3516,6 @@ function ensureShopInjected(){
     <div class="shopCatsLeft" id="shopCatsLeft"></div>
     <div class="shopCatsRight" id="shopCatsRight" style="display:none">
       <button class="btn mini" id="btnShopEdGrid" type="button">Сетка</button>
-      <button class="btn mini" id="btnShopEdRuler" type="button">Линейка</button>
       <button class="btn mini" id="btnShopEdAddCat" type="button">+ Раздел</button>
       <button class="btn mini" id="btnShopEdAddItem" type="button">+ Товар</button>
       <button class="btn primary mini" id="btnShopEdSave" type="button">Сохранить</button>
@@ -3525,40 +3554,20 @@ function ensureShopInjected(){
     </div>
   `;
   card.appendChild(panel);
-
-  // overlay tools
-  const overlay = document.createElement('div');
-  overlay.id = 'shopOverlayTools';
-  overlay.className = 'shopOverlayTools';
-  overlay.innerHTML = `<div class="shopRulerX"></div><div class="shopRulerY"></div>`;
-  overlay.style.display = 'none';
-  card.appendChild(overlay);
+  // overlay tools removed
 
   // events
   document.getElementById('btnShopEdGrid')?.addEventListener('click', ()=>{
     document.body.classList.toggle('shopGridOn');
   });
-  document.getElementById('btnShopEdRuler')?.addEventListener('click', ()=>{
-    const on = document.body.classList.toggle('shopRulerOn');
-    overlay.style.display = on ? 'block' : 'none';
-  });
   document.getElementById('btnShopEdAddCat')?.addEventListener('click', ()=>shopEdAddCategory());
   document.getElementById('btnShopEdAddItem')?.addEventListener('click', ()=>shopEdAddItem());
   document.getElementById('btnShopEdSave')?.addEventListener('click', ()=>shopEdSave());
   document.getElementById('btnShopEdExit')?.addEventListener('click', ()=>shopEdExit());
-
-  // ruler follow
-  card.addEventListener('mousemove', (e)=>{
-    if(!document.body.classList.contains('shopRulerOn')) return;
-    const r = card.getBoundingClientRect();
-    const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
-    const y = Math.max(0, Math.min(r.height, e.clientY - r.top));
-    overlay.querySelector('.shopRulerX')?.setAttribute('style', `left:${x}px`);
-    overlay.querySelector('.shopRulerY')?.setAttribute('style', `top:${y}px`);
-  });
 }
 
 function renderShopFromCfg(cfg){
+  _shopCfgCache = cfg;
   ensureShopInjected();
   const catsLeft = document.getElementById('shopCatsLeft');
   if(!catsLeft) return;
@@ -3635,7 +3644,31 @@ function renderShopFromCfg(cfg){
 
   // re-init tilt on new cards
   try{ initTilt(); }catch(_e){}
+
+  // delegated click handler (keeps working after rerender)
+  if(!_shopEditorEnabled){
+    const g = document.getElementById('shopGrid');
+    if(g && !g.dataset.shopDelegatedClick){
+      g.dataset.shopDelegatedClick = '1';
+      g.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button');
+        const card = e.target.closest('.productCard');
+        if(!card) return;
+        // ignore clicks on editor controls
+        if(_shopEditorEnabled) return;
+        // allow click either on button or on card body
+        if(btn || card){
+          const id = card.dataset.prod || card.id;
+          const it = (_shopCfgCache && _shopCfgCache.items && _shopCfgCache.items[id]) ? _shopCfgCache.items[id] : null;
+          if(!it) return;
+          handleShopItemAction(it);
+        }
+      });
+    }
+  }
 }
+
+
 
 function ensureShopCard(id, it){
   let el = document.getElementById(id);
@@ -3645,6 +3678,8 @@ function ensureShopCard(id, it){
   el.id = id;
   el.className = 'productCard tilt pxtCard';
   el.dataset.prod = id;
+  const btnText = esc(it.btnText || 'Открыть');
+  const hintText = esc(it.startingAt || 'Starting at');
   el.innerHTML = `
     <div class="prodMedia">
       <img class="prodMediaArt" alt="" loading="lazy" style="display:none"/>
@@ -3657,17 +3692,64 @@ function ensureShopCard(id, it){
       </div>
       <div class="prodDesc">${esc(it.desc||'Описание товара')}</div>
       <div class="prodFooter">
-        <button class="btn pxtBtn" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Открыть</button>
+        <button class="btn pxtBtn prodBtn" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> <span class="prodBtnText">${btnText}</span></button>
         <div class="prodPrice">
-          <div class="priceHint">Starting at</div>
+          <div class="priceHint"><span class="priceHintText">${hintText}</span></div>
           <div class="priceMain">${esc(it.price||'—')}</div>
         </div>
       </div>
     </div>
   `;
-  // simple action
-  el.querySelector('button')?.addEventListener('click', ()=>toast('Магазин', 'Этот товар пока без обработчика покупки (визуальный товар).', 'warn'));
   return el;
+}
+
+
+
+
+
+function normBannerUrl(url){
+  if(!url) return '';
+  let u=String(url).trim();
+  if(!u) return '';
+  if(u.startsWith('http://')||u.startsWith('https://')||u.startsWith('data:')) return u;
+  if(u.startsWith('/')) return encodeURI(u);
+  // allow "static/"
+  if(u.startsWith('static/')) return encodeURI('/'+u);
+  // plain filename -> /static/banners/
+  return encodeURI('/static/banners/'+u);
+}
+
+
+
+
+function inferShopAction(it){
+  const tag=(it.tag||'').toLowerCase();
+  const title=(it.title||'').toLowerCase();
+  if(tag.includes('free') || title.includes('кейс') && tag.includes('free')) return 'case_free';
+  if(tag.includes('paid') || title.includes('кейс') && tag.includes('paid')) return 'case_paid';
+  return '';
+}
+
+function handleShopItemAction(it){
+  if(!it) return;
+  const isAdmin = !!(_me && _me.is_admin);
+  if(it.testOnly && !isAdmin){
+    toast('Магазин', 'Этот товар отмечен как тестовый (визуальный).', 'warn');
+    return;
+  }
+  const act = (it.action || inferShopAction(it) || '').toLowerCase();
+  if(act==='case_free') return window.openCaseModal('free');
+  if(act==='case_paid') return window.openCaseModal('paid');
+  if(act==='premium') return openPayModal('premium');
+  if(act==='topup') return openPayModal('topup');
+  if(act==='link'){
+    if(it.linkUrl){
+      try{ window.open(it.linkUrl, '_blank', 'noopener'); }catch(_e){}
+      return;
+    }
+    return toast('Магазин', 'Не указана ссылка', 'warn');
+  }
+  toast('Магазин', 'Для этого товара не выбрано действие.', 'warn');
 }
 
 function applyItemToCard(card, it){
@@ -3675,16 +3757,44 @@ function applyItemToCard(card, it){
   const d = card.querySelector('.prodDesc');
   const tag = card.querySelector('.prodTag');
   const price = card.querySelector('.priceMain');
+  const hint = card.querySelector('.priceHint');
+  const hintText = card.querySelector('.priceHintText');
+  const btn = card.querySelector('.prodBtn');
+  const btnText = card.querySelector('.prodBtnText');
   const art = card.querySelector('.prodMediaArt');
-  if(t && it.title) t.textContent = it.title;
-  if(d && it.desc) d.textContent = it.desc;
-  if(tag && it.tag) tag.textContent = it.tag;
-  if(price && it.price!=null) price.textContent = String(it.price);
+
+  if(t) t.textContent = it.title || '';
+  if(d) d.textContent = it.desc || '';
+  if(tag) tag.textContent = it.tag || '';
+  if(price) price.textContent = (it.price!=null ? String(it.price) : '');
+
+  if(hintText) hintText.textContent = (it.startingAt!=null ? String(it.startingAt) : (hintText.textContent||'Starting at'));
+  if(btnText) btnText.textContent = (it.btnText!=null ? String(it.btnText) : (btnText.textContent||'Открыть'));
+
+  if(btn){
+    btn.style.background = it.btnBg ? String(it.btnBg) : '';
+    btn.style.color = it.btnColor ? String(it.btnColor) : '';
+    btn.style.borderColor = it.btnBorder ? String(it.btnBorder) : '';
+  }
+
+  if(tag){
+    tag.style.background = it.tagBg ? String(it.tagBg) : '';
+    tag.style.color = it.tagColor ? String(it.tagColor) : '';
+  }
+
+  if(hint) hint.style.color = it.hintColor ? String(it.hintColor) : '';
+  if(price) price.style.color = it.priceColor ? String(it.priceColor) : '';
+
   if(art){
-    if(it.banner){ art.style.display='block'; art.src = it.banner; }
-    else { art.style.display='none'; }
+    const b = normBannerUrl(it.banner);
+    if(b){ art.style.display='block'; art.src=b; }
+    else { art.style.display='none'; art.removeAttribute('src'); }
   }
 }
+
+
+
+
 
 async function openShopConstructor({mode="builder"}={}){
   // admin-only guard
@@ -3710,12 +3820,31 @@ async function openShopConstructor({mode="builder"}={}){
 
 function shopEdExit(){
   _shopEditorEnabled = false;
-  document.body.classList.remove('shopGridOn','shopRulerOn');
-  document.getElementById('shopOverlayTools')?.setAttribute('style','display:none');
+  document.body.classList.remove('shopGridOn');
   if(_shopCfgCache) renderShopFromCfg(_shopCfgCache);
 }
 
 let _shopEdSelected = null;
+
+function shopEdLiveApply(cfg, id){
+  if(!cfg||!id) return;
+  const it = cfg.items[id];
+  const card = document.getElementById(id);
+  if(card && it) {
+    // keep dataset for clicks
+    card.dataset.prod = id;
+    applyItemToCard(card, it);
+  }
+  // update left list title/tag without rerender
+  const row = document.querySelector(`.shopEdItem[data-id="${id}"]`);
+  if(row){
+    const tt = row.querySelector('.shopEdItemTitle');
+    const muted = row.querySelector('.muted');
+    if(tt) tt.textContent = it.title || id;
+    if(muted) muted.textContent = it.tag || '';
+  }
+}
+
 
 function shopEdRenderLists(){
   if(!_shopCfgCache) return;
@@ -3819,6 +3948,63 @@ function shopEdRenderLists(){
         <input type="file" id="shopEdBannerFile" accept="image/*" style="position:absolute; inset:0; opacity:0; cursor:pointer" />
       </label>
     </div>
+
+    <div class="shopEdGrid2" style="margin-top:10px">
+      <div>
+        <label class="lbl">Текст кнопки</label>
+        <input class="input" id="shopEdBtnText" value="${esc(it.btnText||'')}" placeholder="Открыть" />
+      </div>
+      <div>
+        <label class="lbl">Надпись над ценой</label>
+        <input class="input" id="shopEdStarting" value="${esc(it.startingAt||'')}" placeholder="Starting at" />
+      </div>
+    </div>
+
+    <div class="shopEdGrid2" style="margin-top:10px">
+      <div>
+        <label class="lbl">Действие товара</label>
+        <select class="input" id="shopEdAction">
+          <option value="none">— нет</option>
+          <option value="case_free">Кейс (FREE)</option>
+          <option value="case_paid">Кейс (PAID)</option>
+          <option value="topup">Пополнение баланса</option>
+          <option value="premium">Premium</option>
+          <option value="link">Ссылка</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl">Тестовый товар</label>
+        <label class="row" style="gap:10px; align-items:center">
+          <input type="checkbox" id="shopEdTestOnly" ${it.testOnly?'checked':''} />
+          <span class="muted" style="font-size:12px">показывать как визуальный</span>
+        </label>
+      </div>
+    </div>
+
+    <label class="lbl" style="margin-top:10px">Ссылка (если действие = Ссылка)</label>
+    <input class="input" id="shopEdLink" value="${esc(it.linkUrl||'')}" placeholder="https://" />
+
+    <div class="shopEdGrid2" style="margin-top:10px">
+      <div>
+        <label class="lbl">Цвет кнопки</label>
+        <input class="input" id="shopEdBtnBg" value="${esc(it.btnBg||'')}" placeholder="#6b7cff или rgba()" />
+      </div>
+      <div>
+        <label class="lbl">Цвет текста кнопки</label>
+        <input class="input" id="shopEdBtnColor" value="${esc(it.btnColor||'')}" placeholder="#ffffff" />
+      </div>
+    </div>
+    <div class="shopEdGrid2" style="margin-top:10px">
+      <div>
+        <label class="lbl">Цвет тега (фон)</label>
+        <input class="input" id="shopEdTagBg" value="${esc(it.tagBg||'')}" placeholder="rgba()" />
+      </div>
+      <div>
+        <label class="lbl">Цвет тега (текст)</label>
+        <input class="input" id="shopEdTagColor" value="${esc(it.tagColor||'')}" placeholder="#fff" />
+      </div>
+    </div>
+
     <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap">
       <button class="btn mini" id="shopEdDelete" type="button">Удалить товар</button>
       <button class="btn mini" id="shopEdMove" type="button">Переместить в раздел…</button>
@@ -3828,13 +4014,42 @@ function shopEdRenderLists(){
   const bind = (id, key)=>{
     const el = document.getElementById(id);
     if(!el) return;
-    el.addEventListener('input', ()=>{ it[key] = el.value; renderShopFromCfg(cfg); });
+    el.addEventListener('input', ()=>{ it[key] = el.type==='checkbox' ? !!el.checked : el.value; shopEdLiveApply(cfg, _shopEdSelected); });
   };
   bind('shopEdTitle','title');
   bind('shopEdDesc','desc');
   bind('shopEdPrice','price');
   bind('shopEdTag','tag');
   bind('shopEdBanner','banner');
+
+  // set select current
+  const actSel = document.getElementById('shopEdAction');
+  if(actSel){ actSel.value = (it.action||'none'); }
+
+  const bind2 = (id, key)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input', ()=>{
+      it[key] = el.type==='checkbox' ? !!el.checked : el.value;
+      shopEdLiveApply(cfg, _shopEdSelected);
+    });
+    el.addEventListener('change', ()=>{
+      it[key] = el.type==='checkbox' ? !!el.checked : el.value;
+      shopEdLiveApply(cfg, _shopEdSelected);
+    });
+  };
+  bind2('shopEdBtnText','btnText');
+  bind2('shopEdStarting','startingAt');
+  bind2('shopEdLink','linkUrl');
+  bind2('shopEdBtnBg','btnBg');
+  bind2('shopEdBtnColor','btnColor');
+  bind2('shopEdTagBg','tagBg');
+  bind2('shopEdTagColor','tagColor');
+  bind2('shopEdTestOnly','testOnly');
+  if(actSel){
+    actSel.addEventListener('change', ()=>{ it.action = actSel.value; shopEdLiveApply(cfg, _shopEdSelected); });
+  }
+
   document.getElementById('shopEdBannerFile')?.addEventListener('change', async (e)=>{
     const f = e.target.files?.[0];
     if(!f) return;
@@ -3981,7 +4196,7 @@ function buildShopBuilderUI(){
           <div class="shopRow" style="margin-top:10px">
             <div>
               <label class="lbl">Баннер (путь)</label>
-              <input class="input" data-k="banner" value="${esc(it.banner||"")}" placeholder="/static/banners/..." />
+              <input class="input" data-k="banner" value="${esc(it.banner||"")}" placeholder="/static/banners/" />
             </div>
             <div>
               <label class="lbl">Тег</label>
@@ -4153,11 +4368,27 @@ async function initShopBuilderPage(){
       catList.appendChild(b);
     });
   }
+  function normalizeBannerUrl(url){
+    if(!url) return '';
+    let u = String(url).trim();
+    // absolute http(s)
+    if(/^https?:\/\//i.test(u)) return u;
+    // already absolute
+    if(u.startsWith('/')) return encodeURI(u);
+    // if points into static already
+    if(u.startsWith('static/')) return encodeURI('/'+u);
+    // filename only -> /static/banners/
+    if(!u.includes('/')) return encodeURI('/static/banners/'+u);
+    // relative path -> make absolute
+    return encodeURI('/'+u);
+  }
+
 
   function cardHtml(id, it){
     const price = (it.price != null) ? String(it.price) : '';
     const tag = it.tag || '';
-    const banner = it.banner || '';
+    const bannerRaw = it.banner || '';
+    const banner = normalizeBannerUrl(bannerRaw);
     return `<div class="productCard tilt" data-pid="${id}" style="${it.hidden?'opacity:.45':''}">
       <div class="prodArt"><img class="prodMediaArt" src="${esc(banner)}" alt=""></div>
       <div class="prodBody">
@@ -4382,3 +4613,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     initShopBuilderPage().catch(()=>{});
   }
 });
+
+// expose cases API for handlers
+try{ window.openCaseModal = openCaseModal; }catch(e){}
