@@ -4616,3 +4616,294 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 // expose cases API for handlers
 try{ window.openCaseModal = openCaseModal; }catch(e){}
+
+/* ------------------------------------------------------------------
+ * HOTFIX: Case modal stopped opening after Shop Editor changes.
+ * In some builds the case logic ended up scoped inside a DOMContentLoaded
+ * callback and never got exported, while the legacy window.openCaseModal
+ * placeholder didn't add required classes (.open/.vis), so the modal
+ * remained invisible.
+ *
+ * This block provides a standalone, resilient implementation and
+ * force-exports window.openCaseModal/closeCaseModal.
+ * ------------------------------------------------------------------ */
+(function(){
+  const toast = (t,m,k)=>{
+    if(typeof window.toast === 'function') return window.toast(t,m,k);
+    try{ alert(String(t||'') + (m?(': '+m):'')); }catch(_e){}
+  };
+  const byId = (id)=>document.getElementById(id);
+
+  const CASE_PAID_PRICE = 17;
+  const CASE_ITEMS = [
+    { key:"GEN10", label:"+10 анализов", icon:"⚡", weight:2500 },
+    { key:"AI3",   label:"+3 генерации (AI+анализ)", icon:"✨", weight:2400 },
+    { key:"P6H",   label:"Premium 6 часов", icon:"💎", img:"/static/prizes/premium_6h.png", weight:1800 },
+    { key:"P12H",  label:"Premium 12 часов", icon:"💎", img:"/static/prizes/premium_12h.png", weight:1200 },
+    { key:"P24H",  label:"Premium 24 часа", icon:"💎", img:"/static/prizes/premium_24h.png", weight:700 },
+    { key:"P2D",   label:"Premium 2 дня", icon:"💎", img:"/static/prizes/premium_2d.png", weight:650 },
+    { key:"P3D",   label:"Premium 3 дня", icon:"💎", img:"/static/prizes/premium_3d.png", weight:600 },
+    { key:"P7D",   label:"Premium 7 дней", icon:"💎", img:"/static/prizes/premium_7d.png", weight:150 },
+  ];
+  const itemByKey = Object.fromEntries(CASE_ITEMS.map(x=>[x.key,x]));
+
+  const esc = (s)=>String(s==null?'':s)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#39;');
+
+  let caseMode = 'free';
+  let caseToken = '';
+  let caseSpinning = false;
+
+  const fetchJson = async (url, opts={}) => {
+    const headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+    const r = await fetch(url, Object.assign({ credentials:'include', headers }, opts));
+    const ct = (r.headers.get('content-type')||'').toLowerCase();
+    let j = null;
+    if(ct.includes('application/json')) j = await r.json().catch(()=>null);
+    if(!j) j = { ok: r.ok };
+    if(!r.ok && j && j.detail) throw new Error(j.detail);
+    if(!r.ok && j && !j.ok && j.message) throw new Error(j.message);
+    if(!r.ok && j && !j.ok && !j.detail) throw new Error('Request failed');
+    return j;
+  };
+
+  const ensureAuth = async ()=>{
+    try{
+      // NOTE: main auth endpoint in this project is /api/auth/me
+      const j = await fetchJson('/api/auth/me', { method:'GET', headers:{} });
+      if(j && j.ok && j.user){
+        // keep compatibility with the rest of the app that expects currentUser/_me
+        try{ currentUser = j.user; }catch(_e){}
+        try{ _me = j.user; }catch(_e){}
+        try{ window.currentUser = j.user; }catch(_e){}
+        try{ window._me = j.user; }catch(_e){}
+        return true;
+      }
+    }catch(_e){}
+    toast('Профиль','Сначала войди в аккаунт','warn');
+    try{ if(typeof window.setTab==='function') window.setTab('profile'); }catch(_e){}
+    try{ if(typeof window.showTab==='function') window.showTab('profile'); }catch(_e){}
+    return false;
+  };
+
+  function setCaseMode(mode){
+    caseMode = (mode==='paid') ? 'paid' : 'free';
+    const badge = byId('caseModeBadge');
+    const title = byId('caseModalTitle');
+    const free = byId('caseFreeControls');
+    const paid = byId('casePaidControls');
+    const res  = byId('caseResult');
+    if(res){ res.textContent='—'; res.classList.add('hidden'); }
+    if(caseMode==='paid'){
+      if(title) title.textContent = `💸 Кейс за ${CASE_PAID_PRICE}₽`;
+      if(badge) badge.textContent = 'PAID';
+      if(free) free.style.display='none';
+      if(paid){ paid.classList.remove('hidden'); paid.style.display='block'; }
+    }else{
+      if(title) title.textContent = '🎯 Кейс за капчу';
+      if(badge) badge.textContent = 'FREE';
+      if(free) free.style.display='block';
+      if(paid){ paid.style.display='none'; paid.classList.add('hidden'); }
+    }
+  }
+
+  function buildPrizesList(){
+    const list = byId('casePrizesList');
+    if(!list) return;
+    list.innerHTML='';
+    const total = CASE_ITEMS.reduce((s,x)=>s+x.weight,0);
+    CASE_ITEMS.forEach(it=>{
+      const row = document.createElement('div');
+      row.className='prizeRow';
+      const pct = ((it.weight/total)*100).toFixed(1)+'%';
+      const ico = it.img ? `<img class="prImg" src="${it.img}" alt="">` : `<div class="prIco">${it.icon||'🎁'}</div>`;
+      row.innerHTML = `${ico}<div style="flex:1"><div class="prT">${escapeHtml(it.label)}</div><div class="muted" style="font-size:12px">${escapeHtml(it.key)}</div></div><div class="prW">${pct}</div>`;
+      list.appendChild(row);
+    });
+  }
+
+  function buildReel({ winningKey=null }={}){
+    const reel = byId('caseReel');
+    if(!reel) return;
+    reel.innerHTML='';
+    const seq = [];
+    for(let i=0;i<8;i++) CASE_ITEMS.forEach(it=>seq.push(it));
+    for(let i=0;i<18;i++) seq.push(CASE_ITEMS[Math.floor(Math.random()*CASE_ITEMS.length)]);
+
+    // Put winningKey near the end so the spin looks long
+    const stopIndex = Math.max(12, seq.length - 10);
+    if(winningKey && itemByKey[winningKey]) seq[stopIndex] = itemByKey[winningKey];
+
+    seq.forEach((it)=>{
+      const d=document.createElement('div');
+      d.className='casePrize' + (String(it.key||'').startsWith('P') ? ' prem' : '');
+      d.dataset.prize = it.key;
+      d.innerHTML = `<div class="caseInner">${it.img?`<img class="caseImg" src="${it.img}" alt="">`:`<div class="caseIcon">${it.icon||'🎁'}</div>`}<div class="caseLbl">${escapeHtml(it.label||it.key||'')}</div></div>`;
+      reel.appendChild(d);
+    });
+
+    reel.style.transition='none';
+    reel.style.transform='translateX(0px)';
+    reel.dataset.stopIndex = String(stopIndex);
+  }
+
+  function openModalUI(){
+    const back = byId('caseOpenBack');
+    const m = byId('caseOpenModal');
+    if(back){ back.classList.remove('hidden'); back.style.display='block'; }
+    if(m){
+      m.classList.remove('hidden');
+      m.style.display='block';
+      m.classList.add('open');
+      requestAnimationFrame(()=>m.classList.add('vis'));
+    }
+  }
+
+  function closeModalUI(){
+    if(caseSpinning) return;
+    const back = byId('caseOpenBack');
+    const m = byId('caseOpenModal');
+    if(!m) return;
+    m.classList.remove('vis');
+    setTimeout(()=>{
+      m.classList.remove('open');
+      m.style.display='none';
+      m.classList.add('hidden');
+      if(back){ back.style.display='none'; back.classList.add('hidden'); }
+    }, 190);
+  }
+
+  function openPrizes(){
+    buildPrizesList();
+    const back = byId('casePrizesBack');
+    const m = byId('casePrizesModal');
+    if(back){ back.classList.remove('hidden'); back.style.display='block'; }
+    if(m){ m.classList.remove('hidden'); m.style.display='block'; m.classList.add('open'); requestAnimationFrame(()=>m.classList.add('vis')); }
+  }
+  function closePrizes(){
+    const back = byId('casePrizesBack');
+    const m = byId('casePrizesModal');
+    if(!m) return;
+    m.classList.remove('vis');
+    setTimeout(()=>{
+      m.classList.remove('open');
+      m.style.display='none';
+      m.classList.add('hidden');
+      if(back){ back.style.display='none'; back.classList.add('hidden'); }
+    }, 190);
+  }
+
+  function showPrizeResult(key){
+    const res = byId('caseResult');
+    const it = itemByKey[key];
+    if(!res) return;
+    res.textContent = it ? `Вы выиграли: ${it.label}` : `Вы выиграли: ${key}`;
+    res.classList.remove('hidden');
+  }
+
+  async function spinToPrize(prizeKey){
+    const reel = byId('caseReel');
+    const wrap = document.querySelector('#caseOpenModal .caseReelWrap');
+    if(!reel || !wrap) return;
+
+    buildReel({ winningKey: prizeKey });
+    // Wait for layout
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const stopIndex = parseInt(reel.dataset.stopIndex||'0',10);
+    const items = reel.querySelectorAll('.casePrize');
+    const winEl = items[stopIndex] || items[items.length-1];
+    if(!winEl) return;
+
+    const wrapW = wrap.clientWidth;
+    const x = winEl.offsetLeft + winEl.offsetWidth/2 - wrapW/2;
+    caseSpinning = true;
+    reel.style.transition = 'transform 4.2s cubic-bezier(.08,.66,.12,1)';
+    reel.style.transform  = `translateX(${-x}px)`;
+    await new Promise(r=>setTimeout(r, 4300));
+    caseSpinning = false;
+  }
+
+  async function doFreeChallenge(){
+    if(!(await ensureAuth())) return;
+    try{
+      const j = await fetchJson('/api/case/challenge', { method:'GET', headers:{} });
+      caseToken = j.token || '';
+      const hint = byId('caseHint');
+      if(hint) hint.textContent = `Сколько будет ${j.a} + ${j.b}?`;
+      const ans = byId('caseAnswer');
+      if(ans){ ans.value=''; ans.focus(); }
+    }catch(e){
+      toast('Кейс', e.message || 'Не удалось получить капчу', 'bad');
+    }
+  }
+
+  async function doFreeOpen(){
+    if(!(await ensureAuth())) return;
+    const answer = (byId('caseAnswer')?.value||'').trim();
+    if(!caseToken){ toast('Кейс','Сначала получи капчу','warn'); return; }
+    if(!answer){ toast('Кейс','Введи ответ капчи','warn'); return; }
+    try{
+      const r = await fetchJson('/api/case/open', { method:'POST', body: JSON.stringify({ token: caseToken, answer }) });
+      await spinToPrize(r.prize);
+      showPrizeResult(r.prize);
+      toast('Кейс','Готово! Приз добавлен в инвентарь.','ok');
+    }catch(e){
+      toast('Кейс', e.message || 'Не удалось открыть кейс', 'bad');
+    }
+  }
+
+  async function doPaidOpen(){
+    if(!(await ensureAuth())) return;
+    try{
+      const r = await fetchJson('/api/case/open_paid', { method:'POST', body: JSON.stringify({}) });
+      await spinToPrize(r.prize);
+      showPrizeResult(r.prize);
+      toast('Кейс','Готово! Приз добавлен в инвентарь.','ok');
+    }catch(e){
+      toast('Кейс', e.message || 'Не удалось открыть кейс', 'bad');
+    }
+  }
+
+  async function openCaseModal(mode){
+    const m = byId('caseOpenModal');
+    if(!m) return;
+    if(!(await ensureAuth())) return;
+    setCaseMode(mode);
+    buildReel({ winningKey:null });
+    openModalUI();
+  }
+
+  // Export globally (overrides any legacy placeholder)
+  window.openCaseModal = openCaseModal;
+  window.closeCaseModal = closeModalUI;
+
+  // Bind UI once
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // Buttons inside modal
+    byId('btnCaseModalClose')?.addEventListener('click', closeModalUI);
+    byId('caseOpenBack')?.addEventListener('click', closeModalUI);
+    byId('btnCasePrizes')?.addEventListener('click', openPrizes);
+    byId('btnCasePrizesClose')?.addEventListener('click', closePrizes);
+    byId('casePrizesBack')?.addEventListener('click', closePrizes);
+
+    byId('btnCaseGetCaptcha')?.addEventListener('click', doFreeChallenge);
+    byId('btnCaseOpenFree')?.addEventListener('click', doFreeOpen);
+    byId('btnCaseOpenPaid')?.addEventListener('click', doPaidOpen);
+
+    // Legacy buttons (if they still exist somewhere in layout)
+    byId('btnOpenCaseFree')?.addEventListener('click', ()=>openCaseModal('free'));
+    byId('btnOpenCasePaid')?.addEventListener('click', ()=>openCaseModal('paid'));
+
+    // ESC
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'){
+        closeModalUI();
+        closePrizes();
+      }
+    });
+  }, { once:true });
+})();
