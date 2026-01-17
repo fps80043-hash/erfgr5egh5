@@ -841,18 +841,32 @@ function toastIcon(type){
   return "✅";
 }
 
+const TOAST_DELAY_MS = 400;
+
 function toast(title, msg="", type="ok"){
   const now = Date.now();
   const sig = `${type}|${String(title)}|${String(msg)}`;
+
   // If the exact same toast is triggered twice in a short time window,
-  // show it only once.
+  // schedule it only once.
   if(sig === toastLastSig && (now - toastLastSigAt) < 1200){
     return;
   }
+  toastLastSig = sig;
+  toastLastSigAt = now;
+
+  // Small delay to make UI feel smoother and to avoid "instant" spam.
+  setTimeout(() => toastEnqueue(title, msg, type, sig), TOAST_DELAY_MS);
+}
+
+function toastEnqueue(title, msg="", type="ok", sig=null){
+  const now = Date.now();
+  const _sig = sig || `${type}|${String(title)}|${String(msg)}`;
+
   const COOLDOWN_MS = 800;
   if(now - toastLastAt < COOLDOWN_MS){
-    // keep only the latest toast during cooldown, but still dedupe
-    toastNext = {title, msg, type, sig};
+    // keep only the latest toast during cooldown
+    toastNext = {title, msg, type, sig: _sig};
     if(!toastCooldownTimer){
       const wait = COOLDOWN_MS - (now - toastLastAt);
       toastCooldownTimer = setTimeout(()=>{
@@ -860,8 +874,6 @@ function toast(title, msg="", type="ok"){
         if(toastNext){
           const t = toastNext; toastNext = null;
           toastLastAt = Date.now();
-          toastLastSig = t.sig || `${t.type}|${String(t.title)}|${String(t.msg||"")}`;
-          toastLastSigAt = toastLastAt;
           toastQ.push(t);
           while(toastQ.length > 2) toastQ.shift();
           if(!toastBusy) drainToasts();
@@ -870,13 +882,13 @@ function toast(title, msg="", type="ok"){
     }
     return;
   }
+
   toastLastAt = now;
-  toastLastSig = sig;
-  toastLastSigAt = now;
-  toastQ.push({title, msg, type});
+  toastQ.push({title, msg, type, sig: _sig});
   while(toastQ.length > 2) toastQ.shift();
   if(!toastBusy) drainToasts();
 }
+
 
 function drainToasts(){
   const box = document.getElementById("toasts");
@@ -1139,8 +1151,14 @@ const DEFAULT_DESC = `✨ Аккаунт готов к игре!
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function initTilt(){
-  // Touch devices: skip tilt to avoid broken taps + keep perf
-  if(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+  // Touch devices: skip tilt to avoid broken taps + keep perf.
+  // Allow hybrid devices (touch + mouse/trackpad) where (pointer: coarse) may still be true.
+  if(window.matchMedia){
+    const noHoverCoarse = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const anyHover = window.matchMedia("(any-hover: hover)").matches;
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    if(noHoverCoarse && !anyHover && !finePointer) return;
+  }
 
   const els = $$(".tilt");
   els.forEach(el=>{
@@ -1157,8 +1175,9 @@ function initTilt(){
     // Smooth animation (lerp) to avoid micro-jitter on high DPI / moving backgrounds
     let hover = false;
     let raf = 0;
-    let target = {rx:0, ry:0, mx:50, my:20};
-    let cur    = {rx:0, ry:0, mx:50, my:20};
+    // dx/dy drive inner parallax (ekuve-like)
+    let target = {rx:0, ry:0, mx:50, my:20, dx:0, dy:0};
+    let cur    = {rx:0, ry:0, mx:50, my:20, dx:0, dy:0};
 
     const tick = ()=>{
       raf = 0;
@@ -1168,11 +1187,15 @@ function initTilt(){
       cur.ry += (target.ry - cur.ry) * k;
       cur.mx += (target.mx - cur.mx) * k;
       cur.my += (target.my - cur.my) * k;
+      cur.dx += (target.dx - cur.dx) * k;
+      cur.dy += (target.dy - cur.dy) * k;
 
       el.style.setProperty("--rx", cur.rx.toFixed(2) + "deg");
       el.style.setProperty("--ry", cur.ry.toFixed(2) + "deg");
       el.style.setProperty("--mx", cur.mx.toFixed(2) + "%");
       el.style.setProperty("--my", cur.my.toFixed(2) + "%");
+      el.style.setProperty("--dx", cur.dx.toFixed(2) + "px");
+      el.style.setProperty("--dy", cur.dy.toFixed(2) + "px");
 
       if(hover){
         raf = requestAnimationFrame(tick);
@@ -1192,6 +1215,9 @@ function initTilt(){
       target.my = y*100;
       target.ry = (x - 0.5) * maxY;
       target.rx = -(y - 0.5) * maxX;
+      // subtle inner parallax for product cards
+      target.dx = (x - 0.5) * (isProduct ? 14 : 8);
+      target.dy = (y - 0.5) * (isProduct ? 10 : 6);
       schedule();
     };
 
@@ -1209,7 +1235,7 @@ function initTilt(){
     el.addEventListener("mouseleave", ()=>{
       hover = false;
       el.classList.add("isLeaving");
-      target = {rx:0, ry:0, mx:50, my:20};
+      target = {rx:0, ry:0, mx:50, my:20, dx:0, dy:0};
       schedule();
       // after animation, drop leaving-state
       setTimeout(()=>el.classList.remove("isLeaving"), 260);
@@ -4586,6 +4612,21 @@ async function initShopBuilderPage(){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
+    // Home page info blocks: enable tilt on desktop hover
+    try{
+      document.querySelectorAll('#tab-home .heroItem, #tab-home .card:not(.hero)').forEach(el=>{
+        el.classList.add('tilt','tiltInfo');
+      });
+      if(typeof initTilt==='function') initTilt();
+    }catch(_e){}
+
+    // Enable tilt for home info blocks (desktop only)
+    try{
+      document.querySelectorAll('#tab-home .heroItem, #tab-home .card:not(.hero)').forEach(el=>{
+        el.classList.add('tilt','tiltInfo');
+      });
+    }catch(_e){}
+
   if(window.__SHOP_BUILDER_PAGE__){
     initShopBuilderPage().catch(()=>{});
   }
@@ -4848,10 +4889,24 @@ try{ window.openCaseModal = openCaseModal; }catch(e){}
   async function openCaseModal(mode){
     const m = byId('caseOpenModal');
     if(!m) return;
-    if(!(await ensureAuth())) return;
+
+    // Open instantly (no perceived lag), then validate auth + build heavy DOM on next frames.
     setCaseMode(mode);
-    buildReel({ winningKey:null });
+    m.classList.add('loading');
     openModalUI();
+
+    // Let the modal paint before network / heavy work
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+    if(!(await ensureAuth())){ 
+      closeModalUI();
+      m.classList.remove('loading');
+      return;
+    }
+
+    // Build reel after modal is visible (reduces tap delay on mobile)
+    buildReel({ winningKey:null });
+    m.classList.remove('loading');
   }
 
   // Export globally (overrides any legacy placeholder)

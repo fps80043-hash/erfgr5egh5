@@ -1399,6 +1399,65 @@ code{
   background: radial-gradient(220px 220px at var(--mx,50%) var(--my,20%), rgba(124,92,255,.12), transparent 62%);
 }
 .productCard.tilt:hover{ transform: translateY(-1px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); }
+
+
+/* Premium tilt (like ekvue): deeper perspective + parallax layers */
+.tilt{ backface-visibility:hidden; }
+.tilt::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity .18s ease;
+  background:
+    linear-gradient(115deg,
+      rgba(255,255,255,.18),
+      rgba(255,255,255,0) 28%,
+      rgba(124,92,255,.18) 55%,
+      rgba(0,0,0,0) 78%);
+  mix-blend-mode: screen;
+  filter: blur(0.2px);
+}
+.tilt:hover::before{ opacity:.55; }
+
+.productCard.tilt{
+  perspective: 980px;
+  transform-style: preserve-3d;
+}
+.productCard.tilt .prodArt{
+  transform: translate3d(calc(var(--dx,0px) * .55), calc(var(--dy,0px) * .45), 18px);
+}
+.productCard.tilt .prodBody{
+  transform: translate3d(calc(var(--dx,0px) * .35), calc(var(--dy,0px) * .25), 30px);
+}
+.productCard.tilt .prodArt,
+.productCard.tilt .prodBody{ will-change: transform; }
+
+/* Make the banner image itself feel "alive" (subtle parallax) */
+.productCard.tilt .prodArt .prodMediaArt{
+  transform: translate3d(calc(var(--dx,0px) * .25), calc(var(--dy,0px) * .20), 0);
+  transition: transform 120ms ease;
+  will-change: transform;
+}
+
+/* Make hover feel more "expensive" */
+.productCard.tilt:hover{
+  box-shadow: 0 26px 90px rgba(0,0,0,.60);
+}
+
+/* Home info blocks */
+.tiltInfo{ perspective: 860px; }
+.tiltInfo:hover{ transform: translateY(-3px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); }
+.tiltInfo::after{
+  background: radial-gradient(360px 360px at var(--mx,50%) var(--my,20%), rgba(34,211,238,.12), transparent 62%);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .tilt, .tilt::after, .tilt::before{ transition:none !important; }
+}
 .hero.tilt{position:relative}
 .packBtn.tilt{position:relative}
 
@@ -2183,6 +2242,28 @@ body.theme-night::after{
 }
 .modal:not(#payModal):not(.modalFull).open{ display:block; }
 .modal:not(#payModal):not(.modalFull).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+
+/* Case modals: instant open state (while auth/reel is preparing) */
+.modal.loading{
+  pointer-events: auto;
+}
+.modal.loading .caseStage{
+  opacity: .72;
+}
+.modal.loading::after{
+  content:"";
+  position:absolute;
+  left:50%; top:56px;
+  width:22px; height:22px;
+  margin-left:-11px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.22);
+  border-top-color: rgba(124,92,255,.95);
+  animation: spin .7s linear infinite;
+  pointer-events:none;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
 .modal:not(#payModal):not(.modalFull).open{ display:block; }
 .modal:not(#payModal):not(.modalFull).vis{ opacity:1; transform: translate(-50%,-50%) scale(1); }
 .modal:not(#payModal).glass{
@@ -3249,4 +3330,37 @@ body.authed #btnSettings {
 /* Shop panel is admin-only */
 body:not(.admin) #btnShopPanel {
   display: none !important;
+}
+
+/* === Mobile performance tuning (reduce GPU-heavy effects) === */
+@media (max-width: 820px){
+  /* Reduce expensive fixed blurred backgrounds */
+  body::after{ filter: blur(22px); opacity: .25; }
+
+  /* Remove backdrop blur on mobile (major perf win) */
+  .card, .productCard, .modal, .panel, .box,
+  .topbar, .bnav, .nav, .sheet, .drawer,
+  .toast, .dropdown, .menu{
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Lighter shadows */
+  .card, .productCard, .modal, .panel, .box{ box-shadow: 0 8px 20px rgba(0,0,0,.26) !important; }
+  .btn, .navbtn, .btab{ box-shadow: 0 8px 20px rgba(0,0,0,.24) !important; }
+
+  /* Disable hover/tilt extras (hover doesn't exist, but effects can still cost) */
+  .productCard.tilt,
+  .productCard.tilt *{
+    transform: none !important;
+  }
+  .productCard.tilt::after{ display:none !important; }
+
+  /* Avoid overly long transitions on low-end phones */
+  *{ transition-duration: .18s !important; }
+}
+
+/* Prefer-reduced-motion support */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
