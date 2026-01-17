@@ -830,6 +830,11 @@ let toastLastAt = 0;
 let toastNext = null;
 let toastCooldownTimer = null;
 
+// Deduplicate identical toasts that can happen when the same action
+// triggers multiple handlers (e.g., mobile click/pointer quirks or legacy binds).
+let toastLastSig = "";
+let toastLastSigAt = 0;
+
 function toastIcon(type){
   if(type === "bad") return "⛔";
   if(type === "warn") return "⚡";
@@ -838,9 +843,16 @@ function toastIcon(type){
 
 function toast(title, msg="", type="ok"){
   const now = Date.now();
+  const sig = `${type}|${String(title)}|${String(msg)}`;
+  // If the exact same toast is triggered twice in a short time window,
+  // show it only once.
+  if(sig === toastLastSig && (now - toastLastSigAt) < 1200){
+    return;
+  }
   const COOLDOWN_MS = 800;
   if(now - toastLastAt < COOLDOWN_MS){
-    toastNext = {title, msg, type};
+    // keep only the latest toast during cooldown, but still dedupe
+    toastNext = {title, msg, type, sig};
     if(!toastCooldownTimer){
       const wait = COOLDOWN_MS - (now - toastLastAt);
       toastCooldownTimer = setTimeout(()=>{
@@ -848,6 +860,8 @@ function toast(title, msg="", type="ok"){
         if(toastNext){
           const t = toastNext; toastNext = null;
           toastLastAt = Date.now();
+          toastLastSig = t.sig || `${t.type}|${String(t.title)}|${String(t.msg||"")}`;
+          toastLastSigAt = toastLastAt;
           toastQ.push(t);
           while(toastQ.length > 2) toastQ.shift();
           if(!toastBusy) drainToasts();
@@ -857,6 +871,8 @@ function toast(title, msg="", type="ok"){
     return;
   }
   toastLastAt = now;
+  toastLastSig = sig;
+  toastLastSigAt = now;
   toastQ.push({title, msg, type});
   while(toastQ.length > 2) toastQ.shift();
   if(!toastBusy) drainToasts();
@@ -2869,9 +2885,9 @@ function buildCaseUI({ rebuildReel = true } = {}){
   }
 
   // prizes modal hooks (idempotent)
-  if($("#btnCasePrizes")) $("#btnCasePrizes").onclick = ()=>openCasePrizes();
-  if($("#btnCasePrizesClose")) $("#btnCasePrizesClose").onclick = ()=>closeCasePrizes();
-  if($("#casePrizesBack")) $("#casePrizesBack").onclick = ()=>closeCasePrizes();
+// (disabled: duplicate bindings handled by CaseModal module)   if($("#btnCasePrizes")) $("#btnCasePrizes").onclick = ()=>openCasePrizes();
+// (disabled: duplicate bindings handled by CaseModal module)   if($("#btnCasePrizesClose")) $("#btnCasePrizesClose").onclick = ()=>closeCasePrizes();
+// (disabled: duplicate bindings handled by CaseModal module)   if($("#casePrizesBack")) $("#casePrizesBack").onclick = ()=>closeCasePrizes();
 }
 
 function openCasePrizes(){
@@ -2990,12 +3006,12 @@ function closeCaseModal(){
 }
 
 // hooks
-$("#btnOpenCaseFree")?.addEventListener("click", ()=>window.openCaseModal("free"));
-$("#btnOpenCasePaid")?.addEventListener("click", ()=>window.openCaseModal("paid"));
-$("#btnCaseModalClose")?.addEventListener("click", closeCaseModal);
-$("#caseOpenBack")?.addEventListener("click", closeCaseModal);
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnOpenCaseFree")?.addEventListener("click", ()=>window.openCaseModal("free"));
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnOpenCasePaid")?.addEventListener("click", ()=>window.openCaseModal("paid"));
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseModalClose")?.addEventListener("click", closeCaseModal);
+// (disabled: duplicate bindings handled by CaseModal module) $("#caseOpenBack")?.addEventListener("click", closeCaseModal);
 
-window.addEventListener("keydown", (e)=>{
+// (disabled: duplicate bindings handled by CaseModal module) window.addEventListener("keydown", (e)=>{
   if(e.key === "Escape"){
     if(!caseSpinning) closeCaseModal();
     closeCasePrizes();
@@ -3120,8 +3136,8 @@ async function _caseGetCaptcha(){
 }
 
 // Support BOTH ids (old/new) so redesign doesn't break behavior.
-$("#btnCaseChallenge")?.addEventListener("click", _caseGetCaptcha);
-$("#btnCaseGetCaptcha")?.addEventListener("click", _caseGetCaptcha);
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseChallenge")?.addEventListener("click", _caseGetCaptcha);
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseGetCaptcha")?.addEventListener("click", _caseGetCaptcha);
 
 async function _caseOpenFree(){
   if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
@@ -3139,7 +3155,6 @@ async function _caseOpenFree(){
     }
 
     caseSpinning = true;
-    _setCaseLocked(true);
     _setCaseLocked(true);
     const resBox = $("#caseResult");
     if(resBox) resBox.textContent = "Крутим…";
@@ -3178,55 +3193,11 @@ async function _caseOpenFree(){
 }
 
 // Support BOTH ids (old/new)
-$("#btnCaseOpen")?.addEventListener("click", _caseOpenFree);
-$("#btnCaseOpenFree")?.addEventListener("click", _caseOpenFree);
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseOpen")?.addEventListener("click", _caseOpenFree);
+// (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseOpenFree")?.addEventListener("click", _caseOpenFree);
 
-$("#btnCaseOpenPaid")?.addEventListener("click", async ()=>{
-  if(!currentUser){ toast("Профиль","Сначала войди в аккаунт","warn"); try{ showTab("profile"); }catch(_e){} return; }
-  if(caseSpinning) return;
-
-  try{
-    const bal = Number(currentUser?.balance || 0);
-    if(bal < CASE_PAID_PRICE){
-      toast("Баланс", `Нужно ${CASE_PAID_PRICE}₽ для открытия`, "warn");
-      try{ showTab("profile"); }catch(_e){}
-      return;
-    }
-
-    caseSpinning = true;
-    const resBox = $("#caseResult");
-    if(resBox) resBox.textContent = `Крутим за ${CASE_PAID_PRICE}₽…`;
-
-    const r = await apiPost("/api/case/open_paid", {});
-
-    caseAudio.ensure();
-    const spin = caseSpinTo(r.prize);
-
-    const map = {
-      GEN10: "+10 анализов",
-      AI3: "+3 генерации (AI+анализ)",
-      P6H: "Premium на 6 часов",
-      P12H: "Premium на 12 часов",
-      P24H: "Premium на 24 часа",
-      P2D: "Premium на 2 дня",
-      P3D: "Premium на 3 дня",
-      P7D: "Premium на 7 дней",
-    };
-
-    setTimeout(async ()=>{
-      if(resBox) resBox.textContent = "Приз добавлен в инвентарь: " + (map[r.prize] || r.prize);
-      toast("Кейс", "Приз в инвентаре: " + (map[r.prize] || r.prize), "ok");
-      caseSpinning = false;
-      _setCaseLocked(false);
-      await refreshMe();
-    }, (spin.durationMs || 5200));
-
-  }catch(e){
-    caseSpinning = false;
-    _setCaseLocked(false);
-    toast("Кейс", e.message || "Ошибка", "bad");
-  }
-});
+// NOTE: paid-open handler is implemented in the CaseModal module below.
+// The block that used to be here was partially commented and broke JS parsing.
 
 
 // --- Hotfix: Pay modal always closable (click backdrop) ---
@@ -3246,9 +3217,6 @@ $("#btnCaseOpenPaid")?.addEventListener("click", async ()=>{
   };
   document.addEventListener("pointerdown", onBackdrop, true);
 })();
-
-});
-
 
 /* productCardGlowVars */
 (function(){
@@ -3762,6 +3730,15 @@ function applyItemToCard(card, it){
   const btn = card.querySelector('.prodBtn');
   const btnText = card.querySelector('.prodBtnText');
   const art = card.querySelector('.prodMediaArt');
+
+  // mark special card types (for CSS)
+  try{
+    const act = inferShopAction(it) || "";
+    const isCase = (act === "case_free" || act === "case_paid");
+    card.classList.toggle('isCase', isCase);
+    card.classList.toggle('isCaseFree', act === 'case_free');
+    card.classList.toggle('isCasePaid', act === 'case_paid');
+  }catch(_e){}
 
   if(t) t.textContent = it.title || '';
   if(d) d.textContent = it.desc || '';

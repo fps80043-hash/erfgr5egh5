@@ -1847,8 +1847,8 @@ canvas.fx, svg.fx {
 
 
 /* === CASE STEP1.1: modal + bigger reel + nicer buttons === */
-.caseModalCard{ max-width: 980px; width:min(980px, 96vw); }
-.caseViewport.big{ height: 280px; border-radius: 22px; }
+.caseModalCard{ max-width: 1080px; width:min(1080px, 98vw); }
+.caseViewport.big{ height: 320px; border-radius: 22px; }
 .caseMarker.big{ width: 6px; box-shadow: 0 0 34px rgba(124,92,255,.85); }
 .caseReel.big{ padding: 18px; gap: 14px; }
 
@@ -1863,7 +1863,7 @@ canvas.fx, svg.fx {
 .caseReel.big .casePrize .caseLbl{ font-size: 14px; }
 
 @media (max-width: 720px){
-  .caseViewport.big{ height: 230px; }
+  .caseViewport.big{ height: 270px; }
   .caseReel.big .casePrize{ width: 185px; min-width:185px; height:185px; }
   .caseReel.big .casePrize .caseImg{ width: 140px; height: 140px; }
 }
@@ -2469,7 +2469,9 @@ body.theme-night .input{
 }
 .productCard.pxtCard .prodMedia{
   position:relative;
-  height:168px;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  min-height: 168px;
   border-radius:20px;
   overflow:hidden;
   border:1px solid rgba(255,255,255,.10);
@@ -2494,6 +2496,22 @@ body.theme-night .input{
 /* SVG banners often have built-in padding; keep them contained to avoid cropping. */
 .productCard.pxtCard .prodMediaArt[src$=".svg"]{
   object-fit: contain;
+}
+
+/* Cases: make the card feel larger and keep banners consistent on mobile */
+.productCard.pxtCard.isCase{
+  padding: 16px;
+  border-radius: 28px;
+}
+.productCard.pxtCard.isCase .prodMedia{
+  min-height: 190px;
+}
+.productCard.pxtCard.isCase .prodMediaArt[src$=".svg"]{
+  /* case SVGs often have internal padding; fill like a real banner */
+  object-fit: cover;
+}
+@media (max-width: 520px){
+  .productCard.pxtCard.isCase .prodMedia{ min-height: 200px; }
 }
 .productCard.pxtCard .prodMediaGlow{
   position:absolute; inset:-40%;
