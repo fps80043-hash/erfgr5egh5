@@ -3,6 +3,9 @@ import re
 import datetime
 import random
 import sqlite3
+import threading
+import math
+import time
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -52,6 +55,18 @@ except Exception:
 DEFAULT_TIMEOUT = 30
 
 BUILD_VERSION = os.environ.get("BUILD_VERSION", "5.3.15")
+
+# ----------------------------
+# Robux shop config
+# ----------------------------
+# Minimum order in Robux
+ROBUX_MIN_AMOUNT = int(os.environ.get("ROBUX_MIN_AMOUNT", "50"))
+# Site balance currency (points) per 1 Robux. Default: 0.5 RUB per 1 Robux.
+ROBUX_RUB_PER_ROBUX = float(os.environ.get("ROBUX_RUB_PER_ROBUX", "0.5"))
+# Factor to compensate Roblox fee (approx 30%): price = ceil(amount * 1.43)
+ROBUX_GP_FACTOR = float(os.environ.get("ROBUX_GP_FACTOR", "1.43"))
+
+# Seller cookie is configured via env ROBLOX_SELLER_COOKIE (preferred) or via Admin settings in DB.
 
 # Auth / DB
 DB_PATH = os.environ.get("DB_PATH", "data.db")
@@ -712,6 +727,138 @@ RBX_ROBUX = "https://economy.roblox.com/v1/users/{uid}/currency"
 RBX_COLLECT = "https://inventory.roblox.com/v1/users/{uid}/assets/collectibles?limit=100&cursor={cur}"
 RBX_TX = "https://economy.roblox.com/v2/users/{uid}/transactions?transactionType=Purchase&limit=100&cursor={cur}"
 
+# Roblox gamepass product info
+RBX_GAMEPASS_INFO = "https://economy.roblox.com/v1/game-pass/{gid}/game-pass-product-info"
+RBX_PURCHASE_PRODUCT = "https://economy.roblox.com/v1/purchases/products/{pid}"
+
+
+def robux_calc(amount: int) -> Dict[str, Any]:
+    """Server-side quote. Never trust client-side numbers."""
+    try:
+        amount = int(amount)
+    except Exception:
+        amount = 0
+    cfg=_robux_cfg_effective()
+    if amount < int(cfg['min_amount']):
+        raise HTTPException(status_code=400, detail=f"Минимум {int(cfg['min_amount'])} Robux")
+    rub_price = int(round(amount * float(cfg['rub_per_robux'])))
+    gp_price = int(math.ceil(amount * float(cfg['gp_factor'])))
+    return {"robux": amount, "rub_price": rub_price, "gamepass_price": gp_price}
+
+
+def _parse_gamepass_id(url: str) -> int:
+    """Extract gamepass id from URL. Supports common formats."""
+    if not url:
+        return 0
+    s = str(url).strip()
+    # /game-pass/<id>/
+    m = re.search(r"game-?pass(?:es)?/(\\d+)", s, flags=re.I)
+    if m:
+        return int(m.group(1))
+    # ...?id=<id>
+    m = re.search(r"[?&]id=(\\d+)", s, flags=re.I)
+    if m:
+        return int(m.group(1))
+    # last number in url
+    m = re.findall(r"(\\d{5,})", s)
+    if m:
+        try:
+            return int(m[-1])
+        except Exception:
+            return 0
+    return 0
+
+
+def _roblox_request(method: str, url: str, *, cookie: str, headers: Optional[Dict[str, str]] = None, json_body: Optional[Dict[str, Any]] = None) -> requests.Response:
+    h = {"User-Agent": "RST-Web/1.0"}
+    if headers:
+        h.update(headers)
+    ck = cookie
+    if ck and not ck.lower().startswith(".roblosecurity"):
+        # allow passing raw cookie value
+        ck = f".ROBLOSECURITY={ck}"
+    cookies = {".ROBLOSECURITY": ck.split("=",1)[1]} if ck else {}
+    r = requests.request(method, url, headers=h, cookies=cookies, json=json_body, timeout=DEFAULT_TIMEOUT)
+    return r
+
+
+def _roblox_post_with_csrf(url: str, *, cookie: str, json_body: Dict[str, Any]) -> requests.Response:
+    """Roblox requires X-CSRF-TOKEN for state-changing requests."""
+    r = _roblox_request("POST", url, cookie=cookie, headers={}, json_body=json_body)
+    if r.status_code == 403:
+        tok = r.headers.get("x-csrf-token") or r.headers.get("X-CSRF-TOKEN")
+        if tok:
+            r = _roblox_request("POST", url, cookie=cookie, headers={"X-CSRF-TOKEN": tok}, json_body=json_body)
+    return r
+
+
+def roblox_inspect_gamepass(gamepass_url: str) -> Dict[str, Any]:
+    gid = _parse_gamepass_id(gamepass_url)
+    if not gid:
+        raise HTTPException(status_code=400, detail="Не удалось распознать ссылку на геймпасс")
+    url = RBX_GAMEPASS_INFO.format(gid=gid)
+    r = requests.get(url, timeout=DEFAULT_TIMEOUT)
+    if not r.ok:
+        raise HTTPException(status_code=400, detail="Геймпасс не найден")
+    j = r.json() if r.content else {}
+    # fields: Name, PriceInRobux, ProductId, Creator
+    name = j.get("Name") or j.get("name") or ""
+    price = int(j.get("PriceInRobux") or j.get("price") or 0)
+    pid = int(j.get("ProductId") or j.get("productId") or 0)
+    creator = j.get("Creator") or j.get("creator") or {}
+    owner = creator.get("Name") or creator.get("name") or ""
+    owner_id = int(creator.get("Id") or creator.get("id") or 0)
+    return {
+        "gamepass_id": int(gid),
+        "product_id": int(pid),
+        "name": str(name),
+        "price": int(price),
+        "owner": str(owner),
+        "owner_id": int(owner_id),
+    }
+
+
+def roblox_seller_status() -> Dict[str, Any]:
+    ck = _seller_cookie_effective()
+    if not ck:
+        return {"configured": False}
+    # authenticated user
+    r = _roblox_request("GET", RBX_AUTH, cookie=ck)
+    if not r.ok:
+        return {"configured": False}
+    j = r.json() if r.content else {}
+    uid = int(j.get("id") or 0)
+    uname = j.get("name") or ""
+    # robux balance
+    rr = _roblox_request("GET", RBX_ROBUX.format(uid=uid), cookie=ck)
+    robux = 0
+    if rr.ok:
+        jj = rr.json() if rr.content else {}
+        robux = int(jj.get("robux") or jj.get("balance") or 0)
+    return {"configured": True, "user_id": uid, "username": uname, "robux": robux}
+
+
+def roblox_buy_product(*, product_id: int, expected_price: int, expected_seller_id: int) -> Dict[str, Any]:
+    ck = _seller_cookie_effective()
+    if not ck:
+        raise RuntimeError("ROBLOX_SELLER_COOKIE is not configured")
+    url = RBX_PURCHASE_PRODUCT.format(pid=int(product_id))
+    payload = {
+        "expectedCurrency": 1,
+        "expectedPrice": int(expected_price),
+        "expectedSellerId": int(expected_seller_id),
+    }
+    r = _roblox_post_with_csrf(url, cookie=ck, json_body=payload)
+    try:
+        j = r.json() if r.content else {}
+    except Exception:
+        j = {}
+    if not r.ok:
+        raise RuntimeError(j.get("errorMsg") or j.get("message") or f"Roblox purchase failed ({r.status_code})")
+    if j.get("purchased") is False:
+        raise RuntimeError(j.get("errorMsg") or "Purchase rejected")
+    return j
+
 # ----------------------------
 # DB helpers
 # ----------------------------
@@ -938,6 +1085,38 @@ def db_init():
               updated_at TEXT NOT NULL
             )
         """)
+        # site settings (admin configurable)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS site_settings(
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+
+
+        # Robux orders (shop item)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS robux_orders(
+              id SERIAL PRIMARY KEY,
+              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              robux_amount INTEGER NOT NULL,
+              rub_price INTEGER NOT NULL,
+              gamepass_price INTEGER NOT NULL,
+              gamepass_url TEXT NOT NULL,
+              gamepass_id BIGINT,
+              product_id BIGINT,
+              gamepass_name TEXT,
+              gamepass_owner TEXT,
+              gamepass_owner_id BIGINT,
+              status TEXT NOT NULL DEFAULT 'new',
+              error_message TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_robux_orders_user ON robux_orders(user_id, id DESC)""")
+        con.execute("""CREATE INDEX IF NOT EXISTS idx_robux_orders_status ON robux_orders(status, id DESC)""")
         con.commit()
         con.close()
         return
@@ -978,6 +1157,30 @@ def db_init():
         con.execute("ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL DEFAULT 0")
     if "is_admin" not in cols:
         con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
+    # Robux orders
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS robux_orders(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          robux_amount INTEGER NOT NULL,
+          rub_price INTEGER NOT NULL,
+          gamepass_price INTEGER NOT NULL,
+          gamepass_url TEXT NOT NULL,
+          gamepass_id INTEGER,
+          product_id INTEGER,
+          gamepass_name TEXT,
+          gamepass_owner TEXT,
+          gamepass_owner_id INTEGER,
+          status TEXT NOT NULL DEFAULT 'new',
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_robux_orders_user ON robux_orders(user_id, id DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_robux_orders_status ON robux_orders(status, id DESC)")
 
     cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
     if "twofa_email_enabled" not in cols:
@@ -1089,6 +1292,8 @@ def db_init():
     # shop layout/config (admin editable)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS shop_config(
+        # site settings (admin configurable)
+        cur.execute("CREATE TABLE IF NOT EXISTS site_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)")
           key TEXT PRIMARY KEY,
           json TEXT NOT NULL,
           updated_at TEXT NOT NULL
@@ -3817,6 +4022,347 @@ def api_case_open_paid(request: Request, payload: Dict[str, Any]):
     return {"ok": True, "prize": prize, "price": CASE_PAID_PRICE, "limits": user_limits(uid)}
 
 
+# ----------------------------
+# Robux shop flow (wizard)
+# ----------------------------
+
+def _robux_rate_limit_or_raise(con, user_id: int):
+    """Basic anti-spam: 1 order per 10s and max 5 per 60s."""
+    now = _now_utc()
+    ts10 = (now - datetime.timedelta(seconds=10)).isoformat()
+    ts60 = (now - datetime.timedelta(seconds=60)).isoformat()
+    r1 = con.execute(
+        "SELECT COUNT(1) AS c FROM robux_orders WHERE user_id=? AND created_at>=?",
+        (int(user_id), ts10),
+    ).fetchone()
+    c10 = int(_rget(r1, "c") or 0) if r1 else 0
+    if c10 >= 1:
+        raise HTTPException(status_code=429, detail="Слишком часто. Подожди пару секунд.")
+    r2 = con.execute(
+        "SELECT COUNT(1) AS c FROM robux_orders WHERE user_id=? AND created_at>=?",
+        (int(user_id), ts60),
+    ).fetchone()
+    c60 = int(_rget(r2, "c") or 0) if r2 else 0
+    if c60 >= 5:
+        raise HTTPException(status_code=429, detail="Лимит заказов в минуту достигнут.")
+
+
+@app.get("/api/robux/quote")
+def api_robux_quote(request: Request, amount: int):
+    require_user(request)
+    return {"ok": True, **robux_calc(amount)}
+
+
+@app.post("/api/robux/inspect")
+def api_robux_inspect(request: Request, payload: Dict[str, Any]):
+    require_user(request)
+    url = str(payload.get("url") or "").strip()
+    info = roblox_inspect_gamepass(url)
+    return {"ok": True, "gamepass": info}
+
+
+@app.post("/api/robux/order_create")
+def api_robux_order_create(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    try:
+        amount = int(payload.get("amount") or 0)
+    except Exception:
+        amount = 0
+    gp_url = str(payload.get("gamepass_url") or "").strip()
+    q = robux_calc(amount)
+    gp = roblox_inspect_gamepass(gp_url)
+
+    # Anti-fraud: price must match expected
+    if int(gp.get("price") or 0) != int(q["gamepass_price"]):
+        raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {q['gamepass_price']} Robux")
+    if int(gp.get("product_id") or 0) <= 0:
+        raise HTTPException(status_code=400, detail="Не удалось получить ProductId геймпасса")
+
+    ts = _now_utc_iso()
+    con = db_conn()
+    _robux_rate_limit_or_raise(con, uid)
+
+    if USE_PG:
+        row = con.execute(
+            "INSERT INTO robux_orders(user_id,robux_amount,rub_price,gamepass_price,gamepass_url,gamepass_id,product_id,gamepass_name,gamepass_owner,gamepass_owner_id,status,error_message,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (
+                uid,
+                int(q["robux"]),
+                int(q["rub_price"]),
+                int(q["gamepass_price"]),
+                gp_url,
+                int(gp.get("gamepass_id") or 0),
+                int(gp.get("product_id") or 0),
+                str(gp.get("name") or ""),
+                str(gp.get("owner") or ""),
+                int(gp.get("owner_id") or 0),
+                "new",
+                None,
+                ts,
+                ts,
+            ),
+        ).fetchone()
+        oid = int(_rget(row, "id") or 0) if row else 0
+    else:
+        cur = con.execute(
+            "INSERT INTO robux_orders(user_id,robux_amount,rub_price,gamepass_price,gamepass_url,gamepass_id,product_id,gamepass_name,gamepass_owner,gamepass_owner_id,status,error_message,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                uid,
+                int(q["robux"]),
+                int(q["rub_price"]),
+                int(q["gamepass_price"]),
+                gp_url,
+                int(gp.get("gamepass_id") or 0),
+                int(gp.get("product_id") or 0),
+                str(gp.get("name") or ""),
+                str(gp.get("owner") or ""),
+                int(gp.get("owner_id") or 0),
+                "new",
+                None,
+                ts,
+                ts,
+            ),
+        )
+        oid = int(cur.lastrowid)
+
+    con.commit()
+    con.close()
+    return {"ok": True, "order_id": oid, "quote": q, "gamepass": gp}
+
+
+def _robux_worker_purchase(order_id: int):
+    con = db_conn()
+    try:
+        row = con.execute("SELECT * FROM robux_orders WHERE id=?", (int(order_id),)).fetchone()
+        if not row:
+            return
+        status = str(_rget(row, "status") or "")
+        if status not in ("paid", "processing"):
+            return
+
+        # Check seller config + robux
+        st = roblox_seller_status()
+        if not st.get("configured"):
+            raise RuntimeError("Продавец не настроен (ROBLOX_SELLER_COOKIE)")
+        seller_robux = int(st.get("robux") or 0)
+        need_price = int(_rget(row, "gamepass_price") or 0)
+        if seller_robux < need_price:
+            raise RuntimeError("Недостаточно Robux на аккаунте продавца")
+
+        # Re-inspect (anti-fraud / price change)
+        gp_url = str(_rget(row, "gamepass_url") or "")
+        gp = roblox_inspect_gamepass(gp_url)
+        if int(gp.get("price") or 0) != need_price:
+            raise RuntimeError("Цена геймпасса изменилась")
+        pid = int(gp.get("product_id") or 0)
+        owner_id = int(gp.get("owner_id") or 0)
+
+        # Purchase
+        roblox_buy_product(product_id=pid, expected_price=need_price, expected_seller_id=owner_id)
+
+        ts = _now_utc_iso()
+        con.execute("UPDATE robux_orders SET status=?, updated_at=?, error_message=? WHERE id=?", ("done", ts, None, int(order_id)))
+        con.commit()
+    except Exception as e:
+        ts = _now_utc_iso()
+        try:
+            con.execute("UPDATE robux_orders SET status=?, updated_at=?, error_message=? WHERE id=?", ("failed", ts, str(e), int(order_id)))
+            con.commit()
+        except Exception:
+            pass
+    finally:
+        con.close()
+
+
+@app.post("/api/robux/order_pay")
+def api_robux_order_pay(request: Request, payload: Dict[str, Any]):
+    u = require_user(request)
+    uid = int(u["id"])
+    oid = int(payload.get("order_id") or 0)
+    if not oid:
+        raise HTTPException(status_code=400, detail="order_id required")
+
+    con = db_conn()
+    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (oid, uid)).fetchone()
+    if not row:
+        con.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+    status = str(_rget(row, "status") or "")
+    if status != "new":
+        con.close()
+        raise HTTPException(status_code=400, detail="Заказ уже обработан")
+
+    rub_price = int(_rget(row, "rub_price") or 0)
+    # Balance check
+    urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+    bal = int(_rget(urow, "balance") or 0) if urow else 0
+    if bal < rub_price:
+        con.close()
+        raise HTTPException(status_code=402, detail="Недостаточно средств на балансе")
+
+    # Deduct + tx (idempotent via status check above)
+    ts = _now_utc_iso()
+    con.execute("UPDATE users SET balance=balance-? WHERE id=?", (rub_price, uid))
+    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (uid, None, -rub_price, f"robux order {oid}", ts))
+    con.execute("UPDATE robux_orders SET status=?, updated_at=? WHERE id=?", ("paid", ts, oid))
+    con.commit()
+
+    # Switch to processing and run worker
+    con.execute("UPDATE robux_orders SET status=?, updated_at=? WHERE id=?", ("processing", _now_utc_iso(), oid))
+    con.commit()
+    con.close()
+
+    th = threading.Thread(target=_robux_worker_purchase, args=(oid,), daemon=True)
+    th.start()
+    return {"ok": True, "order_id": oid, "status": "processing"}
+
+
+@app.get("/api/robux/order")
+def api_robux_order(request: Request, id: int):
+    u = require_user(request)
+    uid = int(u["id"])
+    con = db_conn()
+    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(id), uid)).fetchone()
+    con.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {
+        "ok": True,
+        "order": {
+            "id": int(_rget(row, "id") or 0),
+            "status": str(_rget(row, "status") or ""),
+            "robux_amount": int(_rget(row, "robux_amount") or 0),
+            "rub_price": int(_rget(row, "rub_price") or 0),
+            "gamepass_price": int(_rget(row, "gamepass_price") or 0),
+            "gamepass_name": str(_rget(row, "gamepass_name") or ""),
+            "gamepass_owner": str(_rget(row, "gamepass_owner") or ""),
+            "error": str(_rget(row, "error_message") or ""),
+        },
+    }
+
+
+
+
+# ----------------------------
+# Robux admin (seller settings + order log)
+# ----------------------------
+
+@app.get("/api/admin/robux/settings")
+def api_admin_robux_settings(request: Request):
+    require_admin(request)
+    cfg = _robux_cfg_effective()
+    # cookie: do not expose full cookie; only show if present in DB
+    db_cookie = (_setting_get("roblox_seller_cookie", "") or "").strip()
+    has_db_cookie = bool(db_cookie)
+    effective_has = bool(_seller_cookie_effective())
+    return {
+        "ok": True,
+        "settings": {
+            "cookie_in_db": has_db_cookie,
+            "cookie_mask": ("••••" + db_cookie[-6:]) if has_db_cookie and len(db_cookie) >= 6 else ("••••" if has_db_cookie else ""),
+            "min_amount": int(cfg.get("min_amount") or 0),
+            "rub_per_robux": float(cfg.get("rub_per_robux") or 0),
+            "gp_factor": float(cfg.get("gp_factor") or 0),
+        },
+        "effective": {
+            "seller_configured": effective_has,
+            "env_override": bool((os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip()),
+        },
+    }
+
+
+@app.post("/api/admin/robux/settings")
+def api_admin_robux_settings_set(request: Request, payload: dict):
+    require_admin(request)
+    # cookie optional
+    ck = str(payload.get("cookie") or "").strip()
+    if ck:
+        _setting_set("roblox_seller_cookie", ck)
+    # allow clearing cookie
+    if payload.get("cookie") == "":
+        _setting_set("roblox_seller_cookie", "")
+
+    # numeric settings (stored in DB if provided)
+    def _store_num(key, val, cast):
+        if val is None:
+            return
+        s = str(val).strip()
+        if s == "":
+            return
+        try:
+            cast(s)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Некорректное значение: {key}")
+        _setting_set(key, s)
+
+    _store_num("robux_min_amount", payload.get("min_amount"), int)
+    _store_num("robux_rub_per_robux", payload.get("rub_per_robux"), float)
+    _store_num("robux_gp_factor", payload.get("gp_factor"), float)
+
+    return {"ok": True}
+
+
+@app.get("/api/admin/robux/seller_status")
+def api_admin_robux_seller_status(request: Request):
+    require_admin(request)
+    cfg = _robux_cfg_effective()
+    st = roblox_seller_status()
+    return {"ok": True, "seller": st, "config": cfg, "env_override": bool((os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip())}
+
+
+@app.get("/api/admin/robux/orders")
+def api_admin_robux_orders(request: Request, status: str = "active", limit: int = 50, offset: int = 0):
+    require_admin(request)
+    limit = max(1, min(int(limit or 50), 200))
+    offset = max(0, int(offset or 0))
+    st = (status or "active").lower()
+
+    where = ""
+    params = []
+    if st == "active":
+        where = "WHERE o.status IN ('new','paid','processing')"
+    elif st == "all":
+        where = ""
+    else:
+        where = "WHERE o.status=?"
+        params.append(st)
+
+    q = f"""
+      SELECT o.*, u.username
+      FROM robux_orders o
+      LEFT JOIN users u ON u.id=o.user_id
+      {where}
+      ORDER BY o.id DESC
+      LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+
+    con = db_conn()
+    rows = con.execute(q, tuple(params)).fetchall()
+    con.close()
+
+    items = []
+    for r in rows or []:
+        items.append({
+            "id": int(_rget(r, "id") or 0),
+            "user_id": int(_rget(r, "user_id") or 0),
+            "username": str(_rget(r, "username") or ""),
+            "robux_amount": int(_rget(r, "robux_amount") or 0),
+            "rub_price": int(_rget(r, "rub_price") or 0),
+            "gamepass_price": int(_rget(r, "gamepass_price") or 0),
+            "gamepass_owner": str(_rget(r, "gamepass_owner") or ""),
+            "gamepass_name": str(_rget(r, "gamepass_name") or ""),
+            "status": str(_rget(r, "status") or ""),
+            "error": str(_rget(r, "error_message") or ""),
+            "created_at": str(_rget(r, "created_at") or ""),
+            "updated_at": str(_rget(r, "updated_at") or ""),
+        })
+
+    return {"ok": True, "items": items, "limit": limit, "offset": offset}
+
 # Core endpoints
 # ----------------------------
 @app.post("/api/analyze")
@@ -3959,6 +4505,52 @@ def _shop_cfg_set(cfg: Dict[str, Any]):
     )
     con.commit()
     con.close()
+
+# ----------------------------
+# Site settings (admin-only, stored in DB; env can override)
+# ----------------------------
+
+def _setting_get(key: str, default: str = "") -> str:
+    try:
+        con = db_conn()
+        row = con.execute("SELECT value FROM site_settings WHERE key=?", (key,)).fetchone()
+        con.close()
+        if not row:
+            return default
+        return str(_rget(row, "value") or default)
+    except Exception:
+        return default
+
+
+def _setting_set(key: str, value: str) -> None:
+    con = db_conn()
+    now = datetime.datetime.utcnow().isoformat()
+    con.execute("INSERT INTO site_settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at", (key, str(value), now))
+    con.commit()
+    con.close()
+
+
+def _seller_cookie_effective() -> str:
+    # ENV has priority (useful for emergency override)
+    ck = (os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip()
+    if ck:
+        return ck
+    return (_setting_get("roblox_seller_cookie", "") or "").strip()
+
+
+def _robux_cfg_effective() -> Dict[str, Any]:
+    # Allow tuning via DB; env still overrides if set
+    def _env_or_db(env_key: str, db_key: str, default: str) -> str:
+        v = (os.environ.get(env_key) or "").strip()
+        if v:
+            return v
+        return (_setting_get(db_key, default) or default)
+
+    return {
+        "min_amount": int(float(_env_or_db("ROBUX_MIN_AMOUNT", "robux_min_amount", str(ROBUX_MIN_AMOUNT)))),
+        "rub_per_robux": float(_env_or_db("ROBUX_RUB_PER_ROBUX", "robux_rub_per_robux", str(ROBUX_RUB_PER_ROBUX))),
+        "gp_factor": float(_env_or_db("ROBUX_GP_FACTOR", "robux_gp_factor", str(ROBUX_GP_FACTOR))),
+    }
 
 @app.get("/api/shop_config")
 def api_shop_config():

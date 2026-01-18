@@ -1884,6 +1884,8 @@ function openAdminModal(){
   modal.classList.remove("hidden");
   modal.classList.add("open");
   requestAnimationFrame(()=>modal.classList.add("vis"));
+  // load admin widgets
+  try{ adminRobuxRefreshAll?.(); }catch(_e){}
 }
 function closeAdminModal(){
   const back = document.getElementById("adminBack");
@@ -2209,6 +2211,126 @@ async function adminPromoCreate(){
     toast("Промокод", e.message || "Ошибка", "bad");
   }
 }
+
+// -------------------------
+// Admin: Robux settings + orders
+// -------------------------
+
+async function adminRobuxLoadSettings(){
+  const st = $("#adm_robux_status");
+  const sub = $("#adm_robux_status_sub");
+  try{
+    const j = await apiGet("/api/admin/robux/settings");
+    const s = j.settings || {};
+    const eff = j.effective || {};
+    // cookie: keep empty for safety; show mask in placeholder
+    const inp = $("#adm_robux_cookie");
+    if(inp){
+      inp.value = "";
+      inp.placeholder = s.cookie_mask ? ("COOKIE: " + s.cookie_mask) : ".ROBLOSECURITY=...";
+    }
+    if($("#adm_robux_min")) $("#adm_robux_min").value = String(s.min_amount ?? "");
+    if($("#adm_robux_rub")) $("#adm_robux_rub").value = String(s.rub_per_robux ?? "");
+    if($("#adm_robux_factor")) $("#adm_robux_factor").value = String(s.gp_factor ?? "");
+
+    if(st){
+      if(eff.seller_configured){
+        st.textContent = eff.env_override ? "✅ Продавец настроен (ENV override)" : "✅ Продавец настроен";
+      }else{
+        st.textContent = s.cookie_in_db ? "⚠️ Cookie в базе, но продавец не авторизован" : "⚠️ Cookie не задан";
+      }
+    }
+    if(sub){
+      sub.textContent = "Проверь продавца, чтобы увидеть ник и баланс Robux.";
+    }
+  }catch(e){
+    if(st) st.textContent = "Ошибка загрузки";
+    if(sub) sub.textContent = e.message || "";
+  }
+}
+
+async function adminRobuxTestSeller(){
+  const st = $("#adm_robux_status");
+  const sub = $("#adm_robux_status_sub");
+  try{
+    const j = await apiGet("/api/admin/robux/seller_status");
+    const s = j.seller || {};
+    if(!s.configured){
+      if(st) st.textContent = "⚠️ Продавец не настроен";
+      if(sub) sub.textContent = "Проверь cookie (ENV или в админке)";
+      return;
+    }
+    if(st) st.textContent = `✅ ${s.username} (id ${s.user_id})`;
+    if(sub) sub.textContent = `Баланс Robux: ${s.robux}`;
+  }catch(e){
+    if(st) st.textContent = "Ошибка проверки";
+    if(sub) sub.textContent = e.message || "";
+  }
+}
+
+async function adminRobuxSaveSettings(){
+  try{
+    const payload = {
+      min_amount: ($("#adm_robux_min")?.value||"").trim(),
+      rub_per_robux: ($("#adm_robux_rub")?.value||"").trim(),
+      gp_factor: ($("#adm_robux_factor")?.value||"").trim(),
+    };
+    // cookie: only send if user typed something
+    const ck = ($("#adm_robux_cookie")?.value||"").trim();
+    if(ck) payload.cookie = ck;
+
+    await apiPost("/api/admin/robux/settings", payload);
+    toast("Robux", "Сохранено", "ok");
+    await adminRobuxLoadSettings();
+    await adminRobuxTestSeller();
+  }catch(e){
+    toast("Robux", e.message || "Ошибка", "bad");
+  }
+}
+
+function renderAdminRobuxOrders(items){
+  const box = $("#adminRobuxOrdersList");
+  if(!box) return;
+  const arr = Array.isArray(items) ? items : [];
+  if(arr.length === 0){
+    box.innerHTML = `<div class="muted" style="font-size:12px">Заказов нет</div>`;
+    return;
+  }
+  box.innerHTML = arr.map(it=>{
+    const when = it.created_at ? new Date(it.created_at).toLocaleString() : "";
+    const who = escapeHtml(it.username || ("#"+it.user_id));
+    const st = (it.status||"").toUpperCase();
+    const err = it.error ? `<div class="muted" style="font-size:12px; margin-top:4px">${escapeHtml(it.error)}</div>` : "";
+    return `<div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex; gap:10px; justify-content:space-between; align-items:flex-start">
+        <div style="flex:1; min-width:0">
+          <div style="font-weight:900">${who} <span class="badge" style="margin-left:8px">${st}</span></div>
+          <div class="muted" style="font-size:12px">#${it.id} • ${it.robux_amount}R$ за ${it.rub_price}₽ • GP: ${it.gamepass_price} • ${escapeHtml(it.gamepass_owner||"")}</div>
+          <div class="muted" style="font-size:12px">${when}</div>
+          ${err}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function adminRobuxLoadOrders(){
+  const box = $("#adminRobuxOrdersList");
+  if(box) box.textContent = "Загрузка…";
+  try{
+    const st = ($("#adm_robux_orders_status")?.value||"active").trim();
+    const j = await apiGet(`/api/admin/robux/orders?status=${encodeURIComponent(st)}&limit=60`);
+    renderAdminRobuxOrders(j.items||[]);
+  }catch(e){
+    if(box) box.textContent = "Ошибка загрузки";
+  }
+}
+
+async function adminRobuxRefreshAll(){
+  await adminRobuxLoadSettings();
+  await adminRobuxLoadOrders();
+}
+
 
 
 // -------------------------
@@ -2830,6 +2952,13 @@ const CASE_ITEMS = [
   $("#btnAdminTopupsRefresh")?.addEventListener("click", adminTopupsRefresh);
   $("#btnAdminPromosRefresh")?.addEventListener("click", adminPromosRefresh);
   $("#btnAdminPromoCreate")?.addEventListener("click", adminPromoCreate);
+  $("#btnAdminRobuxRefresh")?.addEventListener("click", adminRobuxRefreshAll);
+  $("#btnAdminRobuxSave")?.addEventListener("click", adminRobuxSaveSettings);
+  $("#btnAdminRobuxTest")?.addEventListener("click", adminRobuxTestSeller);
+  $("#btnAdminRobuxOrdersRefresh")?.addEventListener("click", adminRobuxLoadOrders);
+  $("#adm_robux_orders_status")?.addEventListener("change", adminRobuxLoadOrders);
+  $("#btnAdminRobuxCookieToggle")?.addEventListener("click", ()=>{ const i=$("#adm_robux_cookie"); if(!i) return; i.type = (i.type === 'password') ? 'text' : 'password'; });
+
 
   // Payments
   await loadTopupConfig();
@@ -3721,6 +3850,7 @@ function inferShopAction(it){
   const title=(it.title||'').toLowerCase();
   if(tag.includes('free') || title.includes('кейс') && tag.includes('free')) return 'case_free';
   if(tag.includes('paid') || title.includes('кейс') && tag.includes('paid')) return 'case_paid';
+  if(tag.includes('robux') || title.includes('robux') || title.includes('робук') || tag.includes('робук')) return 'robux';
   return '';
 }
 
@@ -3734,6 +3864,7 @@ function handleShopItemAction(it){
   const act = (it.action || inferShopAction(it) || '').toLowerCase();
   if(act==='case_free') return window.openCaseModal('free');
   if(act==='case_paid') return window.openCaseModal('paid');
+  if(act==='robux') return openRobuxModal();
   if(act==='premium') return openPayModal('premium');
   if(act==='topup') return openPayModal('topup');
   if(act==='link'){
@@ -3745,6 +3876,183 @@ function handleShopItemAction(it){
   }
   toast('Магазин', 'Для этого товара не выбрано действие.', 'warn');
 }
+
+// ----------------------------
+// Robux purchase wizard (4 steps)
+// ----------------------------
+let _robuxState = { step:1, amount:50, quote:null, gamepass:null, order_id:null, pollT:null };
+
+function _robuxById(id){ return document.getElementById(id); }
+
+function _robuxSetStep(step){
+  _robuxState.step = step;
+  const steps = _robuxById('robuxSteps');
+  if(steps){
+    [...steps.querySelectorAll('.robuxStep')].forEach(s=>s.classList.toggle('active', (s.dataset.step===String(step))));
+  }
+  for(let i=1;i<=4;i++){
+    const pane=_robuxById('robuxStep'+i);
+    if(pane) pane.classList.toggle('hidden', i!==step);
+  }
+}
+
+function _robuxOpenUI(){
+  const back=_robuxById('robuxBack');
+  const m=_robuxById('robuxModal');
+  if(back){ back.classList.remove('hidden'); back.style.display='block'; }
+  if(m){ m.classList.remove('hidden'); m.style.display='block'; m.classList.add('open'); requestAnimationFrame(()=>m.classList.add('vis')); }
+}
+
+function _robuxCloseUI(){
+  const back=_robuxById('robuxBack');
+  const m=_robuxById('robuxModal');
+  try{ if(_robuxState.pollT) clearInterval(_robuxState.pollT); }catch(_e){}
+  _robuxState.pollT = null;
+  if(!m) return;
+  m.classList.remove('vis');
+  setTimeout(()=>{
+    m.classList.remove('open');
+    m.style.display='none';
+    m.classList.add('hidden');
+    if(back){ back.style.display='none'; back.classList.add('hidden'); }
+  }, 190);
+}
+
+async function _robuxUpdateQuote(amount){
+  try{
+    const j = await apiGet(`/api/robux/quote?amount=${encodeURIComponent(amount)}`);
+    _robuxState.quote = { robux:j.robux, rub_price:j.rub_price, gamepass_price:j.gamepass_price };
+    const rub=_robuxById('robuxRub');
+    const gp=_robuxById('robuxGp');
+    const need=_robuxById('robuxGpNeed');
+    if(rub) rub.textContent = `${_robuxState.quote.rub_price}₽`;
+    if(gp) gp.textContent = `${_robuxState.quote.gamepass_price} R$`;
+    if(need) need.textContent = `${_robuxState.quote.gamepass_price} Robux`;
+  }catch(e){
+    toast('Robux', e.message||'Не удалось рассчитать цену', 'bad');
+  }
+}
+
+async function openRobuxModal(){
+  // require auth
+  try{
+    const ok = await (async()=>{
+      try{ const j = await apiGet('/api/auth/me'); return !!(j&&j.ok&&j.user); }catch(_e){ return false; }
+    })();
+    if(!ok){ toast('Robux','Сначала войди в аккаунт','warn'); try{ setTab('profile'); }catch(_e){} return; }
+  }catch(_e){}
+
+  _robuxState = { step:1, amount:50, quote:null, gamepass:null, order_id:null, pollT:null };
+  _robuxOpenUI();
+  _robuxSetStep(1);
+  const amountInput=_robuxById('robuxAmount');
+  const slider=_robuxById('robuxSlider');
+  if(amountInput){ amountInput.value = String(_robuxState.amount); }
+  if(slider){ slider.value = String(_robuxState.amount); }
+  await _robuxUpdateQuote(_robuxState.amount);
+}
+
+function _robuxBindOnce(){
+  const m=_robuxById('robuxModal');
+  if(!m || m.dataset.bound) return;
+  m.dataset.bound='1';
+
+  _robuxById('robuxClose')?.addEventListener('click', _robuxCloseUI);
+  _robuxById('robuxBack')?.addEventListener('click', _robuxCloseUI);
+
+  const amount=_robuxById('robuxAmount');
+  const slider=_robuxById('robuxSlider');
+  const sync = async (val)=>{
+    let v = parseInt(val||'0',10);
+    if(!Number.isFinite(v)) v = 50;
+    if(v<50) v=50;
+    _robuxState.amount = v;
+    if(amount && amount.value!==String(v)) amount.value=String(v);
+    if(slider && slider.value!==String(v)) slider.value=String(v);
+    await _robuxUpdateQuote(v);
+  };
+  amount?.addEventListener('input', ()=>sync(amount.value));
+  slider?.addEventListener('input', ()=>sync(slider.value));
+
+  _robuxById('robuxNext1')?.addEventListener('click', async()=>{
+    if(!_robuxState.quote) await _robuxUpdateQuote(_robuxState.amount);
+    _robuxSetStep(2);
+    const url=_robuxById('robuxGpUrl');
+    try{ url?.focus(); }catch(_e){}
+  });
+
+  _robuxById('robuxBack2')?.addEventListener('click', ()=>_robuxSetStep(1));
+  _robuxById('robuxBack3')?.addEventListener('click', ()=>_robuxSetStep(2));
+
+  _robuxById('robuxNext2')?.addEventListener('click', async()=>{
+    const url = String(_robuxById('robuxGpUrl')?.value||'').trim();
+    if(!url){ toast('Robux','Вставь ссылку на геймпасс','warn'); return; }
+    if(!_robuxState.quote) await _robuxUpdateQuote(_robuxState.amount);
+    try{
+      const j = await apiPost('/api/robux/inspect', { url });
+      _robuxState.gamepass = j.gamepass;
+      const card=_robuxById('robuxCheckCard');
+      if(card){
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap">
+            <div><div class="muted" style="font-size:12px">Название</div><div style="font-weight:800">${escapeHtml(_robuxState.gamepass.name||'—')}</div></div>
+            <div><div class="muted" style="font-size:12px">Владелец</div><div style="font-weight:800">${escapeHtml(_robuxState.gamepass.owner||'—')}</div></div>
+            <div><div class="muted" style="font-size:12px">Цена</div><div style="font-weight:800">${Number(_robuxState.gamepass.price||0)} R$</div></div>
+          </div>
+          <div class="muted" style="margin-top:10px">Должно быть: <b>${_robuxState.quote.gamepass_price} R$</b> (с учётом комиссии)</div>
+        `;
+      }
+      // Validate price on client too (server will validate again)
+      if(Number(_robuxState.gamepass.price||0) !== Number(_robuxState.quote.gamepass_price||0)){
+        toast('Robux', `Цена геймпасса должна быть ${_robuxState.quote.gamepass_price} R$`, 'warn');
+        return;
+      }
+      _robuxSetStep(3);
+    }catch(e){ toast('Robux', e.message||'Проверка не удалась', 'bad'); }
+  });
+
+  _robuxById('robuxPay')?.addEventListener('click', async()=>{
+    const url = String(_robuxById('robuxGpUrl')?.value||'').trim();
+    if(!url){ toast('Robux','Нет ссылки на геймпасс','warn'); _robuxSetStep(2); return; }
+    _robuxSetStep(4);
+    const st=_robuxById('robuxStatus');
+    if(st) st.textContent = 'Создаём заказ…';
+    try{
+      const j = await apiPost('/api/robux/order_create', { amount:_robuxState.amount, gamepass_url:url });
+      _robuxState.order_id = j.order_id;
+      if(st) st.textContent = `Оплата ${j.quote.rub_price}₽…`;
+      await apiPost('/api/robux/order_pay', { order_id:_robuxState.order_id });
+      if(st) st.textContent = 'Заказ оплачен. Выполняем покупку геймпасса…';
+      // Poll status
+      _robuxState.pollT = setInterval(async()=>{
+        try{
+          const o = await apiGet(`/api/robux/order?id=${_robuxState.order_id}`);
+          const status = o.order?.status || '';
+          if(status==='done'){
+            clearInterval(_robuxState.pollT); _robuxState.pollT=null;
+            if(st) st.textContent = '✅ Готово! Геймпасс куплен, Robux скоро придут.';
+          }else if(status==='failed'){
+            clearInterval(_robuxState.pollT); _robuxState.pollT=null;
+            if(st) st.textContent = `❌ Ошибка: ${o.order?.error||'Неизвестно'}`;
+          }else{
+            if(st) st.textContent = `⏳ Статус: ${status}…`;
+          }
+        }catch(_e){}
+      }, 1000);
+    }catch(e){
+      if(st) st.textContent = `❌ Ошибка: ${e.message||'Не удалось создать/оплатить заказ'}`;
+    }
+  });
+
+  _robuxById('robuxDone')?.addEventListener('click', _robuxCloseUI);
+}
+
+// ensure binds after DOM ready
+try{
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _robuxBindOnce);
+  else _robuxBindOnce();
+}catch(_e){}
+try{ window.openRobuxModal = openRobuxModal; }catch(_e){}
 
 function applyItemToCard(card, it){
   const t = card.querySelector('.prodTitle');

@@ -3364,3 +3364,31 @@ body:not(.admin) #btnShopPanel {
 @media (prefers-reduced-motion: reduce){
   *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* ----------------------------
+   Robux wizard modal
+-----------------------------*/
+.robuxModal{ max-width: 720px; width: calc(100vw - 24px); }
+.robuxSteps{ display:flex; gap:8px; align-items:center; margin-top:10px; }
+.robuxStep{ width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.18); }
+.robuxStep.active{ background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); }
+.robuxBody{ padding: 14px 14px 16px; }
+.robuxH{ font-size: 14px; font-weight: 700; margin: 4px 0 12px; }
+.robuxLabel{ font-size: 12px; opacity: .78; margin-bottom: 6px; }
+.robuxRow{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.robuxSlider{ width: 100%; }
+.robuxQuote{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.rqItem{ padding: 12px; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,255,255,.08); }
+.rqVal{ font-size: 18px; font-weight: 800; margin-top: 2px; }
+.robuxActions{ display:flex; gap: 10px; justify-content:flex-end; margin-top: 14px; }
+.robuxActions .btn{ min-width: 140px; }
+.robuxActions .secondary{ opacity:.85; }
+.robuxCheckCard{ padding: 12px; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,255,255,.08); }
+.robuxStatus{ padding: 12px; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,255,255,.08); min-height: 64px; display:flex; align-items:center; }
+
+@media (max-width: 520px){
+  .robuxRow{ grid-template-columns: 1fr; }
+  .robuxActions{ justify-content: space-between; }
+  .robuxActions .btn{ min-width: 0; width: 100%; }
+  .robuxActions{ flex-direction: column; }
+}

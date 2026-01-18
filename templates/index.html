@@ -827,6 +827,82 @@
 <div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
 </div>
 </div>
+
+<!-- Robux purchase wizard -->
+<div id="robuxBack" class="modalBack hidden"></div>
+<div id="robuxModal" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Покупка Robux">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="modalTitle">💰 Покупка Robux</div>
+      <button class="iconBtn" id="robuxClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="robuxSteps" id="robuxSteps">
+      <div class="robuxStep active" data-step="1">1</div>
+      <div class="robuxStep" data-step="2">2</div>
+      <div class="robuxStep" data-step="3">3</div>
+      <div class="robuxStep" data-step="4">4</div>
+    </div>
+  </div>
+
+  <div class="robuxBody">
+    <!-- Step 1 -->
+    <div class="robuxPane" id="robuxStep1">
+      <div class="robuxH">Шаг 1 — выбери количество</div>
+      <div class="robuxRow">
+        <div class="robuxField">
+          <div class="robuxLabel">Количество Robux</div>
+          <input id="robuxAmount" class="input" type="number" min="50" step="10" value="50" />
+        </div>
+        <div class="robuxField">
+          <div class="robuxLabel">Ползунок</div>
+          <input id="robuxSlider" class="robuxSlider" type="range" min="50" max="5000" step="10" value="50" />
+        </div>
+      </div>
+
+      <div class="robuxQuote">
+        <div class="rqItem"><div class="muted">К оплате</div><div class="rqVal" id="robuxRub">25₽</div></div>
+        <div class="rqItem"><div class="muted">Цена геймпасса</div><div class="rqVal" id="robuxGp">72 R$</div></div>
+      </div>
+
+      <div class="robuxActions">
+        <button class="btn pxtBtn" id="robuxNext1">Далее</button>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="robuxPane hidden" id="robuxStep2">
+      <div class="robuxH">Шаг 2 — ссылка на геймпасс</div>
+      <div class="robuxLabel">Вставь ссылку на геймпасс</div>
+      <input id="robuxGpUrl" class="input" placeholder="https://www.roblox.com/game-pass/..." />
+      <div class="muted" style="margin-top:8px">Поставь цену геймпасса: <b id="robuxGpNeed">—</b></div>
+      <div class="robuxActions">
+        <button class="btn pxtBtn secondary" id="robuxBack2">Назад</button>
+        <button class="btn pxtBtn" id="robuxNext2">Проверить</button>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="robuxPane hidden" id="robuxStep3">
+      <div class="robuxH">Шаг 3 — проверка</div>
+      <div class="robuxCheckCard" id="robuxCheckCard">
+        <div class="muted">Данные геймпасса появятся здесь…</div>
+      </div>
+      <div class="robuxActions">
+        <button class="btn pxtBtn secondary" id="robuxBack3">Нет, это не я</button>
+        <button class="btn pxtBtn" id="robuxPay">Оплатить с баланса</button>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="robuxPane hidden" id="robuxStep4">
+      <div class="robuxH">Шаг 4 — выполнение</div>
+      <div class="robuxStatus" id="robuxStatus">Создаём заказ…</div>
+      <div class="robuxActions">
+        <button class="btn pxtBtn" id="robuxDone">Ок</button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- Promo -->
 <div class="paySubPane" id="topupPanePromo" style="display:none; margin-top:10px">
 <div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
@@ -1010,7 +1086,66 @@
         </div>
       </div>
         </div>
-        <div class="pCard" id="adminEmptyHint">
+        
+
+        <!-- Robux admin: seller cookie + orders -->
+        <div class="pCard" id="adminRobuxBox" style="margin-top:10px">
+          <div class="headrow" style="margin-bottom:10px">
+            <div style="font-weight:900">Robux — продавец и заказы</div>
+            <button class="btn tilt" id="btnAdminRobuxRefresh" type="button" style="margin-left:auto">Обновить</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:12px">
+            <div>
+              <div class="muted" style="font-size:12px; margin-bottom:6px">Cookie продавца (.ROBLOSECURITY)</div>
+              <div style="display:flex; gap:8px">
+                <input class="input" id="adm_robux_cookie" type="password" placeholder=".ROBLOSECURITY=..." style="flex:1" autocomplete="off" />
+                <button class="btn tilt" id="btnAdminRobuxCookieToggle" type="button" title="Показать/скрыть">👁</button>
+              </div>
+              <div class="muted" style="font-size:12px; margin-top:8px">Если cookie задан в ENV (Render) — он имеет приоритет и здесь будет только статус.</div>
+
+              <div class="divider" style="margin:12px 0"></div>
+
+              <div class="muted" style="font-size:12px; margin-bottom:6px">Параметры расчёта</div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px">
+                <input class="input" id="adm_robux_min" placeholder="Мин. Robux" />
+                <input class="input" id="adm_robux_rub" placeholder="₽ за 1 Robux" />
+                <input class="input" id="adm_robux_factor" placeholder="Коэф. комиссии" />
+              </div>
+
+              <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+                <button class="btn primary tilt" id="btnAdminRobuxSave" type="button">Сохранить</button>
+                <button class="btn tilt" id="btnAdminRobuxTest" type="button">Проверить продавца</button>
+              </div>
+
+              <div class="pCard" style="margin-top:10px">
+                <div class="muted" style="font-size:12px">Статус</div>
+                <div id="adm_robux_status" style="margin-top:4px; font-weight:800">—</div>
+                <div class="muted" id="adm_robux_status_sub" style="font-size:12px; margin-top:4px">—</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="muted" style="font-size:12px; margin-bottom:6px">Очередь Robux-заказов</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px">
+                <select class="input" id="adm_robux_orders_status" style="max-width:210px">
+                  <option value="active">Активные</option>
+                  <option value="all">Все</option>
+                  <option value="new">Новые</option>
+                  <option value="processing">В работе</option>
+                  <option value="done">Готово</option>
+                  <option value="failed">Ошибка</option>
+                </select>
+                <button class="btn tilt" id="btnAdminRobuxOrdersRefresh" type="button">Обновить</button>
+              </div>
+
+              <div class="pCard" style="max-height:340px; overflow:auto">
+                <div id="adminRobuxOrdersList">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+<div class="pCard" id="adminEmptyHint">
           <div style="font-weight:800; margin-bottom:6px">Выберите пользователя</div>
           <div class="muted" style="font-size:12px">Нажмите на пользователя слева или используйте поиск.</div>
         </div>
