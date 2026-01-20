@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1769000002" rel="stylesheet"/>
+<link href="/static/styles.css?v=1769004000" rel="stylesheet"/>
 </head>
 <body class="theme-pastex">
 <canvas id="particles"></canvas>
@@ -828,6 +828,37 @@
 </div>
 </div>
 
+<!-- Promo -->
+<div class="paySubPane" id="topupPanePromo" style="display:none; margin-top:10px">
+<div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
+<input class="input" id="promoCode" placeholder="PROMO2026" style="margin-top:10px"/>
+<button class="btn primary tilt" id="btnPromoRedeem" style="width:100%; margin-top:10px">Активировать</button>
+</div>
+<!-- Manual -->
+<div class="paySubPane" id="topupPaneManual" style="display:none; margin-top:10px">
+<div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
+<button class="btn primary tilt" id="btnTopupManual" style="width:100%; margin-top:10px">Создать заявку</button>
+<div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
+</div>
+</div>
+<div class="payPane" id="payPanePremium" style="display:none">
+<div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
+<div class="packGrid" style="margin-top:10px">
+<button class="packBtn sel tilt" id="premPlan" type="button">
+<div class="p1">Premium</div>
+<div class="p2" id="premPrice">—</div>
+</button>
+</div>
+<button class="btn primary tilt" id="btnPayPremium" style="width:100%; margin-top:12px">Купить Premium</button>
+<div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
+</div>
+</div>
+</div>
+
+
+
+
+
 <!-- Robux purchase wizard -->
 <div id="robuxBack" class="modalBack hidden"></div>
 <div id="robuxModal" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Покупка Robux">
@@ -903,34 +934,6 @@
     </div>
   </div>
 </div>
-<!-- Promo -->
-<div class="paySubPane" id="topupPanePromo" style="display:none; margin-top:10px">
-<div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
-<input class="input" id="promoCode" placeholder="PROMO2026" style="margin-top:10px"/>
-<button class="btn primary tilt" id="btnPromoRedeem" style="width:100%; margin-top:10px">Активировать</button>
-</div>
-<!-- Manual -->
-<div class="paySubPane" id="topupPaneManual" style="display:none; margin-top:10px">
-<div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
-<button class="btn primary tilt" id="btnTopupManual" style="width:100%; margin-top:10px">Создать заявку</button>
-<div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
-</div>
-</div>
-<div class="payPane" id="payPanePremium" style="display:none">
-<div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
-<div class="packGrid" style="margin-top:10px">
-<button class="packBtn sel tilt" id="premPlan" type="button">
-<div class="p1">Premium</div>
-<div class="p2" id="premPrice">—</div>
-</button>
-</div>
-<button class="btn primary tilt" id="btnPayPremium" style="width:100%; margin-top:12px">Купить Premium</button>
-<div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
-</div>
-</div>
-</div>
-
-
 
 <!-- Inventory Modal -->
 <div class="modalBack hidden" id="invBack"></div>
@@ -1160,7 +1163,7 @@
 
 
 <!-- core logic -->
-<script src="/static/app.js?v=1769000002"></script>
+<script src="/static/app.js?v=1769004000"></script>
 
   <!-- Confirm Modal -->
   <div class="modalBack hidden" id="confirmBack"></div>

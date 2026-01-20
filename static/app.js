@@ -4116,8 +4116,7 @@ async function openShopConstructor({mode="builder"}={}){
   _shopEditorEnabled = true;
   _shopEditorMode = mode;
   try{ switchTab('shop'); }catch(_e){}
-  try{ window.location.hash = '#shop'; }catch(_e){}
-  ensureShopInjected();
+ensureShopInjected();
   const j = await apiGet('/api/shop_config');
   _shopCfgCache = normalizeShopCfg(j.config||{});
   if(mode==='manage'){
