@@ -54,7 +54,7 @@ except Exception:
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_TAG = os.environ.get("BUILD_TAG") or "fix49"
+BUILD_TAG = os.environ.get("BUILD_TAG") or "fix50"
 BUILD_VERSION = os.environ.get("BUILD_VERSION") or f"{BUILD_TAG}-{int(time.time())}"
 
 # ----------------------------
@@ -883,7 +883,7 @@ def roblox_username_to_id(username: str) -> int:
     # Roblox usernames are latin letters, digits and underscore.
     # This avoids common mistakes with Cyrillic look-alikes.
     if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", u):
-        raise HTTPException(status_code=400, detail="Ник Roblox: латиница/цифры/_ (если копировал из кириллицы — попробуй латиницей)")
+        raise HTTPException(status_code=400, detail="Ник Roblox должен быть латиницей (A-Z, 0-9, _). Если ник содержит буквы Б, Г, Д, Ж, З, И, Й, Л, Ф, Ц, Ч, Ш, Щ, Ы, Э, Ю, Я — они не конвертируются!")
     def _try_post(url: str) -> Dict[str, Any]:
         r = requests.post(
             url,
@@ -4819,8 +4819,14 @@ def api_robux_inspect(request: Request, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса или ник Roblox")
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Нужно указать количество Robux")
+    
+    # Validate username format BEFORE making any API calls
+    normalized_username = normalize_roblox_username(username)
+    if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", normalized_username):
+        raise HTTPException(status_code=400, detail="Ник Roblox должен быть латиницей (A-Z, 0-9, _). Буквы Б, Г, Д, Ж, З, И, Й, Л, Ф, Ц, Ч, Ш, Щ, Ы, Э, Ю, Я не конвертируются!")
+    
     q = robux_calc(int(amount))
-    info = roblox_find_gamepass_by_username(normalize_roblox_username(username), int(q["gamepass_price"]))
+    info = roblox_find_gamepass_by_username(normalized_username, int(q["gamepass_price"]))
     return {"ok": True, "gamepass": info, "mode": "username", "expected_price": int(q["gamepass_price"])}
 
 

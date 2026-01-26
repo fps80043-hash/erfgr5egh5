@@ -1,4 +1,5 @@
 /*__GLOBAL_CASE_MODAL_V9__*/
+/* BUILD: fix49 - improved username validation with Cyrillic normalization */
 (function(){
   // guaranteed global function for shop case buttons
   window.openCaseModal = function(mode){
@@ -4459,13 +4460,16 @@ if(mode === 'url'){
   }
 	}else{
 	  // Normalize and validate Roblox username
-	  const u = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
+	  // First apply Cyrillic -> Latin mapping for common look-alike characters
+	  const cyrToLat = {"А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","У":"U","а":"a","в":"b","е":"e","к":"k","м":"m","н":"h","о":"o","р":"p","с":"c","т":"t","х":"x","у":"u"};
+	  let u = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
+	  u = u.replace(/[АВЕКМНОРСТХУавекмнорстху]/g, ch => cyrToLat[ch] || ch);
 	  if(!u){
     if(rawUrl) return toast('Robux','Выбран поиск по нику — переключись на вкладку «По ссылке / ID» или введи ник Roblox','warn');
     return toast('Robux','Введи ник Roblox (латиница, цифры и _)','warn');
   }
 	  if(!/^[A-Za-z0-9_]{3,20}$/.test(u)){
-	    return toast('Robux','Ник Roblox должен быть логином (латиница/цифры/_) — без кириллицы и пробелов','warn');
+	    return toast('Robux','Ник Roblox должен быть латиницей (A-Z, 0-9, _). Буквы Б, Г, Д, Ж, З, И, Й, Л, Ф, Ц, Ч, Ш, Щ, Ы, Э, Ю, Я — не конвертируются!','warn');
 	  }
 }
 
@@ -4477,7 +4481,11 @@ if(card) card.innerHTML = '<div class="muted">Проверяем…</div>';
 try{
 	  const payload = { amount: _robuxState.amount, mode };
 	  if(mode === 'username'){
-	    payload.username = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
+	    // Apply same normalization as validation
+	    const cyrToLat = {"А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","У":"U","а":"a","в":"b","е":"e","к":"k","м":"m","н":"h","о":"o","р":"p","с":"c","т":"t","х":"x","у":"u"};
+	    let normalizedUser = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
+	    normalizedUser = normalizedUser.replace(/[АВЕКМНОРСТХУавекмнорстху]/g, ch => cyrToLat[ch] || ch);
+	    payload.username = normalizedUser;
   }else{
     // accept url or id
     payload.gamepass_url = rawUrl;
