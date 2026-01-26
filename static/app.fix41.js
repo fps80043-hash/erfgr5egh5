@@ -1308,150 +1308,25 @@ async function apiPost(path, payload) {
 }
 
 // -------------------------
-// Templates (v2: multiple templates + selected + AGE GROUP)
+// Templates
 // -------------------------
-let debTplSync = null;
+let debSync = null;
 
-let tplItems = [];
-let tplSelectedId = null;
-let tplLoadedFromServer = false;
-
-function _ageGroupToInt(v){
-  const n = parseInt(String(v ?? "").replace(/[^\d]/g,""), 10);
-  return Number.isFinite(n) ? n : 13;
-}
-function _tplLocalLoad(){
+function loadTpl() {
   const t = localStorage.getItem("rst_title_tpl");
   const d = localStorage.getItem("rst_desc_tpl");
-  const ag = localStorage.getItem("rst_age_group");
   if ($("#tplTitle")) $("#tplTitle").value = t || DEFAULT_TITLE;
   if ($("#tplDesc")) $("#tplDesc").value = d || DEFAULT_DESC;
-  if ($("#tplAgeGroup")) $("#tplAgeGroup").value = String(_ageGroupToInt(ag || "13"));
 }
 
-function _tplLocalSave(){
+function saveTpl() {
   localStorage.setItem("rst_title_tpl", $("#tplTitle")?.value || "");
   localStorage.setItem("rst_desc_tpl", $("#tplDesc")?.value || "");
-  localStorage.setItem("rst_age_group", String(_ageGroupToInt($("#tplAgeGroup")?.value || "13")));
-}
 
-function _tplFindById(id){
-  return tplItems.find(x => String(x.id) === String(id));
-}
-
-function _tplUpdateDeleteBtn(){
-  const btn = $("#btnTplDel");
-  const sel = _tplFindById(tplSelectedId);
-  if(!btn) return;
-  const isDef = !!(sel && sel.is_default);
-  btn.disabled = isDef || !sel;
-  btn.title = isDef ? "Дефолтный шаблон удалить нельзя" : "";
-}
-
-function _tplRenderSelect(){
-  const sel = $("#tplSelect");
-  if(!sel) return;
-  sel.innerHTML = "";
-  for(const t of (tplItems || [])){
-    const opt = document.createElement("option");
-    opt.value = String(t.id);
-    opt.textContent = t.is_default ? `${t.name} (default)` : t.name;
-    sel.appendChild(opt);
+  if (currentUser) {
+    if (debSync) clearTimeout(debSync);
+    debSync = setTimeout(() => syncPush().catch(() => {}), 900);
   }
-  if(tplSelectedId && _tplFindById(tplSelectedId)){
-    sel.value = String(tplSelectedId);
-  }else if(tplItems.length){
-    tplSelectedId = tplItems[0].id;
-    sel.value = String(tplSelectedId);
-  }
-  _tplUpdateDeleteBtn();
-}
-
-function _tplApplyCurrentToInputs(){
-  const t = _tplFindById(tplSelectedId);
-  if(!t) return;
-  if ($("#tplTitle")) $("#tplTitle").value = t.title_tpl ?? "";
-  if ($("#tplDesc")) $("#tplDesc").value = t.desc_tpl ?? "";
-  if ($("#tplAgeGroup")) $("#tplAgeGroup").value = String(_ageGroupToInt(t.age_group));
-  _tplLocalSave();
-}
-
-async function tplFetchAll(){
-  if(!currentUser) {
-    tplLoadedFromServer = false;
-    _tplLocalLoad();
-    return;
-  }
-  try{
-    const j = await apiGet("/api/profile/templates");
-    tplItems = j.items || [];
-    tplSelectedId = j.selected_id || (tplItems[0]?.id ?? null);
-    tplLoadedFromServer = true;
-    _tplRenderSelect();
-    _tplApplyCurrentToInputs();
-  }catch(e){
-    tplLoadedFromServer = false;
-    _tplLocalLoad();
-  }
-}
-
-async function tplSelect(id){
-  tplSelectedId = id;
-  _tplRenderSelect();
-  _tplApplyCurrentToInputs();
-  renderPreview().catch(()=>{});
-  if(currentUser){
-    try{ await apiPost("/api/profile/templates/select", { template_id: id }); }catch(_e){}
-  }
-}
-
-async function tplCreate(){
-  if(!currentUser){
-    return toast("Шаблоны","Войди в аккаунт, чтобы создавать несколько шаблонов","warn");
-  }
-  const name = prompt("Название шаблона:");
-  if(!name) return;
-  try{
-    const j = await apiPost("/api/profile/templates/create", { name });
-    await tplFetchAll();
-    if(j.id) await tplSelect(j.id);
-    toast("Шаблоны","Создано","ok");
-  }catch(e){
-    toast("Шаблоны", e.message || "Не удалось создать", "bad");
-  }
-}
-
-async function tplDelete(){
-  const t = _tplFindById(tplSelectedId);
-  if(!currentUser || !t) return;
-  if(t.is_default){
-    return toast("Шаблоны","Дефолтный шаблон удалить нельзя","warn");
-  }
-  if(!confirm(`Удалить шаблон «${t.name}»?`)) return;
-  try{
-    await apiPost("/api/profile/templates/delete", { template_id: t.id });
-    await tplFetchAll();
-    toast("Шаблоны","Удалено","ok");
-  }catch(e){
-    toast("Шаблоны", e.message || "Не удалось удалить", "bad");
-  }
-}
-
-function saveTpl(){
-  _tplLocalSave();
-
-  if (!currentUser || !tplLoadedFromServer || !tplSelectedId) return;
-  if (debTplSync) clearTimeout(debTplSync);
-  debTplSync = setTimeout(async () => {
-    try{
-      await apiPost("/api/profile/templates/update", {
-        template_id: tplSelectedId,
-        title_tpl: $("#tplTitle")?.value || "",
-        desc_tpl: $("#tplDesc")?.value || "",
-        age_group: _ageGroupToInt($("#tplAgeGroup")?.value || "13"),
-      });
-    }catch(_e){}
-  }, 650);
 }
 
 function resetTpl() {
@@ -1461,7 +1336,6 @@ function resetTpl() {
   renderPreview().catch(() => {});
   toast("Сброс", "Шаблоны восстановлены", "warn");
 }
-
 
 // -------------------------
 // Main render
@@ -1490,7 +1364,7 @@ async function renderPreview() {
     return;
   }
   const j = await apiPost("/api/preview", {
-    data: Object.assign({}, accountData, { age_group: _ageGroupToInt($("#tplAgeGroup")?.value || "13") }),
+    data: accountData,
     title_template: titleTpl,
     desc_template: descTpl,
   });
@@ -1602,29 +1476,19 @@ function pushMsg(who, text, me = false) {
 // Profile sync
 // -------------------------
 async function syncPull() {
-  await tplFetchAll();
-  await renderPreview().catch(()=>{});
+  const j = await apiGet("/api/user/templates");
+  if ($("#tplTitle")) $("#tplTitle").value = j.title_tpl || DEFAULT_TITLE;
+  if ($("#tplDesc")) $("#tplDesc").value = j.desc_tpl || DEFAULT_DESC;
+  saveTpl();
+  await renderPreview();
   toast("Профиль", "Шаблоны загружены", "ok");
 }
 
 async function syncPush() {
-  // принудительное сохранение текущего шаблона
-  _tplLocalSave();
-  if(!currentUser || !tplSelectedId) {
-    toast("Профиль", "Сохранено локально", "ok");
-    return;
-  }
-  try{
-    await apiPost("/api/profile/templates/update", {
-      template_id: tplSelectedId,
-      title_tpl: $("#tplTitle")?.value || "",
-      desc_tpl: $("#tplDesc")?.value || "",
-      age_group: _ageGroupToInt($("#tplAgeGroup")?.value || "13"),
-    });
-    toast("Профиль", "Шаблон сохранён", "ok");
-  }catch(e){
-    toast("Профиль", e.message || "Не удалось сохранить", "bad");
-  }
+  const title_tpl = $("#tplTitle")?.value || "";
+  const desc_tpl = $("#tplDesc")?.value || "";
+  await apiPost("/api/user/templates", { title_tpl, desc_tpl });
+  toast("Профиль", "Шаблоны сохранены", "ok");
 }
 
 async function chatPull() {
@@ -2006,8 +1870,6 @@ if(btnBuyPremium) btnBuyPremium.disabled = prem || (premPricePts > 0 && Number(c
     if (chatBox) chatBox.style.display = "none";
     if (btnSend) btnSend.disabled = true;
   }
-  // refresh templates (v2)
-  try{ await tplFetchAll(); }catch(_e){}
 }
 
 
@@ -2587,7 +2449,7 @@ const CASE_ITEMS = [
   setInterval(spawnLogoStar, 5000);
 
 // load templates + cookie
-  tplFetchAll().catch(()=>{});
+  loadTpl();
   const c = localStorage.getItem("rst_cookie");
   if (c && $("#cookie")) $("#cookie").value = c;
 
@@ -2633,7 +2495,7 @@ const CASE_ITEMS = [
   const varsRow = $("#varsRow");
   if (varsRow) {
     const vars = [
-      "{username}", "{robux}", "{rap_tag}", "{donate_tag}", "{year_tag}", "{profile_link}", "{inv_ru}", "{age_group}"
+      "{username}", "{robux}", "{rap_tag}", "{donate_tag}", "{year_tag}", "{profile_link}", "{inv_ru}"
     ];
     varsRow.innerHTML = vars.map(v => `<button type="button" class="varChip" data-var="${escapeHtml(v)}">${escapeHtml(v)}</button>`).join("");
     varsRow.querySelectorAll("[data-var]").forEach(b => {
@@ -2657,17 +2519,6 @@ const CASE_ITEMS = [
     toast("Сохранено", "Шаблоны сохранены локально", "ok");
   });
   $("#btnResetTpl")?.addEventListener("click", resetTpl);
-
-  $("#tplSelect")?.addEventListener("change", (e)=>{
-    const id = (e.target && e.target.value) ? e.target.value : null;
-    if(id) tplSelect(id).catch(()=>{});
-  });
-  $("#tplAgeGroup")?.addEventListener("change", ()=>{
-    saveTpl();
-    if ($("#autoPreview")?.checked) renderPreview().catch(() => {});
-  });
-  $("#btnTplNew")?.addEventListener("click", ()=>tplCreate().catch(()=>{}));
-  $("#btnTplDel")?.addEventListener("click", ()=>tplDelete().catch(()=>{}));
 
   // copy
   $("#btnCopyTitle")?.addEventListener("click", async () => {
@@ -3321,13 +3172,35 @@ function closeCaseModal(){
 // (disabled: duplicate bindings handled by CaseModal module) $("#btnCaseModalClose")?.addEventListener("click", closeCaseModal);
 // (disabled: duplicate bindings handled by CaseModal module) $("#caseOpenBack")?.addEventListener("click", closeCaseModal);
 
-// hooks
-// (disabled: duplicate bindings handled by CaseModal module) window.addEventListener("keydown", (e)=>{
-  if(false && e.key === "Escape"){
-    if(!caseSpinning) closeCaseModal();
-    closeCasePrizes();
-  }
-});
+// Safe Escape handler (doesn't assume CaseModal globals exist)
+window.addEventListener(
+  "keydown",
+  (ev) => {
+    if (ev.key !== "Escape") return;
+    try {
+      if (typeof closeCaseModal === "function") {
+        const spinning = typeof caseSpinning !== "undefined" ? !!caseSpinning : false;
+        if (!spinning) closeCaseModal();
+      }
+      if (typeof closeCasePrizes === "function") closeCasePrizes();
+    } catch (_e) {}
+    try {
+      if (typeof closeModal === "function") {
+        closeModal("modalPay");
+        closeModal("modalCase");
+        closeModal("modalAuth");
+        closeModal("modalInv");
+        closeModal("modalRec");
+        closeModal("modalPremium");
+        closeModal("robuxModal");
+        closeModal("historyModal");
+        closeModal("robuxHowModal");
+        closeModal("shopPanelModal");
+      }
+    } catch (_e) {}
+  },
+  { passive: true }
+);
 
 // --- sounds + helpers for reel tick (CS-like) ---
 const caseAudio = (()=>{
@@ -4047,7 +3920,32 @@ let _robuxState = {
   quoteT:null,
   quoteCache:new Map(),
   gpMode:'url',
+  gpUrl:'',
+  username:'',
 };
+
+// Persist robux wizard inputs locally so users don't have to re-enter them.
+const _ROBUX_LS_KEY = 'rst_robux_wizard_v1';
+function _robuxLoadLS(){
+  try{
+    const raw = localStorage.getItem(_ROBUX_LS_KEY);
+    if(!raw) return;
+    const j = JSON.parse(raw);
+    if(j && typeof j === 'object'){
+      if(typeof j.amount === 'number' && isFinite(j.amount)) _robuxState.amount = Math.max(50, Math.min(5000, Math.floor(j.amount)));
+      if(j.gpMode === 'url' || j.gpMode === 'username') _robuxState.gpMode = j.gpMode;
+      if(typeof j.gpUrl === 'string') _robuxState.gpUrl = j.gpUrl.slice(0, 300);
+      if(typeof j.username === 'string') _robuxState.username = j.username.slice(0, 40);
+    }
+  }catch(_e){}
+}
+function _robuxSaveLS(){
+  try{
+    const j = { amount:_robuxState.amount, gpMode:_robuxState.gpMode, gpUrl:_robuxState.gpUrl||'', username:_robuxState.username||'' };
+    localStorage.setItem(_ROBUX_LS_KEY, JSON.stringify(j));
+  }catch(_e){}
+}
+_robuxLoadLS();
 
 function _robuxById(id){ return document.getElementById(id); }
 
@@ -4180,7 +4078,8 @@ function _applyRobuxQuote(j){
 
 function _robuxScheduleQuote(amount){
   try{ if(_robuxState.quoteT) clearTimeout(_robuxState.quoteT); }catch(_e){}
-  _robuxState.quoteT = setTimeout(()=>_robuxUpdateQuote(amount), 220);
+  // Fast feedback while dragging the slider
+  _robuxState.quoteT = setTimeout(()=>_robuxUpdateQuote(amount), 80);
 }
 
 
@@ -4316,15 +4215,22 @@ async function _robuxResumeIfAny(){
 
 async function openRobuxModal(){
   _robuxOpenUI();
-  _robuxState.order_id = null;
-  _robuxState.gamepass = null;
-  _robuxState.quote = null;
-  _robuxState.reserve_expires_ts = 0;
-  _robuxState.gpMode = 'url';
+	// Reset only order-related state; keep user's inputs (amount/mode/url/username) from localStorage.
+	_robuxState.order_id = null;
+	_robuxState.gamepass = null;
+	_robuxState.quote = null;
+	_robuxState.reserve_expires_ts = 0;
   _robuxSetStep(1);
 
-  const amount = _robuxById('robuxAmount');
-  const slider = _robuxById('robuxSlider');
+	const amount = _robuxById('robuxAmount');
+	const slider = _robuxById('robuxSlider');
+	// Restore amount immediately (so calculator updates right away)
+	const initAmount = Math.max(50, Math.min(5000, parseInt(_robuxState.amount||50,10) || 50));
+	_robuxState.amount = initAmount;
+	if(amount) amount.value = String(initAmount);
+	if(slider) slider.value = String(initAmount);
+	_robuxScheduleQuote(initAmount);
+	_robuxSaveLS();
 
   if(!_robuxState._bound){
     if(amount){
@@ -4378,20 +4284,32 @@ async function openRobuxModal(){
     if(modeNickBtn){ modeNickBtn.classList.toggle('active', mode==='username'); modeNickBtn.setAttribute('aria-selected', mode==='username' ? 'true' : 'false'); }
     if(boxUrl) boxUrl.classList.toggle('hidden', mode!=='url');
     if(boxNick) boxNick.classList.toggle('hidden', mode!=='username');
-    // Clear the inactive input to avoid accidental backend path
-    if(mode==='url' && userEl) userEl.value = '';
-    if(mode==='username' && urlEl) urlEl.value = '';
-    const nickTestBtn = _robuxById('robuxNickTest');
-    if(nickTestBtn) nickTestBtn.style.display = (mode==='username') ? 'inline-flex' : 'none';
+	  _robuxSaveLS();
   }
 
   if(!_robuxState._modeBound){
     if(modeUrlBtn) modeUrlBtn.onclick=()=>_robuxSetMode('url');
     if(modeNickBtn) modeNickBtn.onclick=()=>_robuxSetMode('username');
     _robuxState._modeBound = true;
-
-	// (legacy gpHowModal removed)
   }
+
+	// Restore inputs + persist on changes
+	if(urlEl){
+	  if(typeof _robuxState.gpUrl === 'string' && !_robuxState._gpUrlRestored){ urlEl.value = _robuxState.gpUrl; }
+	  if(!_robuxState._gpUrlBound){
+	    urlEl.addEventListener('input', ()=>{ _robuxState.gpUrl = String(urlEl.value||'').slice(0,300); _robuxSaveLS(); }, {passive:true});
+	    _robuxState._gpUrlBound = true;
+	  }
+	  _robuxState._gpUrlRestored = true;
+	}
+	if(userEl){
+	  if(typeof _robuxState.username === 'string' && !_robuxState._userRestored){ userEl.value = _robuxState.username; }
+	  if(!_robuxState._userBound){
+	    userEl.addEventListener('input', ()=>{ _robuxState.username = String(userEl.value||'').slice(0,40); _robuxSaveLS(); }, {passive:true});
+	    _robuxState._userBound = true;
+	  }
+	  _robuxState._userRestored = true;
+	}
   _robuxSetMode(_robuxState.gpMode || 'url');
 
   // How-to modal (placeholder for screenshots)
@@ -4438,18 +4356,12 @@ async function openRobuxModal(){
 const btnCheck=_robuxById('robuxNext2');
 if(btnCheck){
   btnCheck.onclick=async ()=>{
-	const rawUrl = (urlEl && urlEl.value) ? urlEl.value.trim() : '';
-	const rawUser = (userEl && userEl.value) ? userEl.value.trim() : '';
+const rawUrl = (urlEl && urlEl.value) ? urlEl.value.trim() : '';
+const rawUser = (userEl && userEl.value) ? userEl.value.trim() : '';
 
-	// Determine mode from the actual active tab (never rely only on stored state)
-	let mode = 'url';
-	try{
-	  if(modeNickBtn && modeNickBtn.classList.contains('active')) mode = 'username';
-	  else if(modeUrlBtn && modeUrlBtn.classList.contains('active')) mode = 'url';
-	  else mode = (_robuxState.gpMode || 'url');
-	}catch(_e){ mode = (_robuxState.gpMode || 'url'); }
-	if(mode !== 'url' && mode !== 'username') mode = 'url';
-	_robuxState.gpMode = mode;
+// Strict mode: use tab selection
+let mode = (_robuxState.gpMode || 'url');
+if(mode !== 'url' && mode !== 'username') mode = 'url';
 
 // Helpful fallback message if user filled the other field
 if(mode === 'url'){
@@ -4457,16 +4369,11 @@ if(mode === 'url'){
     if(rawUser) return toast('Robux','Выбран поиск по ссылке/ID — переключись на вкладку «По нику» или вставь ссылку/ID','warn');
     return toast('Robux','Вставь ссылку или ID геймпасса','warn');
   }
-	}else{
-	  // Normalize and validate Roblox username
-	  const u = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
-	  if(!u){
+}else{
+  if(!rawUser){
     if(rawUrl) return toast('Robux','Выбран поиск по нику — переключись на вкладку «По ссылке / ID» или введи ник Roblox','warn');
     return toast('Robux','Введи ник Roblox (латиница, цифры и _)','warn');
   }
-	  if(!/^[A-Za-z0-9_]{3,20}$/.test(u)){
-	    return toast('Robux','Ник Roblox должен быть логином (латиница/цифры/_) — без кириллицы и пробелов','warn');
-	  }
 }
 
 _robuxState.gamepass = null;
@@ -4475,9 +4382,9 @@ const card = _robuxById('robuxCheckCard');
 if(card) card.innerHTML = '<div class="muted">Проверяем…</div>';
 
 try{
-	  const payload = { amount: _robuxState.amount, mode };
-	  if(mode === 'username'){
-	    payload.username = String(rawUser||'').replace(/^@/,'').replace(/\s+/g,'');
+  const payload = { amount: _robuxState.amount, mode };
+  if(mode === 'username'){
+    payload.username = rawUser;
   }else{
     // accept url or id
     payload.gamepass_url = rawUrl;
@@ -4619,210 +4526,6 @@ try{
 }
 
 try{ window.openRobuxModal = openRobuxModal; }catch(_e){}
-
-// ----------------------------
-// Robux Nick Test modal (separate flow, strictly by username)
-// ----------------------------
-const _rnt = { open:false, lastInspect:null, orderId:null, poll:null };
-
-function _rntById(id){ return document.getElementById(id); }
-
-function _rntOpen(){
-  if(!currentUser){
-    toast("Robux","Сначала войди в аккаунт","warn");
-    try{ showTab("profile"); }catch(_e){}
-    return;
-  }
-  const back=_rntById("robuxNickBack");
-  const m=_rntById("robuxNickModal");
-  if(back){ back.classList.remove("hidden"); back.style.display="block"; back.classList.add("open"); requestAnimationFrame(()=>back.classList.add("vis")); }
-  if(m){ m.classList.remove("hidden"); m.style.display="block"; m.classList.add("open"); requestAnimationFrame(()=>m.classList.add("vis")); }
-  _rnt.open = true;
-
-  // prefill from main wizard (if available)
-  const uMain = _robuxById("robuxUsername")?.value || "";
-  const amtMain = _robuxById("robuxAmount")?.value || _robuxState.amount || "50";
-  const u=_rntById("rntUsername");
-  const a=_rntById("rntAmount");
-  if(u && !u.value) u.value = (uMain||"").trim();
-  if(a) a.value = String(parseInt(String(amtMain).replace(/[^\d]/g,""),10) || 50);
-
-  _rnt.lastInspect = null;
-  _rnt.orderId = null;
-  _rntSetStatus("—");
-  _rntRenderCard(null);
-  _rntUpdateQuote();
-}
-
-function _rntClose(){
-  const back=_rntById("robuxNickBack");
-  const m=_rntById("robuxNickModal");
-  if(!m) return;
-  m.classList.remove("vis"); if(back) back.classList.remove("vis");
-  setTimeout(()=>{
-    m.classList.remove("open"); m.style.display="none"; m.classList.add("hidden");
-    if(back){ back.classList.remove("open"); back.style.display="none"; back.classList.add("hidden"); }
-  }, 190);
-  _rnt.open = false;
-  try{ if(_rnt.poll) clearInterval(_rnt.poll); }catch(_e){}
-  _rnt.poll = null;
-}
-
-function _rntSetStatus(t){
-  const st=_rntById("rntStatus");
-  if(st) st.textContent = t || "—";
-}
-
-// Normalize Roblox username: trim, remove spaces and convert common Cyrillic look-alikes.
-// NOTE: we map Cyrillic "У" to Latin "U" (users usually mean U, not Y).
-function _rntNormalizeUsername(raw){
-  let u = String(raw || "").trim();
-  if(u.startsWith("@")) u = u.slice(1);
-  u = u.replace(/\s+/g, "");
-  const map = {
-    "А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","У":"U",
-    "а":"a","в":"b","е":"e","к":"k","м":"m","н":"h","о":"o","р":"p","с":"c","т":"t","х":"x","у":"u",
-  };
-  return u.replace(/[АВЕКМНОРСТХУавекмнорстху]/g, (ch)=>map[ch] || ch);
-}
-
-function _rntRenderCard(info){
-  const card=_rntById("rntCard");
-  if(!card) return;
-  if(!info){
-    card.innerHTML = `<div class="muted">Нажми «Проверить», чтобы найти геймпасс.</div>`;
-    return;
-  }
-  const gp = info.gamepass || {};
-  card.innerHTML = `
-    <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
-      <div style="min-width:0">
-        <div style="font-weight:900; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(gp.name || "Gamepass")}</div>
-        <div class="muted" style="margin-top:4px">Owner: <b>${escapeHtml(gp.owner || "—")}</b></div>
-        <div class="muted">URL: <span class="mono" style="opacity:.9">${escapeHtml(gp.url || "—")}</span></div>
-      </div>
-      <div class="mono" style="font-weight:900">${escapeHtml(String(gp.price ?? "—"))} R$</div>
-    </div>
-  `;
-}
-
-async function _rntUpdateQuote(){
-  const a=_rntById("rntAmount");
-  const v = parseInt(String(a?.value||"").replace(/[^\d]/g,""),10) || 50;
-  if(a) a.value = String(v);
-  try{
-    const j = await apiGet(`/api/robux/quote?robux_amount=${encodeURIComponent(v)}`);
-    const rub=_rntById("rntRub");
-    const gp=_rntById("rntGp");
-    if(rub) rub.textContent = (j.rub_total != null) ? (String(j.rub_total) + " ₽") : "—";
-    if(gp) gp.textContent = (j.gamepass_price != null) ? (String(j.gamepass_price) + " R$") : "—";
-  }catch(_e){}
-}
-
-async function _rntInspect(){
-  const u=_rntById("rntUsername");
-  const a=_rntById("rntAmount");
-  const username = _rntNormalizeUsername(u?.value || "");
-  const v = parseInt(String(a?.value||"").replace(/[^\d]/g,""),10) || 50;
-  if(!username) return toast("Robux","Введи ник Roblox","warn");
-  _rntSetStatus("Ищу профиль/плейсы/геймпассы…");
-  try{
-    // Backend expects `amount`. Keep `robux_amount` as legacy alias too.
-    // Also explicitly clear any url fields so the server won't accidentally infer URL mode.
-    const j = await apiPost("/api/robux/inspect", {
-      mode: "username",
-      username,
-      nick: username,
-      amount: v,
-      robux_amount: v,
-      url: "",
-      gamepass_url: "",
-    });
-    _rnt.lastInspect = j;
-    _rntRenderCard(j);
-    _rntSetStatus("Готово. Можно покупать.");
-    await _rntUpdateQuote();
-  }catch(e){
-    _rnt.lastInspect = null;
-    _rntRenderCard(null);
-    _rntSetStatus("Ошибка: " + (e.message || "bad request"));
-    toast("Robux", e.message || "Плохой запрос", "bad");
-  }
-}
-
-async function _rntBuy(){
-  const u=_rntById("rntUsername");
-  const a=_rntById("rntAmount");
-  const username = _rntNormalizeUsername(u?.value || "");
-  const v = parseInt(String(a?.value||"").replace(/[^\d]/g,""),10) || 50;
-  if(!username) return toast("Robux","Введи ник Roblox","warn");
-
-  _rntSetStatus("Создаю заказ…");
-  try{
-    const r = await apiPost("/api/robux/order_reserve", {
-      // Backend expects `amount`; keep `robux_amount` as alias.
-      amount: v,
-      robux_amount: v,
-      username,
-      nick: username,
-      url: "",
-      gamepass_url: "",
-    });
-    const oid = r.order_id;
-    if(!oid) throw new Error("Не вернулся order_id");
-    _rnt.orderId = oid;
-
-    _rntSetStatus("Оплачиваю…");
-    await apiPost("/api/robux/order_pay", { order_id: oid });
-
-    _rntSetStatus("Оплачено. Жду выполнение…");
-    try{ if(_rnt.poll) clearInterval(_rnt.poll); }catch(_e){}
-    _rnt.poll = setInterval(async ()=>{
-      try{
-        const j = await apiGet(`/api/robux/order?id=${encodeURIComponent(oid)}`);
-        const st = j.order?.status || "";
-        if(st === "done"){
-          _rntSetStatus("✅ Выполнено");
-          clearInterval(_rnt.poll); _rnt.poll=null;
-        }else if(st === "failed" || st === "cancelled" || st === "expired"){
-          const err = j.order?.error || "";
-          _rntSetStatus("❌ " + (err || st));
-          clearInterval(_rnt.poll); _rnt.poll=null;
-        }else{
-          _rntSetStatus("⏳ " + (st || "processing"));
-        }
-      }catch(_e){}
-    }, 1200);
-
-    toast("Robux","Заказ создан и оплачен","ok");
-  }catch(e){
-    _rntSetStatus("Ошибка: " + (e.message || "bad request"));
-    toast("Robux", e.message || "Не удалось", "bad");
-  }
-}
-
-// bind controls (safe)
-(function(){
-  const btn=_rntById("robuxNickTest");
-  if(btn) btn.addEventListener("click", _rntOpen);
-
-  const back=_rntById("robuxNickBack");
-  const closeTop=_rntById("robuxNickCloseTop");
-  const close=_rntById("rntClose");
-  const close2=_rntById("rntClose");
-  [back, closeTop, close].forEach(x=>x && x.addEventListener("click", _rntClose));
-
-  const amt=_rntById("rntAmount");
-  if(amt) amt.addEventListener("input", ()=>_rntUpdateQuote().catch(()=>{}));
-  const user=_rntById("rntUsername");
-  if(user) user.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); _rntInspect().catch(()=>{}); } });
-
-  const chk=_rntById("rntCheck");
-  const buy=_rntById("rntBuy");
-  if(chk) chk.addEventListener("click", ()=>_rntInspect().catch(()=>{}));
-  if(buy) buy.addEventListener("click", ()=>_rntBuy().catch(()=>{}));
-})();
-
 
 // ----------------------------
 // Purchases history (Robux only)

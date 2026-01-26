@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=1769004000" rel="stylesheet"/>
+<link href="/static/styles.css?v=fix48" rel="stylesheet"/>
 </head>
 <body class="theme-pastex">
 <canvas id="particles"></canvas>
@@ -239,6 +239,28 @@
 <button class="btn mini" id="btnResetTpl">↺</button>
 </div>
 </div>
+
+<div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px">
+  <div style="flex:1; min-width:220px">
+    <label class="lbl" style="margin-top:0">Шаблон</label>
+    <select class="input" id="tplSelect"></select>
+  </div>
+  <div style="min-width:160px">
+    <label class="lbl" style="margin-top:0">AGE GROUP</label>
+    <select class="input" id="tplAgeGroup">
+      <option value="0">&lt;13</option>
+      <option value="13">13+</option>
+      <option value="16">16+</option>
+      <option value="18">18+</option>
+      <option value="21">21+</option>
+    </select>
+  </div>
+  <div style="display:flex; gap:8px; align-items:flex-end; padding-bottom:2px">
+    <button class="btn mini" id="btnTplNew" type="button">＋ Создать</button>
+    <button class="btn mini" id="btnTplDel" type="button">🗑 Удалить</button>
+  </div>
+</div>
+
 <label class="lbl">Шаблон заголовка</label>
 <input class="input" id="tplTitle"/>
 <label class="lbl">Шаблон описания</label>
@@ -257,7 +279,7 @@
 <label class="lbl">Описание</label>
 <textarea class="input mono" id="outDesc" readonly="" rows="12"></textarea>
 <div class="varsRow" id="varsRow" aria-label="Переменные"></div>
-<div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code></div>
+<div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code> <code>{age_group}</code></div>
 </div>
 </div>
 </div>
@@ -353,7 +375,7 @@
 
 <section class="pane" id="tab-shop">
 <div class="card">
-<h2>🛒 Магазин</h2>
+<div class="headrow" style="align-items:center; gap:10px"><h2 style="margin:0">🛒 Магазин</h2><button class="btn mini" id="btnShopHistory" type="button"><span class="ico" data-ico="receipt" aria-hidden="true"></span> История покупок</button></div>
 <p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
 <div class="shopControls">
   <div class="shopSearch">
@@ -861,7 +883,7 @@
 
 <!-- Robux purchase wizard -->
 <div id="robuxBack" class="modalBack hidden"></div>
-<div id="robuxModal" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Покупка Robux">
+<div id="robuxModal" data-build="{{ build_version }}" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Покупка Robux">
   <div class="modalHeader">
     <div class="modalTitleRow">
       <div class="modalTitle">💰 Покупка Robux</div>
@@ -872,17 +894,18 @@
       <div class="robuxStep" data-step="2">2</div>
       <div class="robuxStep" data-step="3">3</div>
       <div class="robuxStep" data-step="4">4</div>
+      <div class="robuxStep" data-step="5">5</div>
     </div>
   </div>
 
   <div class="robuxBody">
     <!-- Step 1 -->
-    <div class="robuxPane" id="robuxStep1">
+    <div class="robuxPane is-active" id="robuxStep1">
       <div class="robuxH">Шаг 1 — выбери количество</div>
       <div class="robuxRow">
         <div class="robuxField">
           <div class="robuxLabel">Количество Robux</div>
-          <input id="robuxAmount" class="input" type="number" min="50" step="10" value="50" />
+          <input id="robuxAmount" class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="50" value="50" />
         </div>
         <div class="robuxField">
           <div class="robuxLabel">Ползунок</div>
@@ -900,38 +923,163 @@
       </div>
     </div>
 
-    <!-- Step 2 -->
-    <div class="robuxPane hidden" id="robuxStep2">
-      <div class="robuxH">Шаг 2 — ссылка на геймпасс</div>
-      <div class="robuxLabel">Вставь ссылку на геймпасс</div>
-      <input id="robuxGpUrl" class="input" placeholder="https://www.roblox.com/game-pass/..." />
-      <div class="muted" style="margin-top:8px">Поставь цену геймпасса: <b id="robuxGpNeed">—</b></div>
-      <div class="robuxActions">
-        <button class="btn pxtBtn secondary" id="robuxBack2">Назад</button>
-        <button class="btn pxtBtn" id="robuxNext2">Проверить</button>
-      </div>
-    </div>
+    
+<!-- Step 2 -->
+<div class="robuxPane" id="robuxStep2">
+  <div class="robuxH">Шаг 2 — способ поиска</div>
 
-    <!-- Step 3 -->
-    <div class="robuxPane hidden" id="robuxStep3">
+  <div class="robuxModeTabs" role="tablist" aria-label="Выбор способа поиска">
+    <button class="robuxModeTab active" id="robuxModeUrl" type="button" role="tab" aria-selected="true">По ссылке / ID</button>
+    <button class="robuxModeTab" id="robuxModeNick" type="button" role="tab" aria-selected="false">По нику</button>
+  </div>
+
+  <div id="robuxModeUrlBox" class="robuxModeBox">
+    <div class="robuxLabel">Ссылка или ID геймпасса</div>
+    <input id="robuxGpUrl" class="input" placeholder="https://www.roblox.com/game-pass/... или просто ID" autocomplete="off" />
+  </div>
+
+  <div id="robuxModeNickBox" class="robuxModeBox hidden">
+    <div class="robuxLabel">Ник Roblox (мы найдём геймпасс с нужной ценой)</div>
+    <input id="robuxUsername" class="input" placeholder="nickname" autocomplete="off" />
+  </div>
+
+  <div class="muted" style="margin-top:10px">Цена геймпасса должна быть: <b id="robuxGpNeed">—</b></div>
+
+  <div class="robuxHelpRow">
+    <button class="btn pxtBtn ghost" id="robuxHowTo" type="button">Как создать геймпасс?</button>
+    <button class="btn pxtBtn ghost" id="robuxNickTest" type="button" style="margin-left:8px; display:none">TEST по нику</button>
+  </div>
+<div class="robuxActions">
+    <button class="btn pxtBtn secondary" id="robuxBack2">Назад</button>
+    <button class="btn pxtBtn" id="robuxNext2">Проверить</button>
+  </div>
+</div>
+
+<!-- Step 3 -->
+    <div class="robuxPane" id="robuxStep3">
       <div class="robuxH">Шаг 3 — проверка</div>
       <div class="robuxCheckCard" id="robuxCheckCard">
         <div class="muted">Данные геймпасса появятся здесь…</div>
       </div>
       <div class="robuxActions">
         <button class="btn pxtBtn secondary" id="robuxBack3">Нет, это не я</button>
-        <button class="btn pxtBtn" id="robuxPay">Оплатить с баланса</button>
+        <button class="btn pxtBtn" id="robuxPay">Начать бронирование</button>
       </div>
     </div>
 
     <!-- Step 4 -->
-    <div class="robuxPane hidden" id="robuxStep4">
-      <div class="robuxH">Шаг 4 — выполнение</div>
-      <div class="robuxStatus" id="robuxStatus">Создаём заказ…</div>
-      <div class="robuxActions">
-        <button class="btn pxtBtn" id="robuxDone">Ок</button>
-      </div>
+<div class="robuxPane" id="robuxStep4">
+  <div class="robuxH">Шаг 4 — бронь и оплата</div>
+  <div class="robuxStatus" id="robuxStatus">Создаём бронь…</div>
+  <div class="robuxTimer" id="robuxTimer" style="margin-top:10px; font-weight:800"></div>
+  <div class="robuxActions">
+    <button class="btn pxtBtn secondary" id="robuxCancel" type="button">Отменить заказ</button>
+    <button class="btn pxtBtn" id="robuxPayNow" type="button">Оплатить заказ</button>
+    <button class="btn pxtBtn ghost" id="robuxPayLater" type="button">Оплатить позже</button>
+  </div>
+</div>
+
+<!-- Step 5 -->
+<div class="robuxPane" id="robuxStep5">
+  <div class="robuxH">Готово ✅</div>
+  <div class="robuxStatus" id="robuxSuccessText">
+    Robux успешно были отправлены. Они зачислятся на баланс в течение 5 дней.
+  </div>
+  <div class="robuxTimer" id="robuxSettleTimer" style="margin-top:10px; font-weight:800"></div>
+  <div class="robuxActions">
+    <button class="btn pxtBtn" id="robuxFinish" type="button">Ок</button>
+  </div>
+</div>
+  </div>
+</div>
+</div>
+
+
+<!-- Robux Nick Test Modal -->
+<div id="robuxNickBack" class="modalBack hidden"></div>
+<div id="robuxNickModal" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Тест: покупка Robux по нику">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="modalTitle">🧪 TEST — Robux по нику</div>
+      <button class="iconBtn" id="robuxNickCloseTop" aria-label="Закрыть" type="button">✕</button>
     </div>
+  </div>
+  <div class="robuxBody">
+    <div class="robuxPane is-active">
+      <div class="robuxH">Покупка по нику (отдельное окно)</div>
+      <div class="muted" style="margin-top:6px">Вводишь ник и количество — система находит геймпасс с нужной ценой и полностью запускает заказ.</div>
+
+      <div class="robuxRow" style="margin-top:12px">
+        <div class="robuxField">
+          <div class="robuxLabel">Ник Roblox</div>
+          <input id="rntUsername" class="input" placeholder="nickname" autocomplete="off" />
+        </div>
+        <div class="robuxField">
+          <div class="robuxLabel">Количество Robux</div>
+          <input id="rntAmount" class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="50" value="50" />
+        </div>
+      </div>
+
+      <div class="robuxQuote" style="margin-top:12px">
+        <div class="rqItem"><div class="muted">К оплате</div><div class="rqVal" id="rntRub">—</div></div>
+        <div class="rqItem"><div class="muted">Цена геймпасса</div><div class="rqVal" id="rntGp">—</div></div>
+      </div>
+
+      <div class="robuxCheckCard" id="rntCard" style="margin-top:12px">
+        <div class="muted">Нажми «Проверить», чтобы найти геймпасс.</div>
+      </div>
+
+      <div class="robuxActions">
+        <button class="btn pxtBtn secondary" id="rntClose" type="button">Закрыть</button>
+        <button class="btn pxtBtn" id="rntCheck" type="button">Проверить</button>
+        <button class="btn pxtBtn" id="rntBuy" type="button">Купить</button>
+      </div>
+
+      <div class="robuxStatus" id="rntStatus" style="margin-top:10px">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Robux How-To (placeholder; screenshots later) -->
+<div id="robuxHowBack" class="modalBack hidden"></div>
+<div id="robuxHowModal" class="modal glass hidden" role="dialog" aria-modal="true" aria-label="Как создать геймпасс">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="ico" data-ico="info" aria-hidden="true"></div>
+      <div class="modalTitle">Как создать геймпасс</div>
+    </div>
+    <button class="iconBtn" id="robuxHowClose" type="button" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="caseStage" style="padding:14px">
+    <div class="muted" style="font-size:12px; margin-bottom:10px">Скриншоты добавим позже. Пока — коротко по шагам.</div>
+    <ol class="robuxHowList">
+      <li>Открой Roblox Studio → в игре перейди в <b>Monetization</b>.</li>
+      <li>Создай <b>Game Pass</b> и выставь цену ровно как на сайте (например <b id="robuxHowNeed">72</b> Robux).</li>
+      <li>Сделай геймпасс <b>On Sale</b> (в продаже) и убедись, что он <b>Public</b>.</li>
+      <li>Скопируй ссылку на геймпасс или его ID и вставь на шаге 2.</li>
+    </ol>
+    <div class="robuxActions" style="justify-content:flex-end">
+      <button class="btn pxtBtn" id="robuxHowOk" type="button">Понял</button>
+    </div>
+  </div>
+</div>
+
+<!-- Purchases History Modal (Robux only) -->
+<div id="historyBack" class="modalBack hidden"></div>
+<div id="historyModal" class="modal glass hidden" role="dialog" aria-modal="true" aria-label="История покупок">
+  <div class="modalHeader">
+    <div class="modalTitleRow">
+      <div class="ico" data-ico="receipt" aria-hidden="true"></div>
+      <div class="modalTitle">История покупок</div>
+    </div>
+    <button class="iconBtn" id="historyClose" type="button" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="caseStage" style="padding:14px">
+    <div class="muted" style="font-size:12px; margin-bottom:10px">
+      Тут отображаются только покупки Robux. Кейс и Premium сюда не попадают.
+    </div>
+    <div id="historyList" class="prizeList"></div>
+    <div id="historyEmpty" class="muted" style="display:none; padding:12px; text-align:center">Пока пусто.</div>
   </div>
 </div>
 
@@ -1114,6 +1262,9 @@
                 <input class="input" id="adm_robux_min" placeholder="Мин. Robux" />
                 <input class="input" id="adm_robux_rub" placeholder="₽ за 1 Robux" />
                 <input class="input" id="adm_robux_factor" placeholder="Коэф. комиссии" />
+                <input class="input" id="adm_robux_stock_show" placeholder="Показывать в наличии (0=авто)" />
+                <input class="input" id="adm_robux_stock_sell" placeholder="Лимит продаж (0=без лимита)" />
+                <input class="input" id="adm_robux_reserve_seconds" placeholder="Бронь (сек)" />
               </div>
 
               <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
@@ -1163,7 +1314,7 @@
 
 
 <!-- core logic -->
-<script src="/static/app.js?v=1769004000"></script>
+<script src="/static/app.js?v=fix48"></script>
 
   <!-- Confirm Modal -->
   <div class="modalBack hidden" id="confirmBack"></div>
@@ -1366,6 +1517,9 @@
     </div>
   </div>
 </div>
+
+
+<!-- (removed legacy gpHowModal; robux uses robuxHowModal) -->
 
 </body>
 </html>

@@ -12,8 +12,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 app = FastAPI(title="R$T Web")
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # Optional Postgres (Render)
@@ -54,8 +52,9 @@ except Exception:
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_TAG = os.environ.get("BUILD_TAG") or "fix48"
-BUILD_VERSION = os.environ.get("BUILD_VERSION") or f"{BUILD_TAG}-{int(time.time())}"
+# Used for cache-busting of /static/app.js and /static/styles.css
+# If env var not provided, use build-time UTC epoch seconds.
+BUILD_VERSION = os.environ.get("BUILD_VERSION") or str(int(datetime.datetime.utcnow().timestamp()))
 
 # ----------------------------
 # Robux shop config
@@ -91,604 +90,8 @@ The feature is removed (it caused issues and is not needed in production).
 
 
 
-# ----------------------------
-# Topups (Crypto Pay + Promo + Manual) + Premium by balance
-# ----------------------------
 
-def _points_to_fiat_cents(points: int) -> int:
-    cents = int(round((int(points) / float(max(BALANCE_PER_CURRENCY, 1))) * 100.0))
-    if cents < CRYPTO_PAY_MIN_FIAT_CENTS:
-        cents = CRYPTO_PAY_MIN_FIAT_CENTS
-    return max(1, cents)
-
-def _cents_to_amount_str(cents: int) -> str:
-    return f"{(int(cents) / 100.0):.2f}"
-
-def _insert_topup_row(con, user_id: int, provider: str, method: str, points: int, fiat_cents: int, fiat_currency: str, status: str, meta: Dict[str, Any]) -> int:
-    ts = _now_utc_iso()
-    if USE_PG:
-        row = con.execute(
-            "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
-            (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency or None, None, None, status, 0, json.dumps(meta or {}), ts, ts),
-        ).fetchone()
-        return int(_rget(row, "id") or 0)
-    cur = con.execute(
-        "INSERT INTO topups(user_id,provider,method,points,fiat_cents,fiat_currency,invoice_id,pay_url,status,credited,meta,created_at,updated_at) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (int(user_id), provider, method, int(points), int(fiat_cents), fiat_currency, None, None, status, 0, json.dumps(meta or {}), ts, ts),
-    )
-    return int(cur.lastrowid)
-
-def _credit_topup_once(con, topup_id: int, admin_id: Optional[int] = None, reason: str = "") -> bool:
-    # Returns True if balance was credited by this call (idempotent)
-    ts = _now_utc_iso()
-    if USE_PG:
-        row = con.execute(
-            "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0 RETURNING user_id, points",
-            (ts, int(topup_id)),
-        ).fetchone()
-        if not row:
-            return False
-        uid = int(_rget(row, "user_id") or 0)
-        points = int(_rget(row, "points") or 0)
-        urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
-        oldb = int(_rget(urow, "balance") or 0) if urow else 0
-        con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
-        con.execute(
-            "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
-            (uid, admin_id, points, reason or f"topup {topup_id}", ts),
-        )
-        return True
-
-    cur = con.execute(
-        "UPDATE topups SET credited=1, status='paid', updated_at=? WHERE id=? AND credited=0",
-        (ts, int(topup_id)),
-    )
-    if getattr(cur, "rowcount", 0) != 1:
-        return False
-    row = con.execute("SELECT user_id, points FROM topups WHERE id=?", (int(topup_id),)).fetchone()
-    uid = int(_rget(row, "user_id") or 0)
-    points = int(_rget(row, "points") or 0)
-    urow = con.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
-    oldb = int(_rget(urow, "balance") or 0) if urow else 0
-    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, uid))
-    con.execute(
-        "INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)",
-        (uid, admin_id, points, reason or f"topup {topup_id}", ts),
-    )
-    return True
-
-@app.get("/api/topup/config")
-def api_topup_config(request: Request):
-    return {
-        "ok": True,
-        "topup": {
-            "packs": TOPUP_PACKS,
-            "balance_per_currency": BALANCE_PER_CURRENCY,
-            "crypto": {
-                "enabled": cryptopay_enabled(),
-                "fiat": CRYPTO_PAY_FIAT,
-                "accepted_assets": CRYPTO_PAY_ACCEPTED_ASSETS,
-                "min_fiat_cents": CRYPTO_PAY_MIN_FIAT_CENTS,
-            },
-            "promo": {"enabled": True},
-            "manual": {"enabled": True},
-        },
-        "premium": {
-            "price_points": PREMIUM_PRICE_POINTS,
-            "period_days": PREMIUM_PERIOD_DAYS,
-        },
-    }
-
-@app.post("/api/topup/create")
-def api_topup_create(request: Request, payload: Dict[str, Any]):
-    u = require_user(request)
-    method = str(payload.get("method") or "").strip().lower()
-    try:
-        points = int(payload.get("points") or 0)
-    except Exception:
-        points = 0
-    if points not in TOPUP_PACKS:
-        raise HTTPException(status_code=400, detail=f"Invalid pack. Allowed: {TOPUP_PACKS}")
-
-    if method not in ("crypto", "manual"):
-        raise HTTPException(status_code=400, detail="method must be crypto or manual")
-
-    con = db_conn()
-
-    if method == "manual":
-        tid = _insert_topup_row(con, int(u["id"]), "manual", "manual", points, 0, None, "pending", {"note": "manual topup request"})
-        con.commit(); con.close()
-        return {"ok": True, "id": tid, "status": "pending", "method": "manual"}
-
-    # crypto
-    if not cryptopay_enabled():
-        con.close()
-        raise HTTPException(status_code=500, detail="Crypto Pay is not configured")
-
-    fiat_cents = _points_to_fiat_cents(points)
-    tid = _insert_topup_row(con, int(u["id"]), "cryptopay", "crypto", points, fiat_cents, CRYPTO_PAY_FIAT, "pending", {"assets": CRYPTO_PAY_ACCEPTED_ASSETS})
-    # Create invoice
-    amount_str = _cents_to_amount_str(fiat_cents)
-    desc = f"RST Balance Top-up ({points} pts)"
-    try:
-        inv = _cryptopay_call("createInvoice", {
-            "amount": amount_str,
-            "currency_type": "fiat",
-            "fiat": CRYPTO_PAY_FIAT,
-            "accepted_assets": ",".join(CRYPTO_PAY_ACCEPTED_ASSETS) if CRYPTO_PAY_ACCEPTED_ASSETS else None,
-            "description": desc,
-            "payload": str(tid),
-            "allow_comments": False,
-            "allow_anonymous": True,
-        })
-    except Exception as e:
-        # mark failed
-        ts = _now_utc_iso()
-        con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("failed", json.dumps({"err": str(e)}), ts, tid))
-        con.commit(); con.close()
-        raise
-
-    invoice_id = str(inv.get("invoice_id") or inv.get("id") or "")
-    pay_url = inv.get("web_app_invoice_url") or inv.get("bot_invoice_url") or inv.get("pay_url") or ""
-    ts = _now_utc_iso()
-    con.execute("UPDATE topups SET invoice_id=?, pay_url=?, updated_at=? WHERE id=?", (invoice_id, pay_url, ts, tid))
-    con.commit(); con.close()
-
-    return {"ok": True, "id": tid, "invoice_id": invoice_id, "pay_url": pay_url, "status": "pending", "method": "crypto", "fiat": CRYPTO_PAY_FIAT, "fiat_amount": amount_str}
-
-@app.get("/api/topup/status")
-def api_topup_status(request: Request, id: int):
-    u = require_user(request)
-    con = db_conn()
-    row = con.execute("SELECT * FROM topups WHERE id=? AND user_id=?", (int(id), int(u["id"]))).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Topup not found")
-
-    status = str(_rget(row, "status") or "")
-    provider = str(_rget(row, "provider") or "")
-    invoice_id = str(_rget(row, "invoice_id") or "")
-    pay_url = str(_rget(row, "pay_url") or "")
-    points = int(_rget(row, "points") or 0)
-
-    if provider == "cryptopay" and status in ("pending", "active") and invoice_id and cryptopay_enabled():
-        try:
-            invs = _cryptopay_call("getInvoices", {"invoice_ids": invoice_id})
-            items = invs.get("items") if isinstance(invs, dict) else None
-            inv = (items[0] if items else None) or {}
-            inv_status = str(inv.get("status") or "")
-            if inv_status and inv_status != status:
-                ts = _now_utc_iso()
-                con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", (inv_status, ts, int(id)))
-                status = inv_status
-            if inv_status == "paid":
-                credited = _credit_topup_once(con, int(id), None, f"cryptopay invoice {invoice_id}")
-                if credited:
-                    con.commit()
-                    # refresh status
-                    status = "paid"
-        except Exception:
-            pass
-
-    con.commit()
-    con.close()
-    return {"ok": True, "id": int(id), "status": status, "pay_url": pay_url, "points": points}
-
-@app.get("/api/topup/my")
-def api_topup_my(request: Request, limit: int = 20):
-    u = require_user(request)
-    limit = max(1, min(int(limit or 20), 50))
-    con = db_conn()
-    rows = con.execute(
-        "SELECT id, provider, method, points, fiat_cents, fiat_currency, status, pay_url, created_at, updated_at FROM topups WHERE user_id=? ORDER BY id DESC LIMIT ?",
-        (int(u["id"]), limit),
-    ).fetchall()
-    con.close()
-    out = []
-    for r in rows or []:
-        out.append({
-            "id": int(_rget(r, "id") or 0),
-            "provider": str(_rget(r, "provider") or ""),
-            "method": str(_rget(r, "method") or ""),
-            "points": int(_rget(r, "points") or 0),
-            "fiat_cents": int(_rget(r, "fiat_cents") or 0),
-            "fiat_currency": str(_rget(r, "fiat_currency") or ""),
-            "status": str(_rget(r, "status") or ""),
-            "pay_url": str(_rget(r, "pay_url") or ""),
-            "created_at": str(_rget(r, "created_at") or ""),
-        })
-    return {"ok": True, "items": out}
-
-@app.post("/api/topup/redeem")
-def api_topup_redeem(request: Request, payload: Dict[str, Any]):
-    u = require_user(request)
-    code = str(payload.get("code") or "").strip()
-    if not code:
-        raise HTTPException(status_code=400, detail="code required")
-    con = db_conn()
-    row = con.execute("SELECT code, points, max_uses, uses FROM promo_codes WHERE code=?", (code,)).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Invalid promo code")
-
-    max_uses = int(_rget(row, "max_uses") or 1)
-    uses = int(_rget(row, "uses") or 0)
-    points = int(_rget(row, "points") or 0)
-    if uses >= max_uses:
-        con.close()
-        raise HTTPException(status_code=400, detail="Promo code already used up")
-
-    # Ensure not redeemed by this user
-    already = con.execute("SELECT id FROM promo_redemptions WHERE code=? AND user_id=?", (code, int(u["id"]))).fetchone()
-    if already:
-        con.close()
-        raise HTTPException(status_code=400, detail="Promo code already redeemed")
-
-    ts = _now_utc_iso()
-    # apply
-    con.execute("INSERT INTO promo_redemptions(code, user_id, redeemed_at) VALUES(?,?,?)", (code, int(u["id"]), ts))
-    con.execute("UPDATE promo_codes SET uses=uses+1 WHERE code=?", (code,))
-    # credit balance
-    urow = con.execute("SELECT balance FROM users WHERE id=?", (int(u["id"]),)).fetchone()
-    oldb = int(_rget(urow, "balance") or 0) if urow else 0
-    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + points, int(u["id"])))
-    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, points, f"promo {code}", ts))
-    con.commit()
-    con.close()
-    return {"ok": True, "credited": points}
-
-@app.post("/api/subscription/buy")
-def api_subscription_buy(request: Request, payload: Dict[str, Any] = None):
-    u = require_user(request)
-    con = db_conn()
-    row = con.execute("SELECT balance, premium_until FROM users WHERE id=?", (int(u["id"]),)).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="User not found")
-    bal = int(_rget(row, "balance") or 0)
-    if bal < PREMIUM_PRICE_POINTS:
-        con.close()
-        raise HTTPException(status_code=400, detail="Not enough balance")
-
-    now = _now_utc()
-    cur_pu = _parse_iso(_rget(row, "premium_until") or "")
-    base = cur_pu if (cur_pu and cur_pu > now) else now
-    new_until = (base + datetime.timedelta(days=PREMIUM_PERIOD_DAYS)).isoformat()
-
-    ts = _now_utc_iso()
-    con.execute("UPDATE users SET balance=?, premium_until=? WHERE id=?", (bal - PREMIUM_PRICE_POINTS, new_until, int(u["id"])))
-    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(u["id"]), None, -PREMIUM_PRICE_POINTS, "premium buy", ts))
-    con.commit()
-    con.close()
-    return {"ok": True, "premium_until": new_until}
-
-@app.get("/api/admin/topups")
-def api_admin_topups(request: Request, status: str = "pending", limit: int = 50):
-    admin = require_admin(request)
-    status = str(status or "pending")
-    limit = max(1, min(int(limit or 50), 200))
-    con = db_conn()
-    rows = con.execute(
-        "SELECT t.id, t.user_id, u.username, t.provider, t.method, t.points, t.status, t.created_at, t.updated_at "
-        "FROM topups t JOIN users u ON u.id=t.user_id WHERE t.status=? ORDER BY t.id DESC LIMIT ?",
-        (status, limit),
-    ).fetchall()
-    con.close()
-    items = []
-    for r in rows or []:
-        items.append({
-            "id": int(_rget(r, "id") or 0),
-            "user_id": int(_rget(r, "user_id") or 0),
-            "username": str(_rget(r, "username") or ""),
-            "provider": str(_rget(r, "provider") or ""),
-            "method": str(_rget(r, "method") or ""),
-            "points": int(_rget(r, "points") or 0),
-            "status": str(_rget(r, "status") or ""),
-            "created_at": str(_rget(r, "created_at") or ""),
-        })
-    return {"ok": True, "items": items}
-
-@app.post("/api/admin/topup/approve")
-def api_admin_topup_approve(request: Request, payload: Dict[str, Any]):
-    admin = require_admin(request)
-    try:
-        tid = int(payload.get("id") or 0)
-    except Exception:
-        tid = 0
-    if tid <= 0:
-        raise HTTPException(status_code=400, detail="id required")
-    reason = str(payload.get("reason") or "manual topup").strip()
-    con = db_conn()
-    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Topup not found")
-    provider = str(_rget(row, "provider") or "")
-    status = str(_rget(row, "status") or "")
-    if provider != "manual" or status != "pending":
-        con.close()
-        raise HTTPException(status_code=400, detail="Only pending manual topups can be approved")
-    credited = _credit_topup_once(con, tid, int(admin["id"]), reason)
-    con.commit(); con.close()
-    return {"ok": True, "credited": bool(credited)}
-
-@app.post("/api/admin/topup/reject")
-def api_admin_topup_reject(request: Request, payload: Dict[str, Any]):
-    admin = require_admin(request)
-    try:
-        tid = int(payload.get("id") or 0)
-    except Exception:
-        tid = 0
-    if tid <= 0:
-        raise HTTPException(status_code=400, detail="id required")
-    reason = str(payload.get("reason") or "rejected").strip()
-    con = db_conn()
-    row = con.execute("SELECT id, provider, status FROM topups WHERE id=?", (tid,)).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Topup not found")
-    provider = str(_rget(row, "provider") or "")
-    status = str(_rget(row, "status") or "")
-    if provider != "manual" or status != "pending":
-        con.close()
-        raise HTTPException(status_code=400, detail="Only pending manual topups can be rejected")
-    ts = _now_utc_iso()
-    con.execute("UPDATE topups SET status=?, meta=?, updated_at=? WHERE id=?", ("rejected", json.dumps({"reason": reason}), ts, tid))
-    con.commit(); con.close()
-    return {"ok": True}
-
-@app.post("/api/admin/promo/create")
-def api_admin_promo_create(request: Request, payload: Dict[str, Any]):
-    admin = require_admin(request)
-    try:
-        points = int(payload.get("points") or 0)
-    except Exception:
-        points = 0
-    if points <= 0:
-        raise HTTPException(status_code=400, detail="points must be > 0")
-    try:
-        max_uses = int(payload.get("max_uses") or 1)
-    except Exception:
-        max_uses = 1
-    if max_uses <= 0:
-        max_uses = 1
-    code = str(payload.get("code") or "").strip().upper()
-    if not code:
-        code = secrets.token_urlsafe(8).replace("-", "").replace("_", "").upper()
-    ts = _now_utc_iso()
-    con = db_conn()
-    try:
-        con.execute(
-            "INSERT INTO promo_codes(code, points, max_uses, uses, created_by, created_at) VALUES(?,?,?,?,?,?)",
-            (code, points, max_uses, 0, int(admin["id"]), ts),
-        )
-        con.commit()
-    except Exception:
-        con.close()
-        raise HTTPException(status_code=400, detail="Promo code already exists")
-    con.close()
-    return {"ok": True, "code": code, "points": points, "max_uses": max_uses}
-
-@app.get("/api/admin/promo/list")
-def api_admin_promo_list(request: Request, limit: int = 100):
-    admin = require_admin(request)
-    limit = max(1, min(int(limit or 100), 500))
-    con = db_conn()
-    rows = con.execute("SELECT code, points, max_uses, uses, created_at FROM promo_codes ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
-    con.close()
-    items = []
-    for r in rows or []:
-        items.append({
-            "code": str(_rget(r, "code") or ""),
-            "points": int(_rget(r, "points") or 0),
-            "uses": int(_rget(r, "uses") or 0),
-            "max_uses": int(_rget(r, "max_uses") or 0),
-            "created_at": str(_rget(r, "created_at") or ""),
-        })
-    return {"ok": True, "items": items}
-
-async def _cryptopay_webhook_impl(request: Request, token: Optional[str] = None):
-    raw = await request.body()
-    if CRYPTO_PAY_WEBHOOK_TOKEN:
-        # if token path used, enforce match
-        if token is not None and token != CRYPTO_PAY_WEBHOOK_TOKEN:
-            raise HTTPException(status_code=403, detail="Invalid webhook token")
-    sig = (request.headers.get("crypto-pay-api-signature") or "").strip()
-    if not _cryptopay_verify_signature(raw, sig):
-        raise HTTPException(status_code=400, detail="Invalid Crypto Pay signature")
-    try:
-        data = json.loads(raw.decode("utf-8") or "{}")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-    upd = str(data.get("update_type") or "")
-    payload = data.get("payload") or {}
-    inv_id = str(payload.get("invoice_id") or payload.get("id") or "")
-    if not inv_id:
-        return {"ok": True}
-
-    if upd not in ("invoice_paid", "invoice_confirmed", "invoice_failed", "invoice_expired"):
-        return {"ok": True}
-
-    con = db_conn()
-    row = con.execute("SELECT id, status FROM topups WHERE provider=? AND invoice_id=?", ("cryptopay", inv_id)).fetchone()
-    if not row:
-        con.close()
-        return {"ok": True}
-    tid = int(_rget(row, "id") or 0)
-    ts = _now_utc_iso()
-
-    if upd in ("invoice_failed", "invoice_expired"):
-        con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("failed" if upd=="invoice_failed" else "expired", ts, tid))
-        con.commit(); con.close()
-        return {"ok": True}
-
-    # paid
-    con.execute("UPDATE topups SET status=?, updated_at=? WHERE id=?", ("paid", ts, tid))
-    _credit_topup_once(con, tid, None, f"cryptopay invoice {inv_id}")
-    con.commit(); con.close()
-    return {"ok": True}
-
-@app.post("/api/pay/cryptopay/webhook")
-async def api_cryptopay_webhook(request: Request):
-    return await _cryptopay_webhook_impl(request, None)
-
-@app.post("/api/pay/cryptopay/webhook/{token}")
-async def api_cryptopay_webhook_token(request: Request, token: str):
-    return await _cryptopay_webhook_impl(request, token)
-
-
-# ----------------------------
-# Payments (Stripe)
-# ----------------------------
-STRIPE_SECRET_KEY = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-STRIPE_WEBHOOK_SECRET = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
-STRIPE_PUBLISHABLE_KEY = (os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip()
-STRIPE_CURRENCY = (os.environ.get("STRIPE_CURRENCY") or "eur").strip().lower()
-
-# Internal balance packs (points)
-TOPUP_PACKS_RAW = os.environ.get("TOPUP_PACKS", "100,300,500,1000")
-try:
-    TOPUP_PACKS = [int(x.strip()) for x in TOPUP_PACKS_RAW.split(",") if x.strip()]
-except Exception:
-    TOPUP_PACKS = [100, 300, 500, 1000]
-TOPUP_PACKS = [p for p in TOPUP_PACKS if p > 0]
-if not TOPUP_PACKS:
-    TOPUP_PACKS = [100, 300, 500, 1000]
-
-BALANCE_PER_CURRENCY = int(os.environ.get("BALANCE_PER_CURRENCY", "100") or 100)  # points per 1.00 currency
-if BALANCE_PER_CURRENCY <= 0:
-    BALANCE_PER_CURRENCY = 100
-
-# Premium subscription (monthly)
-STRIPE_PREMIUM_PRICE_ID = (os.environ.get("STRIPE_PREMIUM_PRICE_ID") or "").strip()
-STRIPE_PREMIUM_PRICE_CENTS = int(os.environ.get("STRIPE_PREMIUM_PRICE_CENTS", "499") or 499)
-if STRIPE_PREMIUM_PRICE_CENTS < 50:
-    STRIPE_PREMIUM_PRICE_CENTS = 499
-
-# ----------------------------
-# Top-ups (CryptoBot / Crypto Pay) + Premium by balance
-# ----------------------------
-CRYPTO_PAY_TOKEN = (os.environ.get("CRYPTO_PAY_TOKEN") or os.environ.get("CRYPTOPAY_TOKEN") or "").strip()
-CRYPTO_PAY_BASE_URL = (os.environ.get("CRYPTO_PAY_BASE_URL") or "https://pay.crypt.bot/api").strip().rstrip("/")
-CRYPTO_PAY_FIAT = (os.environ.get("CRYPTO_PAY_FIAT") or "USD").strip().upper()
-CRYPTO_PAY_ACCEPTED_ASSETS_RAW = os.environ.get("CRYPTO_PAY_ACCEPTED_ASSETS", "USDT,TON")
-CRYPTO_PAY_ACCEPTED_ASSETS = [a.strip().upper() for a in CRYPTO_PAY_ACCEPTED_ASSETS_RAW.split(",") if a.strip()]
-CRYPTO_PAY_WEBHOOK_TOKEN = (os.environ.get("CRYPTO_PAY_WEBHOOK_TOKEN") or "").strip()
-CRYPTO_PAY_MIN_FIAT_CENTS = int(os.environ.get("CRYPTO_PAY_MIN_FIAT_CENTS", "100") or 100)  # 1.00 fiat by default
-
-PREMIUM_PRICE_POINTS = int(os.environ.get("PREMIUM_PRICE_POINTS", "499") or 499)
-PREMIUM_PERIOD_DAYS = int(os.environ.get("PREMIUM_PERIOD_DAYS", "30") or 30)
-if PREMIUM_PRICE_POINTS < 1:
-    PREMIUM_PRICE_POINTS = 499
-if PREMIUM_PERIOD_DAYS < 1:
-    PREMIUM_PERIOD_DAYS = 30
-
-def cryptopay_enabled() -> bool:
-    return bool(CRYPTO_PAY_TOKEN)
-
-def _cryptopay_secret() -> bytes:
-    # Webhook signature secret = SHA256(token)
-    return hashlib.sha256((CRYPTO_PAY_TOKEN or "").encode("utf-8")).digest()
-
-def _cryptopay_headers() -> Dict[str, str]:
-    if not CRYPTO_PAY_TOKEN:
-        raise HTTPException(status_code=500, detail="Crypto Pay is not configured (CRYPTO_PAY_TOKEN)")
-    return {
-        "Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-def _cryptopay_call(method: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    url = f"{CRYPTO_PAY_BASE_URL}/{method.lstrip('/')}"
-    r = requests.post(url, headers=_cryptopay_headers(), data=json.dumps(params or {}), timeout=DEFAULT_TIMEOUT)
-    if r.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Crypto Pay error: {r.status_code} {r.text[:300]}")
-    try:
-        j = r.json()
-    except Exception:
-        raise HTTPException(status_code=502, detail="Crypto Pay invalid JSON response")
-    if not j.get("ok"):
-        raise HTTPException(status_code=502, detail=f"Crypto Pay not ok: {str(j)[:200]}")
-    return j.get("result") or {}
-
-def _cryptopay_verify_signature(raw_body: bytes, signature_hex: str) -> bool:
-    if not signature_hex:
-        return False
-    try:
-        mac = hmac.new(_cryptopay_secret(), raw_body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(mac, signature_hex)
-    except Exception:
-        return False
-
-
-def stripe_enabled() -> bool:
-    return bool(stripe and STRIPE_SECRET_KEY)
-
-def stripe_require():
-    if not stripe:
-        raise HTTPException(status_code=500, detail="Stripe library is not installed")
-    if not STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=500, detail="Stripe is not configured (STRIPE_SECRET_KEY)")
-    stripe.api_key = STRIPE_SECRET_KEY
-
-def _base_url(request: Request) -> str:
-    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").split(",")[0].strip()
-    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
-    if not host:
-        host = request.url.netloc
-    return f"{proto}://{host}".rstrip("/")
-
-def _points_to_cents(points: int) -> int:
-    # Example: BALANCE_PER_CURRENCY=100 => 100 points = 1.00 currency
-    cents = int(round((points / float(BALANCE_PER_CURRENCY)) * 100.0))
-    return max(50, cents)  # Stripe min is provider-dependent; keep it sane
-
-def _rget(row: Any, key: str, default: Any = None) -> Any:
-    """Safe getter for sqlite3.Row / dict-like rows."""
-    if row is None:
-        return default
-    if isinstance(row, dict):
-        return row.get(key, default)
-    try:
-        return row[key]
-    except Exception:
-        return default
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, PBKDF2_ITERS)
-    return base64.b64encode(salt).decode('ascii') + '.' + base64.b64encode(dk).decode('ascii')
-
-def verify_password(password: str, stored: str) -> bool:
-    try:
-        salt_b64, dk_b64 = stored.split('.', 1)
-        salt = base64.b64decode(salt_b64.encode('ascii'))
-        dk0 = base64.b64decode(dk_b64.encode('ascii'))
-        dk1 = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, PBKDF2_ITERS)
-        return hmac.compare_digest(dk0, dk1)
-    except Exception:
-        return False
-
-# Pollinations (no key)
-POLLINATIONS_OPENAI_URL = "https://text.pollinations.ai/openai"   # OpenAI-compatible
-POLLINATIONS_MODELS_URL = "https://text.pollinations.ai/models"
-
-# Groq (key required)
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-# BlackBox (key required)
-BLACKBOX_CHAT_URL = "https://api.blackbox.ai/chat/completions"
-# Brevo (email verification / reset)
-BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email"
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
-BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
-BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "RST")
-OTP_TTL_MINUTES = int(os.environ.get("OTP_TTL_MINUTES", "10"))
-OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", "5"))
+# (moved: topups/payments config & routes — see later in file)
 
 def send_brevo_email(to_email: str, subject: str, text_content: str, html_content: str = ""):
     if not BREVO_API_KEY:
@@ -729,20 +132,13 @@ RBX_COLLECT = "https://inventory.roblox.com/v1/users/{uid}/assets/collectibles?l
 RBX_TX = "https://economy.roblox.com/v2/users/{uid}/transactions?transactionType=Purchase&limit=100&cursor={cur}"
 
 # Roblox gamepass product info
-RBX_GAMEPASS_INFO = "https://economy.roblox.com/v1/game-pass/{gid}/game-pass-product-info"
+# NOTE: Roblox has been migrating gamepass product info endpoints.
+# We keep multiple fallbacks to make the project resilient on different hostings.
+RBX_GAMEPASS_INFO_V2 = "https://apis.roblox.com/game-passes/v1/game-passes/{gid}/product-info"
+RBX_GAMEPASS_INFO_V2_ROPROXY = "https://apis.roproxy.com/game-passes/v1/game-passes/{gid}/product-info"
+RBX_GAMEPASS_INFO_V1 = "https://economy.roblox.com/v1/game-pass/{gid}/game-pass-product-info"
+RBX_GAMEPASS_INFO_V1_ROPROXY = "https://economy.roproxy.com/v1/game-pass/{gid}/game-pass-product-info"
 RBX_PURCHASE_PRODUCT = "https://economy.roblox.com/v1/purchases/products/{pid}"
-
-# Roblox helpers for username-based gamepass search
-RBX_USERNAME_RESOLVE = "https://users.roblox.com/v1/usernames/users"  # POST
-RBX_USER_GAMES = "https://games.roblox.com/v2/users/{uid}/games?accessFilter=Public&limit=50&sortOrder=Asc&cursor={cur}"
-RBX_UNIVERSE_GAMEPASSES = "https://games.roblox.com/v1/games/{universeId}/game-passes?limit=100&sortOrder=Asc&cursor={cur}"
-# Newer universe gamepasses endpoint (old one can return 404 for many universes)
-RBX_UNIVERSE_GAMEPASSES_V2 = "https://apis.roblox.com/game-passes/v1/universes/{universeId}/game-passes?limit=100&sortOrder=Asc&cursor={cur}&passView=Full"
-# Newer product info endpoint (fallback)
-RBX_GAMEPASS_PRODUCTINFO2 = "https://apis.roblox.com/game-passes/v1/game-passes/{gid}/product-info"
-
-# In-memory cache to avoid scanning all games repeatedly (TTL seconds)
-_ROBUX_GP_SCAN_CACHE: Dict[Tuple[int,int], Tuple[int,float]] = {}  # (owner_id, expected_price) -> (gamepass_id, expires_at)
 
 
 def robux_calc(amount: int) -> Dict[str, Any]:
@@ -764,12 +160,6 @@ def _parse_gamepass_id(url: str) -> int:
     if not url:
         return 0
     s = str(url).strip()
-    # Allow passing plain numeric id (some callers already have an id, not a URL)
-    if s.isdigit():
-        try:
-            return int(s)
-        except Exception:
-            return 0
     # /game-pass/<id>/
     m = re.search(r"game-?pass(?:es)?/(\d+)", s, flags=re.I)
     if m:
@@ -814,37 +204,45 @@ def _roblox_post_with_csrf(url: str, *, cookie: str, json_body: Dict[str, Any]) 
 def roblox_inspect_gamepass(gamepass_url: str) -> Dict[str, Any]:
     gid = _parse_gamepass_id(gamepass_url)
     if not gid:
-        raise HTTPException(status_code=400, detail="Не удалось распознать ссылку/ID геймпасса")
-
-    endpoints = [
-        RBX_GAMEPASS_INFO.format(gid=gid),
-        f"https://economy.roproxy.com/v1/game-pass/{int(gid)}/game-pass-product-info",
-        f"https://economy.rprxy.xyz/v1/game-pass/{int(gid)}/game-pass-product-info",
+        raise HTTPException(status_code=400, detail="Не удалось распознать ссылку на геймпасс")
+    # Try multiple endpoints (Roblox changes / partial blocks happen on some hostings)
+    urls = [
+        RBX_GAMEPASS_INFO_V2.format(gid=gid),
+        RBX_GAMEPASS_INFO_V2_ROPROXY.format(gid=gid),
+        RBX_GAMEPASS_INFO_V1.format(gid=gid),
+        RBX_GAMEPASS_INFO_V1_ROPROXY.format(gid=gid),
     ]
-    last_err = None
+    last_status = None
     j: Dict[str, Any] = {}
-    for url in endpoints:
+    for url in urls:
         try:
-            r = requests.get(url, timeout=DEFAULT_TIMEOUT, headers={"User-Agent": "RST-Web/1.0"})
-            if r.ok and r.content:
-                j = r.json()
-                if isinstance(j, dict) and j:
-                    break
-        except Exception as e:
-            last_err = e
+            r = requests.get(url, headers={"User-Agent": "RST-Web/1.0", "Accept": "application/json"}, timeout=DEFAULT_TIMEOUT)
+            last_status = r.status_code
+            if not r.ok:
+                continue
+            j = r.json() if r.content else {}
+            if isinstance(j, dict) and (j.get("ProductId") or j.get("productId") or j.get("product_id") or j.get("id") or j.get("name")):
+                break
+        except Exception:
             continue
 
     if not j:
-        raise HTTPException(status_code=400, detail="Геймпасс не найден или недоступен")
+        # Common cases: 404 (doesn't exist / removed), 403/429 (anti-bot / rate-limit)
+        if last_status in (403, 429):
+            raise HTTPException(status_code=400, detail="Roblox временно блокирует проверку. Попробуй позже.")
+        raise HTTPException(status_code=400, detail="Геймпасс не найден")
 
-    # fields: Name, PriceInRobux, ProductId, Creator
+    # fields differ between API versions
     name = j.get("Name") or j.get("name") or ""
-    price = int(j.get("PriceInRobux") or j.get("price") or 0)
-    pid = int(j.get("ProductId") or j.get("productId") or 0)
-    creator = j.get("Creator") or j.get("creator") or {}
-    owner = creator.get("Name") or creator.get("name") or ""
-    owner_id = int(creator.get("Id") or creator.get("id") or 0)
-
+    price = int(j.get("PriceInRobux") or j.get("price") or j.get("priceInRobux") or 0)
+    pid = int(j.get("ProductId") or j.get("productId") or j.get("product_id") or 0)
+    creator = j.get("Creator") or j.get("creator") or j.get("creatorTargetId") or {}
+    if isinstance(creator, dict):
+        owner = creator.get("Name") or creator.get("name") or ""
+        owner_id = int(creator.get("Id") or creator.get("id") or 0)
+    else:
+        owner = ""
+        owner_id = 0
     return {
         "gamepass_id": int(gid),
         "product_id": int(pid),
@@ -853,229 +251,6 @@ def roblox_inspect_gamepass(gamepass_url: str) -> Dict[str, Any]:
         "owner": str(owner),
         "owner_id": int(owner_id),
     }
-
-
-
-
-# --- Roblox username normalization (handles Cyrillic look-alikes) ---
-_CYR_TO_LAT = str.maketrans({
-    # Uppercase
-    # NOTE: map Cyrillic look-alike "У" to Latin "U" (users often type Cyrillic У intending Latin U).
-    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P", "С": "C", "Т": "T", "Х": "X", "У": "U",
-    # Lowercase
-    "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p", "с": "c", "т": "t", "х": "x", "у": "u",
-})
-
-def normalize_roblox_username(raw: str) -> str:
-    u = (raw or "").strip()
-    if u.startswith("@"):
-        u = u[1:]
-    u = re.sub(r"\s+", "", u)
-    u = u.translate(_CYR_TO_LAT)
-    return u
-
-
-def roblox_username_to_id(username: str) -> int:
-    u = normalize_roblox_username(username)
-    if not u:
-        raise HTTPException(status_code=400, detail="Нужен ник Roblox")
-    # Roblox usernames are latin letters, digits and underscore.
-    # This avoids common mistakes with Cyrillic look-alikes.
-    if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", u):
-        raise HTTPException(status_code=400, detail="Ник Roblox: латиница/цифры/_ (если копировал из кириллицы — попробуй латиницей)")
-    def _try_post(url: str) -> Dict[str, Any]:
-        r = requests.post(
-            url,
-            json={"usernames": [u], "excludeBannedUsers": True},
-            headers={"User-Agent": "RST-Web/1.0"},
-            timeout=DEFAULT_TIMEOUT,
-        )
-        return r.json() if r.content else {}
-
-    # Some hosts/network setups block *.roblox.com; try roproxy as fallback.
-    j: Dict[str, Any] = {}
-    try:
-        j = _try_post(RBX_USERNAME_RESOLVE)
-    except Exception:
-        j = {}
-    if not (j or {}).get("data"):
-        try:
-            j = _try_post(RBX_USERNAME_RESOLVE.replace(".roblox.com", ".roproxy.com"))
-        except Exception:
-            j = {}
-    data = (j or {}).get("data") or []
-    if not data:
-        raise HTTPException(status_code=400, detail="Пользователь Roblox не найден")
-    try:
-        return int(data[0].get("id") or 0)
-    except Exception:
-        return 0
-
-
-def _roblox_safe_get_json(url: str) -> Dict[str, Any]:
-    def _try(u: str):
-        return requests.get(u, timeout=DEFAULT_TIMEOUT, headers={"User-Agent": "RST-Web/1.0"})
-
-    r = _try(url)
-    if (not r.ok) and (".roblox.com" in url):
-        # Fallback: roproxy mirrors many endpoints.
-        r = _try(url.replace(".roblox.com", ".roproxy.com"))
-    if not r.ok:
-        raise HTTPException(status_code=400, detail="Roblox API недоступен или ограничил запросы")
-    try:
-        return r.json() if r.content else {}
-    except Exception:
-        return {}
-
-
-def _roblox_iter_user_universes(user_id: int, max_universes: int = 60) -> List[int]:
-    seen = set()
-    cur = ""
-    out: List[int] = []
-    for _ in range(20):
-        url = RBX_USER_GAMES.format(uid=int(user_id), cur=(cur or ""))
-        j = _roblox_safe_get_json(url)
-        for it in (j.get("data") or []):
-            try:
-                uni = int(it.get("universeId") or 0)
-            except Exception:
-                uni = 0
-            if uni and uni not in seen:
-                seen.add(uni)
-                out.append(uni)
-                if len(out) >= max_universes:
-                    return out
-        cur = j.get("nextPageCursor") or ""
-        if not cur:
-            break
-    return out
-
-
-def _roblox_iter_universe_gamepasses(universe_id: int, max_passes: int = 400) -> List[Dict[str, Any]]:
-    """Iterate gamepasses for a universe.
-
-    Roblox has multiple endpoints for this. The legacy `games.roblox.com/v1/.../game-passes`
-    can return 404 for many universes. We try the newer `apis.roblox.com/game-passes/...`
-    first and fall back to the legacy one.
-    """
-    def _fetch(url_tpl: str) -> List[Dict[str, Any]]:
-        cur = ""
-        out: List[Dict[str, Any]] = []
-        for _ in range(20):
-            url = url_tpl.format(universeId=int(universe_id), cur=(cur or ""))
-            j = _roblox_safe_get_json(url)
-            batch = j.get("data") or []
-            for gp in batch:
-                out.append(gp)
-                if len(out) >= max_passes:
-                    return out
-            cur = j.get("nextPageCursor") or j.get("nextPageCursor") or ""
-            if not cur:
-                break
-        return out
-
-    try:
-        return _fetch(RBX_UNIVERSE_GAMEPASSES_V2)
-    except Exception:
-        try:
-            return _fetch(RBX_UNIVERSE_GAMEPASSES)
-        except Exception:
-            return []
-
-
-def _roblox_gamepass_price_from_list_item(gp: Dict[str, Any]) -> int:
-    # Depending on endpoint version it can be: price, priceInRobux, or nested product
-    for k in ("price", "priceInRobux", "PriceInRobux"):
-        if k in gp and gp.get(k) is not None:
-            try:
-                return int(gp.get(k) or 0)
-            except Exception:
-                pass
-    prod = gp.get("product") or {}
-    for k in ("priceInRobux", "PriceInRobux", "price"):
-        if k in prod and prod.get(k) is not None:
-            try:
-                return int(prod.get(k) or 0)
-            except Exception:
-                pass
-    return 0
-
-
-def _roblox_gamepass_id_from_list_item(gp: Dict[str, Any]) -> int:
-    for k in ("id", "gamePassId", "gamepassId"):
-        if k in gp and gp.get(k) is not None:
-            try:
-                return int(gp.get(k) or 0)
-            except Exception:
-                pass
-    return 0
-
-
-def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict[str, Any]:
-    # cache by (owner_id, price)
-    uid = roblox_username_to_id(username)
-    key = (int(uid), int(expected_price))
-    now = time.time()
-    try:
-        cached = _ROBUX_GP_SCAN_CACHE.get(key)
-        if cached and cached[1] > now:
-            return roblox_inspect_gamepass(str(int(cached[0])))
-    except Exception:
-        pass
-
-    universes = _roblox_iter_user_universes(uid, max_universes=60)
-    if not universes:
-        raise HTTPException(status_code=400, detail="У пользователя нет публичных плейсов/игр")
-
-    # Scan universes and their gamepasses, stop on first match
-    for uni in universes:
-        try:
-            gps = _roblox_iter_universe_gamepasses(uni, max_passes=400)
-        except Exception:
-            continue
-
-        # Fast path: if list item already contains price
-        for gp in gps:
-            gid = _roblox_gamepass_id_from_list_item(gp)
-            if not gid:
-                continue
-            price = _roblox_gamepass_price_from_list_item(gp)
-            if price and int(price) != int(expected_price):
-                continue
-            if price and int(price) == int(expected_price):
-                info = roblox_inspect_gamepass(str(gid))
-                # verify owner matches uid (avoid weird matches)
-                if int(info.get("owner_id") or 0) == int(uid) and int(info.get("price") or 0) == int(expected_price):
-                    _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
-                    return info
-
-        # Slow path: list didn't include prices -> probe limited set
-        # Probe only first N passes to avoid heavy load
-        probed = 0
-        for gp in gps:
-            gid = _roblox_gamepass_id_from_list_item(gp)
-            if not gid:
-                continue
-            probed += 1
-            if probed > 120:
-                break
-            try:
-                info = roblox_inspect_gamepass(str(gid))
-            except Exception:
-                continue
-            if int(info.get("owner_id") or 0) != int(uid):
-                continue
-            if int(info.get("price") or 0) == int(expected_price):
-                _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
-                return info
-
-        # small pause to be polite / avoid 429 bursts
-        time.sleep(0.08)
-
-    raise HTTPException(
-        status_code=400,
-        detail=f"Не нашли геймпасс у пользователя с ценой {int(expected_price)} Robux. Проверь, что геймпасс публичный и выставлен на продажу.",
-    )
 
 
 def roblox_seller_status() -> Dict[str, Any]:
@@ -1375,20 +550,20 @@ def db_init():
               updated_at TEXT NOT NULL
             )
         """)
+
+        # Robux orders - new fields for reservation/refunds
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserved_at TEXT")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserve_expires_at TEXT")
+        # Numeric epoch seconds: avoids timezone / string-compare edge cases.
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserve_expires_ts BIGINT")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserved_rub INTEGER NOT NULL DEFAULT 0")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS paid_at TEXT")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS refunded INTEGER NOT NULL DEFAULT 0")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS refunded_at TEXT")
+        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS cancelled_at TEXT")
+        
         con.execute("""CREATE INDEX IF NOT EXISTS idx_robux_orders_user ON robux_orders(user_id, id DESC)""")
         con.execute("""CREATE INDEX IF NOT EXISTS idx_robux_orders_status ON robux_orders(status, id DESC)""")
-
-        # Robux order lifecycle columns (migrations)
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserved_at TEXT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS reserve_expires_ts BIGINT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS hold_taken INTEGER NOT NULL DEFAULT 0")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS refund_taken INTEGER NOT NULL DEFAULT 0")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS refunded_at TEXT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS paid_at TEXT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS done_at TEXT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS done_ts BIGINT")
-        con.execute("ALTER TABLE robux_orders ADD COLUMN IF NOT EXISTS cancelled_at TEXT")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_robux_orders_res_exp ON robux_orders(reserve_expires_ts)")
         con.commit()
         con.close()
         return
@@ -1454,27 +629,25 @@ def db_init():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_robux_orders_user ON robux_orders(user_id, id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_robux_orders_status ON robux_orders(status, id DESC)")
 
+    # Migrations: robux_orders reservation/refund fields
+    ro_cols = [r["name"] for r in con.execute("PRAGMA table_info(robux_orders)").fetchall()]
+    if "reserved_at" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN reserved_at TEXT")
+    if "reserve_expires_at" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN reserve_expires_at TEXT")
+    if "reserve_expires_ts" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN reserve_expires_ts INTEGER")
+    if "reserved_rub" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN reserved_rub INTEGER NOT NULL DEFAULT 0")
+    if "paid_at" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN paid_at TEXT")
+    if "refunded" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN refunded INTEGER NOT NULL DEFAULT 0")
+    if "refunded_at" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN refunded_at TEXT")
+    if "cancelled_at" not in ro_cols:
+        con.execute("ALTER TABLE robux_orders ADD COLUMN cancelled_at TEXT")
 
-# Robux order lifecycle columns (migrations)
-ro_cols = [r["name"] for r in con.execute("PRAGMA table_info(robux_orders)").fetchall()]
-if "reserved_at" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN reserved_at TEXT")
-if "reserve_expires_ts" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN reserve_expires_ts INTEGER")
-if "hold_taken" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN hold_taken INTEGER NOT NULL DEFAULT 0")
-if "refund_taken" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN refund_taken INTEGER NOT NULL DEFAULT 0")
-if "refunded_at" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN refunded_at TEXT")
-if "paid_at" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN paid_at TEXT")
-if "done_at" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN done_at TEXT")
-if "done_ts" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN done_ts INTEGER")
-if "cancelled_at" not in ro_cols:
-    con.execute("ALTER TABLE robux_orders ADD COLUMN cancelled_at TEXT")
 
     cols = [r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()]
     if "twofa_email_enabled" not in cols:
@@ -2104,7 +1277,9 @@ async def add_cache_headers(request: Request, call_next):
     if path == "/" or path.endswith(".html"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
-    # Static: long cache (we use versioned filenames)
+    # Static: do NOT use immutable cache for JS/CSS.
+    # The project serves plain filenames (app.js/styles.css). If we tell browsers
+    # "immutable", they will keep broken/old JS for up to a year.
     elif path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     return response
@@ -2114,25 +1289,25 @@ async def add_cache_headers(request: Request, call_next):
 @app.on_event("startup")
 def _startup():
     db_init()
-    try:
-        ensure_profile_templates_schema()
-    except Exception:
-        pass
     sync_admin_users()
 
 templates = Jinja2Templates(directory="templates")
+try:
+    templates.env.globals["BUILD_VERSION"] = BUILD_VERSION
+except Exception:
+    pass
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    resp = templates.TemplateResponse("index.html", {"request": request, "build_version": BUILD_VERSION})
+    resp = templates.TemplateResponse("index.html", {"request": request})
     resp.headers["Cache-Control"] = "no-store, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
 
 @app.get("/api/version")
 def api_version():
-    return {"ok": True, "version": BUILD_VERSION, "build": BUILD_TAG}
+    return {"ok": True, "version": BUILD_VERSION}
 
 from fastapi.responses import Response, FileResponse
 
@@ -2238,19 +1413,25 @@ def api_tx(request: Request):
 
 @app.get("/api/templates")
 def api_templates(request: Request):
-    """Legacy list endpoint. Returns list of templates (v2)."""
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    ensure_profile_templates_schema()
+    u = require_user(request)
     con = db_conn()
     try:
-        items = _list_templates(con, int(u["id"]))
-        # minimal fields
-        out = [{"id": t["id"], "created_at": t["created_at"], "title": t["name"]} for t in items]
-        return {"ok": True, "items": out}
-    finally:
-        con.close()
+        rows = con.execute(
+            "SELECT id, created_at, title FROM templates WHERE user_id=? ORDER BY id DESC LIMIT 50",
+            (u["id"],),
+        ).fetchall()
+    except Exception:
+        rows = []
+    con.close()
+
+    def _row(r):
+        return {
+            "id": _rget(r, "id"),
+            "created_at": _rget(r, "created_at"),
+            "title": _rget(r, "title") or "Шаблон",
+        }
+
+    return {"ok": True, "items": [_row(r) for r in rows]}
 
 
 
@@ -3873,375 +3054,34 @@ def api_security_email_confirm(request: Request, payload: Dict[str, Any]):
 
 
 
-
-# ----------------------------
-# Profile Templates v2 (multiple + selected + AGE GROUP)
-# ----------------------------
-DEFAULT_PROFILE_TITLE = "⭐ ТОП {year_tag} | {donate_tag} ДОНАТА"
-DEFAULT_PROFILE_DESC = (
-    "✨ Аккаунт готов к игре!\n"
-    "👤 Ник: {username}\n"
-    "🔗 Профиль: {profile_link}\n"
-    "💰 Robux: {robux}\n"
-    "💎 RAP: {rap_tag}\n"
-    "💳 Донат/траты: {donate_tag}\n"
-    "📅 Год: {year_tag}\n"
-    "🧾 Инвентарь: {inv_ru}\n"
-)
-
-def ensure_profile_templates_schema():
-    con = db_conn()
-    try:
-        if USE_PG:
-            con.execute(
-                "CREATE TABLE IF NOT EXISTS profile_templates("
-                "id SERIAL PRIMARY KEY, "
-                "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
-                "name TEXT NOT NULL, "
-                "title_tpl TEXT NOT NULL, "
-                "desc_tpl TEXT NOT NULL, "
-                "age_group INTEGER NOT NULL DEFAULT 13, "
-                "is_default INTEGER NOT NULL DEFAULT 0, "
-                "created_at TEXT NOT NULL, "
-                "updated_at TEXT NOT NULL"
-                ")"
-            )
-            con.execute("CREATE INDEX IF NOT EXISTS idx_profile_templates_user ON profile_templates(user_id, id DESC)")
-            con.execute(
-                "CREATE TABLE IF NOT EXISTS profile_template_state("
-                "user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, "
-                "selected_template_id INTEGER REFERENCES profile_templates(id) ON DELETE SET NULL, "
-                "updated_at TEXT NOT NULL"
-                ")"
-            )
-        else:
-            con.execute(
-                "CREATE TABLE IF NOT EXISTS profile_templates("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                "user_id INTEGER NOT NULL, "
-                "name TEXT NOT NULL, "
-                "title_tpl TEXT NOT NULL, "
-                "desc_tpl TEXT NOT NULL, "
-                "age_group INTEGER NOT NULL DEFAULT 13, "
-                "is_default INTEGER NOT NULL DEFAULT 0, "
-                "created_at TEXT NOT NULL, "
-                "updated_at TEXT NOT NULL, "
-                "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
-                ")"
-            )
-            con.execute("CREATE INDEX IF NOT EXISTS idx_profile_templates_user ON profile_templates(user_id, id DESC)")
-            con.execute(
-                "CREATE TABLE IF NOT EXISTS profile_template_state("
-                "user_id INTEGER PRIMARY KEY, "
-                "selected_template_id INTEGER, "
-                "updated_at TEXT NOT NULL, "
-                "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, "
-                "FOREIGN KEY(selected_template_id) REFERENCES profile_templates(id) ON DELETE SET NULL"
-                ")"
-            )
-        con.commit()
-    finally:
-        con.close()
-
-def _ensure_default_template(con, uid: int) -> int:
-    # returns default template id
-    uid = int(uid)
-    row = con.execute("SELECT id FROM profile_templates WHERE user_id=? ORDER BY is_default DESC, id DESC LIMIT 1", (uid,)).fetchone()
-    if row:
-        # ensure at least one default exists
-        def_row = con.execute("SELECT id FROM profile_templates WHERE user_id=? AND is_default=1 LIMIT 1", (uid,)).fetchone()
-        if def_row:
-            return int(_rget(def_row, "id") or 0)
-        # mark newest as default
-        tid = int(_rget(row, "id") or 0)
-        con.execute("UPDATE profile_templates SET is_default=1 WHERE id=? AND user_id=?", (tid, uid))
-        return tid
-
-    # try import from legacy single-template table (if exists)
-    title_tpl = DEFAULT_PROFILE_TITLE
-    desc_tpl = DEFAULT_PROFILE_DESC
-    try:
-        old = con.execute("SELECT title_tpl, desc_tpl FROM templates WHERE user_id=? LIMIT 1", (uid,)).fetchone()
-        if old:
-            title_tpl = str(_rget(old, "title_tpl") or title_tpl)
-            desc_tpl = str(_rget(old, "desc_tpl") or desc_tpl)
-    except Exception:
-        pass
-
-    ts = _now_utc_iso()
-    if USE_PG:
-        ins = con.execute(
-            "INSERT INTO profile_templates(user_id,name,title_tpl,desc_tpl,age_group,is_default,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?) RETURNING id",
-            (uid, "Default", title_tpl, desc_tpl, 13, 1, ts, ts),
-        ).fetchone()
-        tid = int(_rget(ins, "id") or 0)
-    else:
-        cur = con.execute(
-            "INSERT INTO profile_templates(user_id,name,title_tpl,desc_tpl,age_group,is_default,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?)",
-            (uid, "Default", title_tpl, desc_tpl, 13, 1, ts, ts),
-        )
-        tid = int(cur.lastrowid)
-
-    # set selection
-    try:
-        if USE_PG:
-            con.execute(
-                "INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?) "
-                "ON CONFLICT(user_id) DO UPDATE SET selected_template_id=EXCLUDED.selected_template_id, updated_at=EXCLUDED.updated_at",
-                (uid, tid, ts),
-            )
-        else:
-            con.execute(
-                "INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?) "
-                "ON CONFLICT(user_id) DO UPDATE SET selected_template_id=excluded.selected_template_id, updated_at=excluded.updated_at",
-                (uid, tid, ts),
-            )
-    except Exception:
-        # sqlite older versions might not support excluded for columns; fall back
-        try:
-            con.execute("DELETE FROM profile_template_state WHERE user_id=?", (uid,))
-            con.execute("INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?)", (uid, tid, ts))
-        except Exception:
-            pass
-
-    return tid
-
-def _get_selected_template_id(con, uid: int) -> int:
-    uid = int(uid)
-    _ensure_default_template(con, uid)
-    row = con.execute("SELECT selected_template_id FROM profile_template_state WHERE user_id=? LIMIT 1", (uid,)).fetchone()
-    if row and _rget(row, "selected_template_id"):
-        return int(_rget(row, "selected_template_id") or 0)
-    # fallback: default template
-    d = con.execute("SELECT id FROM profile_templates WHERE user_id=? AND is_default=1 LIMIT 1", (uid,)).fetchone()
-    return int(_rget(d, "id") or 0) if d else 0
-
-def _set_selected_template_id(con, uid: int, tid: int):
-    uid = int(uid); tid = int(tid)
-    ts = _now_utc_iso()
-    # validate ownership
-    ok = con.execute("SELECT id FROM profile_templates WHERE id=? AND user_id=? LIMIT 1", (tid, uid)).fetchone()
-    if not ok:
-        raise HTTPException(status_code=404, detail="Template not found")
-    # upsert
-    try:
-        if USE_PG:
-            con.execute(
-                "INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?) "
-                "ON CONFLICT(user_id) DO UPDATE SET selected_template_id=EXCLUDED.selected_template_id, updated_at=EXCLUDED.updated_at",
-                (uid, tid, ts),
-            )
-        else:
-            con.execute(
-                "INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?) "
-                "ON CONFLICT(user_id) DO UPDATE SET selected_template_id=excluded.selected_template_id, updated_at=excluded.updated_at",
-                (uid, tid, ts),
-            )
-    except Exception:
-        con.execute("DELETE FROM profile_template_state WHERE user_id=?", (uid,))
-        con.execute("INSERT INTO profile_template_state(user_id, selected_template_id, updated_at) VALUES(?,?,?)", (uid, tid, ts))
-
-def _list_templates(con, uid: int) -> List[Dict[str, Any]]:
-    uid = int(uid)
-    _ensure_default_template(con, uid)
-    rows = con.execute(
-        "SELECT id, name, title_tpl, desc_tpl, age_group, is_default, created_at, updated_at "
-        "FROM profile_templates WHERE user_id=? ORDER BY is_default DESC, id DESC",
-        (uid,),
-    ).fetchall() or []
-    items = []
-    for r in rows:
-        items.append({
-            "id": int(_rget(r, "id") or 0),
-            "name": str(_rget(r, "name") or "Template"),
-            "title_tpl": str(_rget(r, "title_tpl") or ""),
-            "desc_tpl": str(_rget(r, "desc_tpl") or ""),
-            "age_group": int(_rget(r, "age_group") or 13),
-            "is_default": int(_rget(r, "is_default") or 0) == 1,
-            "created_at": str(_rget(r, "created_at") or ""),
-            "updated_at": str(_rget(r, "updated_at") or ""),
-        })
-    return items
-
-@app.get("/api/profile/templates")
-def api_profile_templates(request: Request):
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    con = db_conn()
-    ensure_profile_templates_schema()
-    try:
-        items = _list_templates(con, u["id"])
-        selected_id = _get_selected_template_id(con, u["id"])
-        con.commit()
-    finally:
-        con.close()
-    return {"ok": True, "items": items, "selected_id": selected_id}
-
-@app.post("/api/profile/templates/create")
-def api_profile_templates_create(request: Request, payload: Dict[str, Any]):
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    name = (payload.get("name") or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
-    con = db_conn()
-    ensure_profile_templates_schema()
-    try:
-        uid = int(u["id"])
-        _ensure_default_template(con, uid)
-        sid = _get_selected_template_id(con, uid)
-        src = con.execute("SELECT title_tpl, desc_tpl, age_group FROM profile_templates WHERE id=? AND user_id=?", (sid, uid)).fetchone()
-        title_tpl = str(_rget(src, "title_tpl") or DEFAULT_PROFILE_TITLE) if src else DEFAULT_PROFILE_TITLE
-        desc_tpl = str(_rget(src, "desc_tpl") or DEFAULT_PROFILE_DESC) if src else DEFAULT_PROFILE_DESC
-        age_group = int(_rget(src, "age_group") or 13) if src else 13
-        ts = _now_utc_iso()
-        if USE_PG:
-            row = con.execute(
-                "INSERT INTO profile_templates(user_id,name,title_tpl,desc_tpl,age_group,is_default,created_at,updated_at) "
-                "VALUES(?,?,?,?,?,?,?,?) RETURNING id",
-                (uid, name, title_tpl, desc_tpl, age_group, 0, ts, ts),
-            ).fetchone()
-            tid = int(_rget(row, "id") or 0)
-        else:
-            cur = con.execute(
-                "INSERT INTO profile_templates(user_id,name,title_tpl,desc_tpl,age_group,is_default,created_at,updated_at) "
-                "VALUES(?,?,?,?,?,?,?,?)",
-                (uid, name, title_tpl, desc_tpl, age_group, 0, ts, ts),
-            )
-            tid = int(cur.lastrowid)
-        _set_selected_template_id(con, uid, tid)
-        con.commit()
-    finally:
-        con.close()
-    return {"ok": True, "id": tid}
-
-@app.post("/api/profile/templates/select")
-def api_profile_templates_select(request: Request, payload: Dict[str, Any]):
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    tid = int(payload.get("template_id") or 0)
-    if tid <= 0:
-        raise HTTPException(status_code=400, detail="template_id required")
-    con = db_conn()
-    ensure_profile_templates_schema()
-    try:
-        _set_selected_template_id(con, u["id"], tid)
-        con.commit()
-    finally:
-        con.close()
-    return {"ok": True}
-
-@app.post("/api/profile/templates/update")
-def api_profile_templates_update(request: Request, payload: Dict[str, Any]):
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    tid = int(payload.get("template_id") or 0)
-    if tid <= 0:
-        raise HTTPException(status_code=400, detail="template_id required")
-    title_tpl = str(payload.get("title_tpl") or "")
-    desc_tpl = str(payload.get("desc_tpl") or "")
-    try:
-        age_group = int(payload.get("age_group") or 13)
-    except Exception:
-        age_group = 13
-    if age_group not in (0, 13, 16, 18, 21):
-        age_group = 13
-
-    con = db_conn()
-    ensure_profile_templates_schema()
-    try:
-        uid = int(u["id"])
-        ok = con.execute("SELECT id FROM profile_templates WHERE id=? AND user_id=?", (tid, uid)).fetchone()
-        if not ok:
-            raise HTTPException(status_code=404, detail="Template not found")
-        ts = _now_utc_iso()
-        con.execute(
-            "UPDATE profile_templates SET title_tpl=?, desc_tpl=?, age_group=?, updated_at=? WHERE id=? AND user_id=?",
-            (title_tpl, desc_tpl, age_group, ts, tid, uid),
-        )
-        con.commit()
-    finally:
-        con.close()
-    return {"ok": True}
-
-@app.post("/api/profile/templates/delete")
-def api_profile_templates_delete(request: Request, payload: Dict[str, Any]):
-    u = get_current_user(request)
-    if not u:
-        raise HTTPException(status_code=401, detail="Not logged in")
-    tid = int(payload.get("template_id") or 0)
-    if tid <= 0:
-        raise HTTPException(status_code=400, detail="template_id required")
-
-    con = db_conn()
-    ensure_profile_templates_schema()
-    try:
-        uid = int(u["id"])
-        row = con.execute("SELECT is_default FROM profile_templates WHERE id=? AND user_id=?", (tid, uid)).fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Template not found")
-        if int(_rget(row, "is_default") or 0) == 1:
-            raise HTTPException(status_code=400, detail="Default template cannot be deleted")
-
-        con.execute("DELETE FROM profile_templates WHERE id=? AND user_id=?", (tid, uid))
-        # if deleted selected, reset to default
-        sid = _get_selected_template_id(con, uid)
-        if sid == tid:
-            d = con.execute("SELECT id FROM profile_templates WHERE user_id=? AND is_default=1 LIMIT 1", (uid,)).fetchone()
-            if d:
-                _set_selected_template_id(con, uid, int(_rget(d, "id") or 0))
-        con.commit()
-    finally:
-        con.close()
-    return {"ok": True}
-
 @app.get("/api/user/templates")
 def user_templates_get(request: Request):
-    """Legacy endpoint: returns selected template fields."""
     u = get_current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Not logged in")
-    ensure_profile_templates_schema()
     con = db_conn()
-    try:
-        uid = int(u["id"])
-        sid = _get_selected_template_id(con, uid)
-        row = con.execute("SELECT title_tpl, desc_tpl FROM profile_templates WHERE id=? AND user_id=?", (sid, uid)).fetchone()
-        if not row:
-            return {"ok": True, "title_tpl": "", "desc_tpl": ""}
-        return {"ok": True, "title_tpl": str(_rget(row, "title_tpl") or ""), "desc_tpl": str(_rget(row, "desc_tpl") or "")}
-    finally:
-        con.close()
+    row = con.execute("SELECT title_tpl, desc_tpl FROM templates WHERE user_id=?", (u["id"],)).fetchone()
+    con.close()
+    if not row:
+        return {"ok": True, "title_tpl": "", "desc_tpl": ""}
+    return {"ok": True, "title_tpl": row["title_tpl"], "desc_tpl": row["desc_tpl"]}
 
 @app.post("/api/user/templates")
 def user_templates_set(request: Request, payload: Dict[str, Any]):
-    """Legacy endpoint: updates selected template (title/desc)."""
     u = get_current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Not logged in")
-    title_tpl = str(payload.get("title_tpl") or "")
-    desc_tpl = str(payload.get("desc_tpl") or "")
-    ensure_profile_templates_schema()
+    title_tpl = payload.get("title_tpl") or ""
+    desc_tpl = payload.get("desc_tpl") or ""
     con = db_conn()
-    try:
-        uid = int(u["id"])
-        sid = _get_selected_template_id(con, uid)
-        ts = _now_utc_iso()
-        con.execute(
-            "UPDATE profile_templates SET title_tpl=?, desc_tpl=?, updated_at=? WHERE id=? AND user_id=?",
-            (title_tpl, desc_tpl, ts, int(sid), uid),
-        )
-        con.commit()
-    finally:
-        con.close()
+    con.execute(
+        "INSERT INTO templates(user_id,title_tpl,desc_tpl,updated_at) VALUES(?,?,?,?) "
+        "ON CONFLICT(user_id) DO UPDATE SET title_tpl=excluded.title_tpl, desc_tpl=excluded.desc_tpl, updated_at=excluded.updated_at",
+        (u["id"], title_tpl, desc_tpl, datetime.datetime.utcnow().isoformat()),
+    )
+    con.commit()
+    con.close()
     return {"ok": True}
-
 
 @app.get("/api/user/chat_history")
 def user_chat_history(request: Request):
@@ -4655,733 +3495,63 @@ def api_case_open_paid(request: Request, payload: Dict[str, Any]):
     return {"ok": True, "prize": prize, "price": CASE_PAID_PRICE, "limits": user_limits(uid)}
 
 
-# ----------------------------
-# Robux shop flow (wizard)
-# ----------------------------
-
-def _robux_rate_limit_or_raise(con, user_id: int):
-    """Basic anti-spam: 1 order per 10s and max 5 per 60s."""
-    now = _now_utc()
-    ts10 = (now - datetime.timedelta(seconds=10)).isoformat()
-    ts60 = (now - datetime.timedelta(seconds=60)).isoformat()
-    r1 = con.execute(
-        "SELECT COUNT(1) AS c FROM robux_orders WHERE user_id=? AND created_at>=?",
-        (int(user_id), ts10),
-    ).fetchone()
-    c10 = int(_rget(r1, "c") or 0) if r1 else 0
-    if c10 >= 1:
-        raise HTTPException(status_code=429, detail="Слишком часто. Подожди пару секунд.")
-    r2 = con.execute(
-        "SELECT COUNT(1) AS c FROM robux_orders WHERE user_id=? AND created_at>=?",
-        (int(user_id), ts60),
-    ).fetchone()
-    c60 = int(_rget(r2, "c") or 0) if r2 else 0
-    if c60 >= 5:
-        raise HTTPException(status_code=429, detail="Лимит заказов в минуту достигнут.")
-
-
-# --- Robux order lifecycle helpers (reserve / pay / cancel / refund) ---
-
-ROBUX_RESERVE_SECONDS = 7 * 60
-ROBUX_SETTLE_SECONDS = 5 * 24 * 60 * 60  # UI timer (5 days)
-
-def _now_ts() -> int:
-    return int(time.time())
-
-def _robux_expire_overdue(con) -> int:
-    """Expire overdue reserved orders and refund held balance. Returns count expired."""
-    now_ts = _now_ts()
-    # Find overdue orders (limit to keep it cheap)
-    rows = con.execute(
-        "SELECT id, user_id, rub_price FROM robux_orders WHERE status='reserved' AND reserve_expires_ts IS NOT NULL AND reserve_expires_ts<? ORDER BY id ASC LIMIT 200",
-        (int(now_ts),),
-    ).fetchall() or []
-    expired = 0
-    for r in rows:
-        oid = int(_rget(r, "id") or 0)
-        uid = int(_rget(r, "user_id") or 0)
-        rub = int(_rget(r, "rub_price") or 0)
-        ts = _now_utc_iso()
-        # Mark expired (idempotent)
-        if USE_PG:
-            rr = con.execute(
-                "UPDATE robux_orders SET status='expired', updated_at=?, cancelled_at=? WHERE id=? AND status='reserved' RETURNING id",
-                (ts, ts, oid),
-            ).fetchone()
-            if not rr:
-                continue
-        else:
-            cur = con.execute("UPDATE robux_orders SET status='expired', updated_at=?, cancelled_at=? WHERE id=? AND status='reserved'", (ts, ts, oid))
-            if getattr(cur, "rowcount", 0) != 1:
-                continue
-        _robux_refund_if_needed(con, oid, uid, rub, reason="robux reserve expired")
-        expired += 1
-    if expired:
-        con.commit()
-    return expired
-
-def _robux_refund_if_needed(con, order_id: int, user_id: int, rub_price: int, reason: str) -> None:
-    """Idempotent refund of held rubles to user (for reserved/paid orders that fail/cancel/expire)."""
-    if rub_price <= 0:
-        return
-    ts = _now_utc_iso()
-    # Only refund once
-    if USE_PG:
-        row = con.execute(
-            "UPDATE robux_orders SET refund_taken=1, refunded_at=? WHERE id=? AND refund_taken=0 RETURNING id",
-            (ts, int(order_id)),
-        ).fetchone()
-        if not row:
-            return
-        # credit user
-        con.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(rub_price), int(user_id)))
-        con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(user_id), None, int(rub_price), reason, ts))
-        return
-
-    cur = con.execute("UPDATE robux_orders SET refund_taken=1, refunded_at=? WHERE id=? AND refund_taken=0", (ts, int(order_id)))
-    if getattr(cur, "rowcount", 0) != 1:
-        return
-    urow = con.execute("SELECT balance FROM users WHERE id=?", (int(user_id),)).fetchone()
-    oldb = int(_rget(urow, "balance") or 0) if urow else 0
-    con.execute("UPDATE users SET balance=? WHERE id=?", (oldb + int(rub_price), int(user_id)))
-    con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(user_id), None, int(rub_price), reason, ts))
-
-def _robux_seller_available(con) -> Dict[str, int]:
-    """Compute available robux for sale considering admin limits and current reservations."""
-    st = roblox_seller_status()
-    seller_robux = int(st.get("robux") or 0) if st.get("configured") else 0
-    cfg = _robux_cfg_effective()
-    stock_sell = int(cfg.get("stock_sell") or 0)
-    # Reserved + processing consume seller robux until purchase is done/failed
-    r = con.execute(
-        "SELECT COALESCE(SUM(gamepass_price),0) AS s FROM robux_orders WHERE status IN ('reserved','processing','paid')",
-        (),
-    ).fetchone()
-    reserved = int(_rget(r, "s") or 0) if r else 0
-    cap = seller_robux
-    if stock_sell > 0:
-        cap = min(cap, stock_sell)
-    available = max(0, cap - reserved)
-    return {"seller_robux": seller_robux, "reserved": reserved, "cap": cap, "available": available}
-
-
-@app.get("/api/robux/quote")
-def api_robux_quote(request: Request, amount: int):
-    require_user(request)
-    q = robux_calc(int(amount))
-    cfg = _robux_cfg_effective()
-    # Stock for UI: if admin set stock_show -> use it, else show seller balance if configured
-    stock_show = int(cfg.get("stock_show") or 0)
-    seller = roblox_seller_status()
-    seller_robux = int(seller.get("robux") or 0) if seller.get("configured") else 0
-    ui_stock = stock_show if stock_show > 0 else seller_robux
-    return {"ok": True, **q, "stock_show": int(ui_stock)}
-
-
-
-@app.post("/api/robux/inspect")
-def api_robux_inspect(request: Request, payload: Dict[str, Any]):
-    require_user(request)
-    # NOTE: Frontend may send a stale/incorrect `mode`. We infer the real mode from the payload.
-    # Priority: valid gamepass URL/ID -> URL mode, else username -> username mode.
-    _mode_raw = str(payload.get("mode") or "").strip().lower()
-    url = str(payload.get("url") or payload.get("gamepass_url") or payload.get("gamepass") or "").strip()
-    username = str(payload.get("username") or payload.get("nick") or "").strip()
-
-    gp_id = 0
-    if url:
-        try:
-            gp_id = int(_parse_gamepass_id(url) or 0)
-        except Exception:
-            gp_id = 0
-
-    mode = "url" if gp_id > 0 else ("username" if username else "")
-    # Accept both `amount` (current) and `robux_amount` (legacy) from frontend
-    try:
-        amount = int(payload.get("amount") or payload.get("robux_amount") or 0)
-    except Exception:
-        amount = 0
-
-    if mode == "url":
-        if gp_id <= 0:
-            raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса")
-        info = roblox_inspect_gamepass(str(int(gp_id)))
-        return {"ok": True, "gamepass": info, "mode": "url"}
-
-    # Username-mode: find a gamepass with the expected price
-    if not username:
-        raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса или ник Roblox")
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Нужно указать количество Robux")
-    q = robux_calc(int(amount))
-    info = roblox_find_gamepass_by_username(normalize_roblox_username(username), int(q["gamepass_price"]))
-    return {"ok": True, "gamepass": info, "mode": "username", "expected_price": int(q["gamepass_price"])}
-
-
-
-@app.post("/api/robux/order_create")
-def api_robux_order_create(request: Request, payload: Dict[str, Any]):
-    """Creates a robux order (no money held yet)."""
-    u = require_user(request)
-    uid = int(u["id"])
-    try:
-        amount = int(payload.get("amount") or 0)
-    except Exception:
-        amount = 0
-
-    gp_url = str(payload.get("gamepass_url") or payload.get("url") or "").strip()
-    username = normalize_roblox_username(str(payload.get("username") or payload.get("nick") or "").strip())
-
-    q = robux_calc(amount)
-
-    # Resolve gamepass either by URL/ID or by username scan
-    if gp_url:
-        gp = roblox_inspect_gamepass(gp_url)
-        gp_url = str(gp_url)
-    else:
-        if not username:
-            raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса или ник Roblox")
-        gp = roblox_find_gamepass_by_username(username, int(q["gamepass_price"]))
-        gp_url = str(int(gp.get("gamepass_id") or 0))
-
-    # Anti-fraud: price must match expected
-    if int(gp.get("price") or 0) != int(q["gamepass_price"]):
-        raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {q['gamepass_price']} Robux")
-    if int(gp.get("product_id") or 0) <= 0:
-        raise HTTPException(status_code=400, detail="Не удалось получить ProductId геймпасса")
-
-    ts = _now_utc_iso()
-    con = db_conn()
-    _robux_expire_overdue(con)
-    _robux_rate_limit_or_raise(con, uid)
-
-    if USE_PG:
-        row = con.execute(
-            "INSERT INTO robux_orders(user_id,robux_amount,rub_price,gamepass_price,gamepass_url,gamepass_id,product_id,gamepass_name,gamepass_owner,gamepass_owner_id,status,error_message,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
-            (
-                uid,
-                int(q["robux"]),
-                int(q["rub_price"]),
-                int(q["gamepass_price"]),
-                gp_url,
-                int(gp.get("gamepass_id") or 0),
-                int(gp.get("product_id") or 0),
-                str(gp.get("name") or ""),
-                str(gp.get("owner") or ""),
-                int(gp.get("owner_id") or 0),
-                "new",
-                None,
-                ts,
-                ts,
-            ),
-        ).fetchone()
-        oid = int(_rget(row, "id") or 0)
-    else:
-        cur = con.execute(
-            "INSERT INTO robux_orders(user_id,robux_amount,rub_price,gamepass_price,gamepass_url,gamepass_id,product_id,gamepass_name,gamepass_owner,gamepass_owner_id,status,error_message,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (
-                uid,
-                int(q["robux"]),
-                int(q["rub_price"]),
-                int(q["gamepass_price"]),
-                gp_url,
-                int(gp.get("gamepass_id") or 0),
-                int(gp.get("product_id") or 0),
-                str(gp.get("name") or ""),
-                str(gp.get("owner") or ""),
-                int(gp.get("owner_id") or 0),
-                "new",
-                None,
-                ts,
-                ts,
-            ),
-        )
-        oid = int(cur.lastrowid)
-    con.commit()
-    con.close()
-    return {"ok": True, "order_id": oid, "quote": q, "gamepass": gp}
-
-
-@app.post("/api/robux/order_reserve")
-def api_robux_order_reserve(request: Request, payload: Dict[str, Any]):
-    """Hold user's balance + reserve seller robux for 7 minutes."""
-    u = require_user(request)
-    uid = int(u["id"])
-    oid = int(payload.get("order_id") or 0)
-    # Accept both `amount` and `robux_amount` keys
-    amount = payload.get("amount") if payload.get("amount") is not None else payload.get("robux_amount")
-    gp_url = str(payload.get("gamepass_url") or payload.get("url") or "").strip()
-
-    con = db_conn()
-    _robux_expire_overdue(con)
-
-    if oid <= 0:
-        # Create order inside this call for simpler frontend
-        created = api_robux_order_create(request, {"amount": amount, "gamepass_url": gp_url, "username": payload.get("username") or payload.get("nick")})
-        oid = int(created.get("order_id") or 0)
-
-    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(oid), int(uid))).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    status = str(_rget(row, "status") or "")
-    rub_price = int(_rget(row, "rub_price") or 0)
-    gp_price = int(_rget(row, "gamepass_price") or 0)
-    reserve_seconds = int((_robux_cfg_effective().get("reserve_seconds") or ROBUX_RESERVE_SECONDS))
-
-    if status in ("reserved", "processing", "paid", "done"):
-        con.close()
-        return {
-            "ok": True,
-            "order_id": oid,
-            "status": status,
-            "reserve_expires_ts": int(_rget(row, "reserve_expires_ts") or 0),
-            "server_now_ts": _now_ts(),
-        }
-
-    if status not in ("new", "failed", "cancelled", "expired"):
-        con.close()
-        raise HTTPException(status_code=400, detail="Нельзя забронировать этот заказ")
-
-    # Re-check gamepass price (anti-fraud)
-    gp = roblox_inspect_gamepass(str(_rget(row, "gamepass_url") or ""))
-    if int(gp.get("price") or 0) != int(gp_price):
-        con.close()
-        raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {gp_price} Robux")
-
-    # Seller availability check
-    avail = _robux_seller_available(con)
-    if int(avail.get("available") or 0) < int(gp_price):
-        con.close()
-        raise HTTPException(status_code=400, detail="Сейчас нет нужного количества Robux. Попробуй позже.")
-
-    # Hold user's balance (atomic)
-    ts = _now_utc_iso()
-    now_ts = _now_ts()
-    exp_ts = now_ts + reserve_seconds
-
-    if USE_PG:
-        urow = con.execute(
-            "UPDATE users SET balance=balance-? WHERE id=? AND balance>=? RETURNING balance",
-            (int(rub_price), int(uid), int(rub_price)),
-        ).fetchone()
-        if not urow:
-            con.close()
-            raise HTTPException(status_code=400, detail="Недостаточно средств. Пополни баланс.")
-        con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(uid), None, -int(rub_price), f"robux reserve {oid}", ts))
-        orow = con.execute(
-            "UPDATE robux_orders SET status='reserved', reserved_at=?, reserve_expires_ts=?, hold_taken=1, updated_at=? WHERE id=? AND user_id=? RETURNING id",
-            (ts, int(exp_ts), ts, int(oid), int(uid)),
-        ).fetchone()
-        if not orow:
-            # rollback hold (best-effort)
-            con.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(rub_price), int(uid)))
-            con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(uid), None, int(rub_price), f"robux reserve rollback {oid}", ts))
-            con.commit()
-            con.close()
-            raise HTTPException(status_code=409, detail="Не удалось забронировать. Попробуй ещё раз.")
-    else:
-        urow = con.execute("SELECT balance FROM users WHERE id=?", (int(uid),)).fetchone()
-        bal = int(_rget(urow, "balance") or 0) if urow else 0
-        if bal < rub_price:
-            con.close()
-            raise HTTPException(status_code=400, detail="Недостаточно средств. Пополни баланс.")
-        con.execute("UPDATE users SET balance=? WHERE id=?", (bal - rub_price, int(uid)))
-        con.execute("INSERT INTO balance_tx(user_id, admin_id, delta, reason, ts) VALUES(?,?,?,?,?)", (int(uid), None, -int(rub_price), f"robux reserve {oid}", ts))
-        con.execute("UPDATE robux_orders SET status='reserved', reserved_at=?, reserve_expires_ts=?, hold_taken=1, updated_at=? WHERE id=? AND user_id=?", (ts, int(exp_ts), ts, int(oid), int(uid)))
-
-    con.commit()
-    con.close()
-    return {"ok": True, "order_id": oid, "status": "reserved", "reserve_expires_ts": int(exp_ts), "server_now_ts": now_ts}
-
-
-@app.post("/api/robux/order_cancel")
-def api_robux_order_cancel(request: Request, payload: Dict[str, Any]):
-    u = require_user(request)
-    uid = int(u["id"])
-    oid = int(payload.get("order_id") or 0)
-    if oid <= 0:
-        raise HTTPException(status_code=400, detail="order_id required")
-    con = db_conn()
-    _robux_expire_overdue(con)
-    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(oid), int(uid))).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-    status = str(_rget(row, "status") or "")
-    rub_price = int(_rget(row, "rub_price") or 0)
-    if status != "reserved":
-        con.close()
-        raise HTTPException(status_code=400, detail="Отменить можно только забронированный заказ")
-    ts = _now_utc_iso()
-    if USE_PG:
-        rr = con.execute(
-            "UPDATE robux_orders SET status='cancelled', updated_at=?, cancelled_at=? WHERE id=? AND user_id=? AND status='reserved' RETURNING id",
-            (ts, ts, int(oid), int(uid)),
-        ).fetchone()
-        if not rr:
-            con.close()
-            raise HTTPException(status_code=409, detail="Не удалось отменить. Попробуй ещё раз.")
-    else:
-        cur = con.execute("UPDATE robux_orders SET status='cancelled', updated_at=?, cancelled_at=? WHERE id=? AND user_id=? AND status='reserved'", (ts, ts, int(oid), int(uid)))
-        if getattr(cur, "rowcount", 0) != 1:
-            con.close()
-            raise HTTPException(status_code=409, detail="Не удалось отменить. Попробуй ещё раз.")
-    _robux_refund_if_needed(con, int(oid), int(uid), int(rub_price), reason=f"robux cancelled {oid}")
-    con.commit()
-    con.close()
-    return {"ok": True, "order_id": oid, "status": "cancelled"}
-
-
-def _robux_worker_purchase(order_id: int):
-    con = None
-    try:
-        con = db_conn()
-        _robux_expire_overdue(con)
-        row = con.execute("SELECT * FROM robux_orders WHERE id=?", (int(order_id),)).fetchone()
-        if not row:
-            return
-        status = str(_rget(row, "status") or "")
-        if status not in ("processing", "paid"):
-            return
-
-        uid = int(_rget(row, "user_id") or 0)
-        rub_price = int(_rget(row, "rub_price") or 0)
-        gp_price = int(_rget(row, "gamepass_price") or 0)
-        gp_url = str(_rget(row, "gamepass_url") or "")
-        expected_pid = int(_rget(row, "product_id") or 0)
-        expected_owner_id = int(_rget(row, "gamepass_owner_id") or 0)
-
-        # Anti-fraud again: price/product must still match
-        gp = roblox_inspect_gamepass(gp_url)
-        if int(gp.get("price") or 0) != int(gp_price) or int(gp.get("product_id") or 0) != int(expected_pid):
-            ts = _now_utc_iso()
-            con.execute("UPDATE robux_orders SET status='failed', updated_at=?, error_message=? WHERE id=?", (ts, f"Цена/товар геймпасса изменились. Ожидалось {gp_price}.", int(order_id)))
-            _robux_refund_if_needed(con, int(order_id), int(uid), int(rub_price), reason=f"robux refund price changed {order_id}")
-            con.commit()
-            return
-
-        # Check seller config + robux availability
-        avail = _robux_seller_available(con)
-        if int(avail.get("seller_robux") or 0) < gp_price:
-            ts = _now_utc_iso()
-            con.execute("UPDATE robux_orders SET status='failed', updated_at=?, error_message=? WHERE id=?", (ts, "Недостаточно Robux у продавца", int(order_id)))
-            _robux_refund_if_needed(con, int(order_id), int(uid), int(rub_price), reason=f"robux refund seller low {order_id}")
-            con.commit()
-            return
-
-        # Try purchase
-        res = roblox_buy_product(product_id=expected_pid, expected_price=gp_price, expected_seller_id=expected_owner_id)
-        if not res.get("ok"):
-            raise RuntimeError(res.get("error") or "Roblox purchase failed")
-
-        ts = _now_utc_iso()
-        done_ts = _now_ts()
-        con.execute("UPDATE robux_orders SET status='done', updated_at=?, error_message=?, done_at=?, done_ts=? WHERE id=?", (ts, None, ts, int(done_ts), int(order_id)))
-        con.commit()
-    except Exception as e:
-        try:
-            if con:
-                row = con.execute("SELECT user_id, rub_price FROM robux_orders WHERE id=?", (int(order_id),)).fetchone()
-                uid = int(_rget(row, "user_id") or 0) if row else 0
-                rub_price = int(_rget(row, "rub_price") or 0) if row else 0
-                ts = _now_utc_iso()
-                con.execute("UPDATE robux_orders SET status='failed', updated_at=?, error_message=? WHERE id=?", (ts, str(e), int(order_id)))
-                if uid and rub_price:
-                    _robux_refund_if_needed(con, int(order_id), int(uid), int(rub_price), reason=f"robux refund fail {order_id}")
-                con.commit()
-        except Exception:
-            pass
-    finally:
-        try:
-            if con:
-                con.close()
-        except Exception:
-            pass
-
-
-@app.post("/api/robux/order_pay")
-def api_robux_order_pay(request: Request, payload: Dict[str, Any]):
-    """Confirm payment: moves reserved order to processing and starts purchase worker."""
-    u = require_user(request)
-    uid = int(u["id"])
-    oid = int(payload.get("order_id") or 0)
-    if oid <= 0:
-        raise HTTPException(status_code=400, detail="order_id required")
-
-    con = db_conn()
-    _robux_expire_overdue(con)
-
-    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(oid), int(uid))).fetchone()
-    if not row:
-        con.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    status = str(_rget(row, "status") or "")
-    rub_price = int(_rget(row, "rub_price") or 0)
-    gp_price = int(_rget(row, "gamepass_price") or 0)
-    exp_ts = int(_rget(row, "reserve_expires_ts") or 0)
-    now_ts = _now_ts()
-
-    if status == "done":
-        con.close()
-        return {"ok": True, "order_id": oid, "status": "done"}
-    if status != "reserved":
-        con.close()
-        raise HTTPException(status_code=400, detail="Сначала нужно забронировать заказ")
-
-    if exp_ts and now_ts >= exp_ts:
-        ts = _now_utc_iso()
-        con.execute("UPDATE robux_orders SET status='expired', updated_at=?, cancelled_at=? WHERE id=? AND user_id=?", (ts, ts, int(oid), int(uid)))
-        _robux_refund_if_needed(con, int(oid), int(uid), int(rub_price), reason=f"robux reserve expired {oid}")
-        con.commit()
-        con.close()
-        raise HTTPException(status_code=400, detail="Бронь истекла. Создай заказ заново.")
-
-    # Anti-fraud: re-check gamepass price/product right before purchase
-    gp = roblox_inspect_gamepass(str(_rget(row, "gamepass_url") or ""))
-    if int(gp.get("price") or 0) != int(gp_price) or int(gp.get("product_id") or 0) != int(_rget(row, "product_id") or 0):
-        ts = _now_utc_iso()
-        con.execute("UPDATE robux_orders SET status='failed', updated_at=?, error_message=? WHERE id=?", (ts, f"Цена/товар геймпасса изменились. Ожидалось {gp_price}.", int(oid)))
-        _robux_refund_if_needed(con, int(oid), int(uid), int(rub_price), reason=f"robux refund price changed {oid}")
-        con.commit()
-        con.close()
-        raise HTTPException(status_code=400, detail="Цена геймпасса изменилась. Деньги возвращены.")
-
-    ts = _now_utc_iso()
-    if USE_PG:
-        rr = con.execute(
-            "UPDATE robux_orders SET status='processing', updated_at=?, paid_at=? WHERE id=? AND user_id=? AND status='reserved' RETURNING id",
-            (ts, ts, int(oid), int(uid)),
-        ).fetchone()
-        if not rr:
-            con.close()
-            raise HTTPException(status_code=409, detail="Не удалось начать оплату. Попробуй ещё раз.")
-    else:
-        cur = con.execute("UPDATE robux_orders SET status='processing', updated_at=?, paid_at=? WHERE id=? AND user_id=? AND status='reserved'", (ts, ts, int(oid), int(uid)))
-        if getattr(cur, "rowcount", 0) != 1:
-            con.close()
-            raise HTTPException(status_code=409, detail="Не удалось начать оплату. Попробуй ещё раз.")
-    con.commit()
-    con.close()
-
-    th = threading.Thread(target=_robux_worker_purchase, args=(oid,), daemon=True)
-    th.start()
-    return {"ok": True, "order_id": oid, "status": "processing"}
-
-
-@app.get("/api/robux/order")
-def api_robux_order(request: Request, id: int):
-    u = require_user(request)
-    uid = int(u["id"])
-    con = db_conn()
-    _robux_expire_overdue(con)
-    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(id), uid)).fetchone()
-    con.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return {
-        "ok": True,
-        "server_now_ts": _now_ts(),
-        "order": {
-            "id": int(_rget(row, "id") or 0),
-            "status": str(_rget(row, "status") or ""),
-            "robux_amount": int(_rget(row, "robux_amount") or 0),
-            "rub_price": int(_rget(row, "rub_price") or 0),
-            "gamepass_price": int(_rget(row, "gamepass_price") or 0),
-            "gamepass_name": str(_rget(row, "gamepass_name") or ""),
-            "gamepass_owner": str(_rget(row, "gamepass_owner") or ""),
-            "gamepass_url": str(_rget(row, "gamepass_url") or ""),
-            "reserve_expires_ts": int(_rget(row, "reserve_expires_ts") or 0),
-            "done_ts": int(_rget(row, "done_ts") or 0),
-            "created_at": str(_rget(row, "created_at") or ""),
-            "error": str(_rget(row, "error_message") or ""),
-        },
-    }
-
-
-@app.get("/api/purchases/history")
-def api_purchases_history(request: Request):
-    """History for shop: only Robux orders."""
-    u = require_user(request)
-    uid = int(u["id"])
-    con = db_conn()
-    _robux_expire_overdue(con)
-    rows = con.execute(
-        "SELECT id, robux_amount, rub_price, status, created_at, reserve_expires_ts, done_ts, error_message FROM robux_orders WHERE user_id=? AND status!='new' ORDER BY id DESC LIMIT 50",
-        (int(uid),),
-    ).fetchall() or []
-    con.close()
-    items = []
-    for r in rows:
-        items.append({
-            "id": int(_rget(r, "id") or 0),
-            "robux_amount": int(_rget(r, "robux_amount") or 0),
-            "rub_price": int(_rget(r, "rub_price") or 0),
-            "status": str(_rget(r, "status") or ""),
-            "created_at": str(_rget(r, "created_at") or ""),
-            "reserve_expires_ts": int(_rget(r, "reserve_expires_ts") or 0),
-            "done_ts": int(_rget(r, "done_ts") or 0),
-            "error": str(_rget(r, "error_message") or ""),
-        })
-    return {"ok": True, "server_now_ts": _now_ts(), "items": items}
-
-
-@app.get("/api/purchases/detail")
-def api_purchases_detail(request: Request, id: int):
-    u = require_user(request)
-    uid = int(u["id"])
-    con = db_conn()
-    _robux_expire_overdue(con)
-    row = con.execute("SELECT * FROM robux_orders WHERE id=? AND user_id=?", (int(id), int(uid))).fetchone()
-    con.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {
-        "ok": True,
-        "server_now_ts": _now_ts(),
-        "item": {
-            "id": int(_rget(row, "id") or 0),
-            "status": str(_rget(row, "status") or ""),
-            "robux_amount": int(_rget(row, "robux_amount") or 0),
-            "rub_price": int(_rget(row, "rub_price") or 0),
-            "gamepass_price": int(_rget(row, "gamepass_price") or 0),
-            "gamepass_name": str(_rget(row, "gamepass_name") or ""),
-            "gamepass_owner": str(_rget(row, "gamepass_owner") or ""),
-            "gamepass_url": str(_rget(row, "gamepass_url") or ""),
-            "reserve_expires_ts": int(_rget(row, "reserve_expires_ts") or 0),
-            "done_ts": int(_rget(row, "done_ts") or 0),
-            "created_at": str(_rget(row, "created_at") or ""),
-            "error": str(_rget(row, "error_message") or ""),
-        }
-    }
 
 # ----------------------------
-# Robux admin (seller settings + order log)
+# Robux (shop + admin)
 # ----------------------------
 
-@app.get("/api/admin/robux/settings")
-def api_admin_robux_settings(request: Request):
-    require_admin(request)
-    cfg = _robux_cfg_effective()
-    # cookie: do not expose full cookie; only show if present in DB
-    db_cookie = (_setting_get("roblox_seller_cookie", "") or "").strip()
-    has_db_cookie = bool(db_cookie)
-    effective_has = bool(_seller_cookie_effective())
-    return {
-        "ok": True,
-        "settings": {
-            "cookie_in_db": has_db_cookie,
-            "cookie_mask": ("••••" + db_cookie[-6:]) if has_db_cookie and len(db_cookie) >= 6 else ("••••" if has_db_cookie else ""),
-            "min_amount": int(cfg.get("min_amount") or 0),
-            "rub_per_robux": float(cfg.get("rub_per_robux") or 0),
-            "gp_factor": float(cfg.get("gp_factor") or 0),
-            "stock_show": int(cfg.get("stock_show") or 0),
-            "stock_sell": int(cfg.get("stock_sell") or 0),
-            "reserve_seconds": int(cfg.get("reserve_seconds") or 0),
-        },
-        "effective": {
-            "seller_configured": effective_has,
-            "env_override": bool((os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip()),
-        },
-    }
 
-
-@app.post("/api/admin/robux/settings")
-def api_admin_robux_settings_set(request: Request, payload: dict):
-    require_admin(request)
-    # cookie optional
-    ck = str(payload.get("cookie") or "").strip()
-    if ck:
-        _setting_set("roblox_seller_cookie", ck)
-    # allow clearing cookie
-    if payload.get("cookie") == "":
-        _setting_set("roblox_seller_cookie", "")
-
-    # numeric settings (stored in DB if provided)
-    def _store_num(key, val, cast):
-        if val is None:
-            return
-        s = str(val).strip()
-        if s == "":
-            return
-        try:
-            cast(s)
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Некорректное значение: {key}")
-        _setting_set(key, s)
-
-    _store_num("robux_min_amount", payload.get("min_amount"), int)
-    _store_num("robux_rub_per_robux", payload.get("rub_per_robux"), float)
-    _store_num("robux_gp_factor", payload.get("gp_factor"), float)
-
-    _store_num("robux_stock_show", payload.get("stock_show"), int)
-    _store_num("robux_stock_sell", payload.get("stock_sell"), int)
-    _store_num("robux_reserve_seconds", payload.get("reserve_seconds"), int)
-
-    return {"ok": True}
-
-
-@app.get("/api/admin/robux/seller_status")
-def api_admin_robux_seller_status(request: Request):
-    require_admin(request)
-    cfg = _robux_cfg_effective()
-    st = roblox_seller_status()
-    return {"ok": True, "seller": st, "config": cfg, "env_override": bool((os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip())}
-
-
-@app.get("/api/admin/robux/orders")
-def api_admin_robux_orders(request: Request, status: str = "active", limit: int = 50, offset: int = 0):
-    require_admin(request)
-    limit = max(1, min(int(limit or 50), 200))
-    offset = max(0, int(offset or 0))
-    st = (status or "active").lower()
-
-    where = ""
-    params = []
-    if st == "active":
-        where = "WHERE o.status IN ('new','paid','processing')"
-    elif st == "all":
-        where = ""
-    else:
-        where = "WHERE o.status=?"
-        params.append(st)
-
-    q = f"""
-      SELECT o.*, u.username
-      FROM robux_orders o
-      LEFT JOIN users u ON u.id=o.user_id
-      {where}
-      ORDER BY o.id DESC
-      LIMIT ? OFFSET ?
+def _rget(row, key, default=None):
+    """Safe getter for DB rows (sqlite3.Row / dict / mapping).
+    Returns default if key missing or row is None.
     """
-    params.extend([limit, offset])
+    if row is None:
+        return default
+    try:
+        # sqlite3.Row supports __getitem__
+        return row[key]
+    except Exception:
+        pass
+    try:
+        return row.get(key, default)
+    except Exception:
+        return default
 
-    con = db_conn()
-    rows = con.execute(q, tuple(params)).fetchall()
-    con.close()
 
-    items = []
-    for r in rows or []:
-        items.append({
-            "id": int(_rget(r, "id") or 0),
-            "user_id": int(_rget(r, "user_id") or 0),
-            "username": str(_rget(r, "username") or ""),
-            "robux_amount": int(_rget(r, "robux_amount") or 0),
-            "rub_price": int(_rget(r, "rub_price") or 0),
-            "gamepass_price": int(_rget(r, "gamepass_price") or 0),
-            "gamepass_owner": str(_rget(r, "gamepass_owner") or ""),
-            "gamepass_name": str(_rget(r, "gamepass_name") or ""),
-            "status": str(_rget(r, "status") or ""),
-            "error": str(_rget(r, "error_message") or ""),
-            "created_at": str(_rget(r, "created_at") or ""),
-            "updated_at": str(_rget(r, "updated_at") or ""),
-        })
+def _seller_cookie_effective() -> str:
+    """Return effective Roblox seller cookie.
 
-    return {"ok": True, "items": items, "limit": limit, "offset": offset}
+    ENV has priority (useful for emergency override). DB setting is used as fallback.
+    """
+    ck = (os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip()
+    if ck:
+        return ck
+    # _setting_get may be defined later in this module; it will exist by call-time.
+    return (_setting_get("roblox_seller_cookie", "") or "").strip()
+
+
+
+
+def _robux_cfg_effective() -> Dict[str, Any]:
+    # Allow tuning via DB; env still overrides if set
+    def _env_or_db(env_key: str, db_key: str, default: str) -> str:
+        v = (os.environ.get(env_key) or "").strip()
+        if v:
+            return v
+        return (_setting_get(db_key, default) or default)
+
+    return {
+        "min_amount": int(float(_env_or_db("ROBUX_MIN_AMOUNT", "robux_min_amount", str(ROBUX_MIN_AMOUNT)))),
+        "rub_per_robux": float(_env_or_db("ROBUX_RUB_PER_ROBUX", "robux_rub_per_robux", str(ROBUX_RUB_PER_ROBUX))),
+        "gp_factor": float(_env_or_db("ROBUX_GP_FACTOR", "robux_gp_factor", str(ROBUX_GP_FACTOR))),
+        # Optional manual stock controls (0 = auto)
+        "stock_display": int(float(_env_or_db("ROBUX_STOCK_DISPLAY", "robux_stock_display", "0"))),
+        "stock_sale": int(float(_env_or_db("ROBUX_STOCK_SALE", "robux_stock_sale", "0"))),
+    }
+
+# NOTE: Robux routes are registered at the bottom of this module.
+# This avoids import-time NameError issues caused by helper ordering in this large legacy file.
+
 
 # Core endpoints
 # ----------------------------
@@ -5466,28 +3636,24 @@ def api_ai_generate(request: Request, payload: Dict[str, Any]):
 
     title, desc = extract_title_desc(out)
 
-    # Save generated template into currently selected profile template (logged-in user)
+    # Save generated templates for logged-in user
     u = get_current_user(request)
     if u and title and desc:
-        ensure_profile_templates_schema()
         con = db_conn()
-        try:
-            uid2 = int(u["id"])
-            sid = _get_selected_template_id(con, uid2)
-            ts2 = _now_utc_iso()
-            con.execute(
-                "UPDATE profile_templates SET title_tpl=?, desc_tpl=?, updated_at=? WHERE id=? AND user_id=?",
-                (title, desc, ts2, int(sid), uid2),
-            )
-            con.commit()
-        finally:
-            con.close()
+        con.execute(
+            "INSERT INTO templates(user_id,title_tpl,desc_tpl,updated_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET title_tpl=excluded.title_tpl, desc_tpl=excluded.desc_tpl, updated_at=excluded.updated_at",
+            (u["id"], title, desc, datetime.datetime.utcnow().isoformat()),
+        )
+        con.commit()
+        con.close()
 
     # spend only on success
     if not lim0["premium"]:
         spend_credit(uid, "credits_ai", 1)
 
     return {"ok": True, "title": title, "desc": desc, "raw": clamp(out, 7000)}
+
 @app.post("/api/chat")
 def api_chat(request: Request, payload: Dict[str, Any]):
     require_premium(request)
@@ -5554,33 +3720,6 @@ def _setting_set(key: str, value: str) -> None:
     con.close()
 
 
-def _seller_cookie_effective() -> str:
-    # ENV has priority (useful for emergency override)
-    ck = (os.environ.get("ROBLOX_SELLER_COOKIE") or "").strip()
-    if ck:
-        return ck
-    return (_setting_get("roblox_seller_cookie", "") or "").strip()
-
-
-def _robux_cfg_effective() -> Dict[str, Any]:
-    # Allow tuning via DB; env still overrides if set
-    def _env_or_db(env_key: str, db_key: str, default: str) -> str:
-        v = (os.environ.get(env_key) or "").strip()
-        if v:
-            return v
-        return (_setting_get(db_key, default) or default)
-
-    return {
-        "min_amount": int(float(_env_or_db("ROBUX_MIN_AMOUNT", "robux_min_amount", str(ROBUX_MIN_AMOUNT)))),
-        "rub_per_robux": float(_env_or_db("ROBUX_RUB_PER_ROBUX", "robux_rub_per_robux", str(ROBUX_RUB_PER_ROBUX))),
-        "gp_factor": float(_env_or_db("ROBUX_GP_FACTOR", "robux_gp_factor", str(ROBUX_GP_FACTOR))),
-        # Stock controls (0 = unlimited)
-        "stock_show": int(float(_env_or_db("ROBUX_STOCK_SHOW", "robux_stock_show", "0"))),
-        "stock_sell": int(float(_env_or_db("ROBUX_STOCK_SELL", "robux_stock_sell", "0"))),
-        # Reserve timeout (seconds)
-        "reserve_seconds": int(float(_env_or_db("ROBUX_RESERVE_SECONDS", "robux_reserve_seconds", str(ROBUX_RESERVE_SECONDS)))),
-    }
-
 @app.get("/api/shop_config")
 def api_shop_config():
     cfg = _shop_cfg_get() or {}
@@ -5622,6 +3761,43 @@ async def api_admin_upload_banner(request: Request, file: UploadFile = File(...)
     with open(path, "wb") as f:
         f.write(data)
     return {"ok": True, "url": f"/static/uploads/{name}"}
+
+
+# ----------------------------
+# Register extracted Robux routes
+# ----------------------------
+
+# The Robux feature set is isolated into a dedicated module for readability and safer changes.
+# IMPORTANT: this registration must happen after all helper functions (e.g. _setting_get)
+# are defined to avoid import-time NameError in this large legacy file.
+from rst_modules.robux import register_robux_routes  # noqa: E402
+
+register_robux_routes(
+    app,
+    deps={
+        "USE_PG": USE_PG,
+        "db_conn": db_conn,
+        "require_user": require_user,
+        "require_admin": require_admin,
+        "_now_utc": _now_utc,
+        "_now_utc_iso": _now_utc_iso,
+        "_rget": _rget,
+        "robux_calc": robux_calc,
+        "roblox_inspect_gamepass": roblox_inspect_gamepass,
+        "roblox_seller_status": roblox_seller_status,
+        "roblox_buy_product": roblox_buy_product,
+        "_robux_cfg_effective": _robux_cfg_effective,
+        "_seller_cookie_effective": _seller_cookie_effective,
+        "_setting_get": _setting_get,
+        "_setting_set": _setting_set,
+        "HTTPException": HTTPException,
+        "Request": Request,
+        "Dict": Dict,
+        "Any": Any,
+        "threading": threading,
+        "datetime": datetime,
+    },
+)
 
 
 @app.get("/api/health")

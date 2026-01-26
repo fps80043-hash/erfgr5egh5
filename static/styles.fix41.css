@@ -325,46 +325,28 @@ body.theme-night .top{
 
 .nav{display:flex; gap:8px; align-items:center}
 .navbtn{
-  position:relative;
-  border:none;
-  background: transparent;
-  box-shadow:none !important;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.045);
   color:var(--text);
-  border-radius:12px;
-  padding:10px 12px 14px;
+  border-radius:16px;
+  padding:9px 10px;
   cursor:pointer;
   display:flex;
   align-items:center;
   gap:8px;
   font-weight:950;
-  transition:.18s transform,.18s color;
+  transition:.18s transform,.18s background,.18s border, .18s box-shadow;
   white-space:nowrap;
-}
-.navbtn::after{
-  content:"";
-  position:absolute;
-  left:10px;
-  right:10px;
-  bottom:6px;
-  height:2px;
-  border-radius:2px;
-  background: linear-gradient(90deg, rgba(124,92,255,0), rgba(124,92,255,.95), rgba(0,229,255,.95), rgba(255,0,174,.85), rgba(124,92,255,0));
-  transform: scaleX(0);
-  transform-origin:left;
-  transition: transform .22s ease;
-  opacity:.95;
-}
-.navbtn:hover{transform: translateY(-1px)}
-.navbtn:hover::after{ transform: scaleX(1); }
-.navbtn.active{
-  color: rgba(255,255,255,.98);
-}
-.navbtn.active::after{
-  transform: scaleX(1);
 }
 .navbtn b{ font-weight:950; letter-spacing:.2px }
 .navIco{ margin-right: 6px; }
 .navbtn span{font-size:16px}
+.navbtn:hover{transform: translateY(-1px); background: rgba(255,255,255,.07); box-shadow: 0 18px 60px rgba(0,0,0,.35)}
+.navbtn.active{
+  background: rgba(124,92,255,.16);
+  border-color: rgba(124,92,255,.38);
+  box-shadow: 0 0 0 1px rgba(124,92,255,.18) inset, 0 22px 70px rgba(124,92,255,.12);
+}
 
 .wrap{max-width:1200px; margin:0 auto; padding:16px; position:relative; z-index:3}
 .pane{display:none}
@@ -2061,7 +2043,7 @@ h1,h2,h3{ letter-spacing: .2px; }
 .muted{ color: var(--muted) !important; }
 
 /* Buttons */
-.btn, .btab{
+.btn, .navbtn, .btab{
   border-radius: var(--rBtn) !important;
   border:1px solid rgba(255,255,255,.16) !important;
   background:
@@ -2071,7 +2053,7 @@ h1,h2,h3{ letter-spacing: .2px; }
   box-shadow: 0 10px 26px rgba(0,0,0,.35);
 }
 
-.btn:hover, .btab:hover{
+.btn:hover, .navbtn:hover, .btab:hover{
   border-color: rgba(255,255,255,.28) !important;
   transform: translateY(-1px);
 }
@@ -2097,14 +2079,6 @@ h1,h2,h3{ letter-spacing: .2px; }
   cursor:not-allowed;
   transform:none !important;
 }
-
-/* Nav buttons: no glass background, only underline animation */
-.navbtn{
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-.navbtn:hover{ border-color: transparent !important; }
 
 /* Inputs */
 input, textarea, select, .selectBox{
@@ -3373,7 +3347,7 @@ body:not(.admin) #btnShopPanel {
 
   /* Lighter shadows */
   .card, .productCard, .modal, .panel, .box{ box-shadow: 0 8px 20px rgba(0,0,0,.26) !important; }
-  .btn, .btab{ box-shadow: 0 8px 20px rgba(0,0,0,.24) !important; }
+  .btn, .navbtn, .btab{ box-shadow: 0 8px 20px rgba(0,0,0,.24) !important; }
 
   /* Disable hover/tilt extras (hover doesn't exist, but effects can still cost) */
   .productCard.tilt,
@@ -3464,84 +3438,3 @@ body:not(.admin) #btnShopPanel {
 
 .btn.ghost{background:transparent; border:1px solid rgba(255,255,255,.16);}
 .btn.ghost:hover{border-color: rgba(255,255,255,.28);}
-
-/* =============================
-   FIX46 — Desktop nav: no glass, neon underline animation (gradient)
-   Mobile nav: keep old glass buttons
-   ============================= */
-
-/* Mobile/tablet: keep glassy nav buttons (no hover underline) */
-@media (max-width: 860px){
-  .navbtn{
-    border-radius: var(--rBtn) !important;
-    border:1px solid rgba(255,255,255,.16) !important;
-    background:
-      radial-gradient(120% 140% at 20% 0%, rgba(255,255,255,.18), rgba(255,255,255,.07) 55%, rgba(255,255,255,.05)),
-      linear-gradient(180deg, rgba(12,14,30,.35), rgba(12,14,30,.15)) !important;
-    box-shadow: 0 10px 26px rgba(0,0,0,.35) !important;
-    backdrop-filter: blur(12px);
-    padding: 10px 12px !important;
-  }
-  .navbtn::after{ display:none !important; }
-}
-
-/* Desktop: remove background and add animated neon underline + subtle glow */
-@media (min-width: 861px){
-  .navbtn{
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    padding: 10px 12px 14px !important;
-  }
-  .navbtn{ position:relative; }
-  .navbtn::after{
-    content:"";
-    position:absolute;
-    left:10px;
-    right:10px;
-    bottom:3px;
-    height:2px;
-    border-radius:999px;
-    /* Purple neon underline (requested) */
-    background: linear-gradient(90deg,
-      rgba(168,85,247,0),
-      rgba(168,85,247,.95),
-      rgba(168,85,247,.95),
-      rgba(168,85,247,0)
-    );
-    box-shadow:
-      0 0 10px rgba(168,85,247,.22),
-      0 0 18px rgba(168,85,247,.14);
-    transform: scaleX(0);
-    transform-origin: right;
-    transition: transform .26s cubic-bezier(.2,.8,.2,1);
-    opacity:.95;
-  }
-  /* Hover: underline grows left->right. When leaving, it retracts towards the right */
-  .navbtn:hover::after,
-  .navbtn:focus-visible::after,
-  .navbtn.active::after{
-    transform: scaleX(1);
-    transform-origin: left;
-  }
-
-  .navbtn:hover,
-  .navbtn:focus-visible{
-    transform: translateY(-1px);
-    color: rgba(255,255,255,.98);
-    text-shadow:
-      0 0 10px rgba(255,255,255,.16),
-      0 0 18px rgba(168,85,247,.18);
-    outline: none;
-  }
-
-  /* Active tab: visible glow even without hover */
-  .navbtn.active{
-    color: rgba(255,255,255,.98);
-    text-shadow:
-      0 0 10px rgba(255,255,255,.18),
-      0 0 22px rgba(168,85,247,.22);
-    filter: drop-shadow(0 0 12px rgba(168,85,247,.18));
-  }
-}
