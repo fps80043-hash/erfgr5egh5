@@ -54,7 +54,7 @@ except Exception:
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_TAG = os.environ.get("BUILD_TAG") or "fix48"
+BUILD_TAG = os.environ.get("BUILD_TAG") or "fix49"
 BUILD_VERSION = os.environ.get("BUILD_VERSION") or f"{BUILD_TAG}-{int(time.time())}"
 
 # ----------------------------
@@ -814,7 +814,8 @@ def _roblox_post_with_csrf(url: str, *, cookie: str, json_body: Dict[str, Any]) 
 def roblox_inspect_gamepass(gamepass_url: str) -> Dict[str, Any]:
     gid = _parse_gamepass_id(gamepass_url)
     if not gid:
-        raise HTTPException(status_code=400, detail="Не удалось распознать ссылку/ID геймпасса")
+        # FIX: More specific error message to help debugging
+        raise HTTPException(status_code=400, detail=f"Не удалось распознать ссылку/ID геймпасса (получено: '{gamepass_url[:50] if gamepass_url else ''}')")
 
     endpoints = [
         RBX_GAMEPASS_INFO.format(gid=gid),
@@ -1018,7 +1019,8 @@ def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict
     now = time.time()
     try:
         cached = _ROBUX_GP_SCAN_CACHE.get(key)
-        if cached and cached[1] > now:
+        # FIX: Ensure cached gamepass ID is valid (non-zero) before using it
+        if cached and cached[1] > now and int(cached[0] or 0) > 0:
             return roblox_inspect_gamepass(str(int(cached[0])))
     except Exception:
         pass
@@ -1046,7 +1048,9 @@ def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict
                 info = roblox_inspect_gamepass(str(gid))
                 # verify owner matches uid (avoid weird matches)
                 if int(info.get("owner_id") or 0) == int(uid) and int(info.get("price") or 0) == int(expected_price):
-                    _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
+                    # FIX: Only cache if gid is valid (non-zero)
+                    if int(gid) > 0:
+                        _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
                     return info
 
         # Slow path: list didn't include prices -> probe limited set
@@ -1066,7 +1070,9 @@ def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict
             if int(info.get("owner_id") or 0) != int(uid):
                 continue
             if int(info.get("price") or 0) == int(expected_price):
-                _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
+                # FIX: Only cache if gid is valid (non-zero)
+                if int(gid) > 0:
+                    _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
                 return info
 
         # small pause to be polite / avoid 429 bursts
