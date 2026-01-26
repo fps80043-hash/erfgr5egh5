@@ -54,7 +54,7 @@ except Exception:
 # ----------------------------
 DEFAULT_TIMEOUT = 30
 
-BUILD_TAG = os.environ.get("BUILD_TAG") or "fix50"
+BUILD_TAG = os.environ.get("BUILD_TAG") or "fix51"
 BUILD_VERSION = os.environ.get("BUILD_VERSION") or f"{BUILD_TAG}-{int(time.time())}"
 
 # ----------------------------
@@ -1013,27 +1013,39 @@ def _roblox_gamepass_id_from_list_item(gp: Dict[str, Any]) -> int:
 
 
 def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict[str, Any]:
-    # cache by (owner_id, price)
+    """Find a gamepass owned by username with the expected price."""
+    print(f"[GP SCAN] Starting scan for user '{username}' with expected price {expected_price}")
+    
+    # Get user ID
     uid = roblox_username_to_id(username)
+    print(f"[GP SCAN] Resolved username '{username}' to user ID {uid}")
+    
+    # Check cache
     key = (int(uid), int(expected_price))
     now = time.time()
     try:
         cached = _ROBUX_GP_SCAN_CACHE.get(key)
-        # FIX: Ensure cached gamepass ID is valid (non-zero) before using it
         if cached and cached[1] > now and int(cached[0] or 0) > 0:
+            print(f"[GP SCAN] Cache hit! Gamepass ID {cached[0]}")
             return roblox_inspect_gamepass(str(int(cached[0])))
-    except Exception:
-        pass
-
+    except Exception as e:
+        print(f"[GP SCAN] Cache check error: {e}")
+    
+    # Get user's universes (games)
     universes = _roblox_iter_user_universes(uid, max_universes=60)
+    print(f"[GP SCAN] Found {len(universes)} universes for user {uid}")
+    
     if not universes:
-        raise HTTPException(status_code=400, detail="У пользователя нет публичных плейсов/игр")
+        raise HTTPException(status_code=400, detail=f"У пользователя {username} нет публичных плейсов/игр. Убедись, что у пользователя есть хотя бы одна публичная игра.")
 
-    # Scan universes and their gamepasses, stop on first match
-    for uni in universes:
+    # Scan universes and their gamepasses
+    total_passes_checked = 0
+    for i, uni in enumerate(universes):
         try:
             gps = _roblox_iter_universe_gamepasses(uni, max_passes=400)
-        except Exception:
+            print(f"[GP SCAN] Universe {uni}: found {len(gps)} gamepasses")
+        except Exception as e:
+            print(f"[GP SCAN] Universe {uni}: error getting gamepasses: {e}")
             continue
 
         # Fast path: if list item already contains price
@@ -1041,20 +1053,21 @@ def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict
             gid = _roblox_gamepass_id_from_list_item(gp)
             if not gid:
                 continue
+            total_passes_checked += 1
             price = _roblox_gamepass_price_from_list_item(gp)
             if price and int(price) != int(expected_price):
                 continue
             if price and int(price) == int(expected_price):
+                print(f"[GP SCAN] Found potential match: gamepass {gid} with price {price}")
                 info = roblox_inspect_gamepass(str(gid))
-                # verify owner matches uid (avoid weird matches)
+                # verify owner matches uid
                 if int(info.get("owner_id") or 0) == int(uid) and int(info.get("price") or 0) == int(expected_price):
-                    # FIX: Only cache if gid is valid (non-zero)
+                    print(f"[GP SCAN] Confirmed match: {info.get('name')} (ID: {gid})")
                     if int(gid) > 0:
                         _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
                     return info
 
-        # Slow path: list didn't include prices -> probe limited set
-        # Probe only first N passes to avoid heavy load
+        # Slow path: probe gamepasses without price info
         probed = 0
         for gp in gps:
             gid = _roblox_gamepass_id_from_list_item(gp)
@@ -1070,17 +1083,17 @@ def roblox_find_gamepass_by_username(username: str, expected_price: int) -> Dict
             if int(info.get("owner_id") or 0) != int(uid):
                 continue
             if int(info.get("price") or 0) == int(expected_price):
-                # FIX: Only cache if gid is valid (non-zero)
+                print(f"[GP SCAN] Found via slow path: {info.get('name')} (ID: {gid})")
                 if int(gid) > 0:
                     _ROBUX_GP_SCAN_CACHE[key] = (int(gid), now + 300.0)
                 return info
 
-        # small pause to be polite / avoid 429 bursts
         time.sleep(0.08)
 
+    print(f"[GP SCAN] No match found after checking {total_passes_checked} gamepasses in {len(universes)} universes")
     raise HTTPException(
         status_code=400,
-        detail=f"Не нашли геймпасс у пользователя с ценой {int(expected_price)} Robux. Проверь, что геймпасс публичный и выставлен на продажу.",
+        detail=f"Не нашли геймпасс у {username} с ценой {int(expected_price)} R$. Проверено {total_passes_checked} геймпассов в {len(universes)} играх. Убедись, что геймпасс создан, публичный и выставлен на продажу с ценой ровно {expected_price} R$.",
     )
 
 
@@ -4787,47 +4800,103 @@ def api_robux_quote(request: Request, amount: int):
 
 @app.post("/api/robux/inspect")
 def api_robux_inspect(request: Request, payload: Dict[str, Any]):
+    """
+    Inspect gamepass by URL/ID or find by username.
+    Returns gamepass info for the frontend to display.
+    """
     require_user(request)
-    # NOTE: Frontend may send a stale/incorrect `mode`. We infer the real mode from the payload.
-    # Priority: valid gamepass URL/ID -> URL mode, else username -> username mode.
+    
+    # Extract all possible fields from payload
     _mode_raw = str(payload.get("mode") or "").strip().lower()
     url = str(payload.get("url") or payload.get("gamepass_url") or payload.get("gamepass") or "").strip()
     username = str(payload.get("username") or payload.get("nick") or "").strip()
-
+    
+    # Debug: log what we received
+    _debug_payload = {
+        "mode_raw": _mode_raw,
+        "url": url[:50] if url else "",
+        "username": username,
+        "amount": payload.get("amount"),
+        "robux_amount": payload.get("robux_amount"),
+    }
+    print(f"[ROBUX INSPECT] Received payload: {_debug_payload}")
+    
+    # Parse gamepass ID from URL (if provided)
     gp_id = 0
     if url:
         try:
             gp_id = int(_parse_gamepass_id(url) or 0)
-        except Exception:
+        except Exception as e:
+            print(f"[ROBUX INSPECT] Failed to parse gamepass ID from url '{url}': {e}")
             gp_id = 0
-
-    mode = "url" if gp_id > 0 else ("username" if username else "")
-    # Accept both `amount` (current) and `robux_amount` (legacy) from frontend
+    
+    # Determine mode: URL mode if we have valid gamepass ID, otherwise username mode
+    # IMPORTANT: Respect frontend's mode if it explicitly says "username" and username is present
+    if _mode_raw == "username" and username:
+        mode = "username"
+    elif gp_id > 0:
+        mode = "url"
+    elif username:
+        mode = "username"
+    else:
+        mode = ""
+    
+    print(f"[ROBUX INSPECT] Determined mode: {mode} (gp_id={gp_id}, username={username})")
+    
+    # Parse amount
     try:
         amount = int(payload.get("amount") or payload.get("robux_amount") or 0)
     except Exception:
         amount = 0
-
+    
+    # URL MODE: inspect specific gamepass by ID
     if mode == "url":
         if gp_id <= 0:
             raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса")
+        print(f"[ROBUX INSPECT] URL mode: inspecting gamepass {gp_id}")
         info = roblox_inspect_gamepass(str(int(gp_id)))
         return {"ok": True, "gamepass": info, "mode": "url"}
-
-    # Username-mode: find a gamepass with the expected price
+    
+    # USERNAME MODE: find gamepass by username with matching price
+    if mode != "username":
+        raise HTTPException(status_code=400, detail="Укажи ссылку/ID геймпасса или ник Roblox")
+    
     if not username:
-        raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса или ник Roblox")
+        raise HTTPException(status_code=400, detail="Введи ник Roblox")
+    
     if amount <= 0:
-        raise HTTPException(status_code=400, detail="Нужно указать количество Robux")
+        raise HTTPException(status_code=400, detail="Укажи количество Robux (больше 0)")
     
-    # Validate username format BEFORE making any API calls
+    # Normalize and validate username
     normalized_username = normalize_roblox_username(username)
-    if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", normalized_username):
-        raise HTTPException(status_code=400, detail="Ник Roblox должен быть латиницей (A-Z, 0-9, _). Буквы Б, Г, Д, Ж, З, И, Й, Л, Ф, Ц, Ч, Ш, Щ, Ы, Э, Ю, Я не конвертируются!")
+    print(f"[ROBUX INSPECT] Username mode: normalized '{username}' -> '{normalized_username}'")
     
+    if not normalized_username:
+        raise HTTPException(status_code=400, detail="Ник Roblox пустой после нормализации")
+    
+    if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", normalized_username):
+        # Show which characters are problematic
+        bad_chars = [c for c in normalized_username if not re.match(r"[A-Za-z0-9_]", c)]
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Ник '{normalized_username}' содержит недопустимые символы: {bad_chars}. Roblox ники — только латиница (A-Z), цифры (0-9) и подчёркивание (_)."
+        )
+    
+    # Calculate expected gamepass price
     q = robux_calc(int(amount))
-    info = roblox_find_gamepass_by_username(normalized_username, int(q["gamepass_price"]))
-    return {"ok": True, "gamepass": info, "mode": "username", "expected_price": int(q["gamepass_price"])}
+    expected_price = int(q["gamepass_price"])
+    print(f"[ROBUX INSPECT] Looking for gamepass with price {expected_price} R$ for user '{normalized_username}'")
+    
+    # Find gamepass
+    try:
+        info = roblox_find_gamepass_by_username(normalized_username, expected_price)
+        print(f"[ROBUX INSPECT] Found gamepass: {info.get('gamepass_id')} - {info.get('name')}")
+        return {"ok": True, "gamepass": info, "mode": "username", "expected_price": expected_price}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ROBUX INSPECT] Error finding gamepass: {e}")
+        raise HTTPException(status_code=400, detail=f"Ошибка поиска геймпасса: {str(e)}")
 
 
 
@@ -4843,22 +4912,33 @@ def api_robux_order_create(request: Request, payload: Dict[str, Any]):
 
     gp_url = str(payload.get("gamepass_url") or payload.get("url") or "").strip()
     username = normalize_roblox_username(str(payload.get("username") or payload.get("nick") or "").strip())
+    
+    print(f"[ORDER CREATE] amount={amount}, gp_url='{gp_url}', username='{username}'")
 
     q = robux_calc(amount)
 
     # Resolve gamepass either by URL/ID or by username scan
-    if gp_url:
+    if gp_url and gp_url != "0":
+        print(f"[ORDER CREATE] Using gamepass URL/ID: {gp_url}")
         gp = roblox_inspect_gamepass(gp_url)
-        gp_url = str(gp_url)
     else:
         if not username:
             raise HTTPException(status_code=400, detail="Нужна ссылка/ID геймпасса или ник Roblox")
+        print(f"[ORDER CREATE] Finding gamepass for user '{username}' with price {q['gamepass_price']}")
         gp = roblox_find_gamepass_by_username(username, int(q["gamepass_price"]))
-        gp_url = str(int(gp.get("gamepass_id") or 0))
+    
+    # Extract gamepass ID - this is critical!
+    gamepass_id = int(gp.get("gamepass_id") or 0)
+    if gamepass_id <= 0:
+        raise HTTPException(status_code=400, detail="Не удалось получить ID геймпасса")
+    
+    # Store gamepass_id as gamepass_url for backward compatibility
+    gp_url = str(gamepass_id)
+    print(f"[ORDER CREATE] Gamepass found: ID={gamepass_id}, name={gp.get('name')}, price={gp.get('price')}")
 
     # Anti-fraud: price must match expected
     if int(gp.get("price") or 0) != int(q["gamepass_price"]):
-        raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {q['gamepass_price']} Robux")
+        raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {q['gamepass_price']} Robux, а не {gp.get('price')}")
     if int(gp.get("product_id") or 0) <= 0:
         raise HTTPException(status_code=400, detail="Не удалось получить ProductId геймпасса")
 
@@ -4959,7 +5039,16 @@ def api_robux_order_reserve(request: Request, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Нельзя забронировать этот заказ")
 
     # Re-check gamepass price (anti-fraud)
-    gp = roblox_inspect_gamepass(str(_rget(row, "gamepass_url") or ""))
+    # Use gamepass_id if available, otherwise gamepass_url
+    gp_id_from_db = int(_rget(row, "gamepass_id") or 0)
+    gp_url_from_db = str(_rget(row, "gamepass_url") or "").strip()
+    
+    gamepass_ref = str(gp_id_from_db) if gp_id_from_db > 0 else gp_url_from_db
+    if not gamepass_ref or gamepass_ref == "0":
+        con.close()
+        raise HTTPException(status_code=400, detail="Заказ не содержит ID геймпасса. Попробуй создать заказ заново.")
+    
+    gp = roblox_inspect_gamepass(gamepass_ref)
     if int(gp.get("price") or 0) != int(gp_price):
         con.close()
         raise HTTPException(status_code=400, detail=f"Цена геймпасса должна быть {gp_price} Robux")
@@ -5154,7 +5243,14 @@ def api_robux_order_pay(request: Request, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Бронь истекла. Создай заказ заново.")
 
     # Anti-fraud: re-check gamepass price/product right before purchase
-    gp = roblox_inspect_gamepass(str(_rget(row, "gamepass_url") or ""))
+    gp_id_from_db = int(_rget(row, "gamepass_id") or 0)
+    gp_url_from_db = str(_rget(row, "gamepass_url") or "").strip()
+    gamepass_ref = str(gp_id_from_db) if gp_id_from_db > 0 else gp_url_from_db
+    if not gamepass_ref or gamepass_ref == "0":
+        con.close()
+        raise HTTPException(status_code=400, detail="Заказ не содержит ID геймпасса")
+    
+    gp = roblox_inspect_gamepass(gamepass_ref)
     if int(gp.get("price") or 0) != int(gp_price) or int(gp.get("product_id") or 0) != int(_rget(row, "product_id") or 0):
         ts = _now_utc_iso()
         con.execute("UPDATE robux_orders SET status='failed', updated_at=?, error_message=? WHERE id=?", (ts, f"Цена/товар геймпасса изменились. Ожидалось {gp_price}.", int(oid)))

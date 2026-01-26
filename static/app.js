@@ -1,5 +1,5 @@
 /*__GLOBAL_CASE_MODAL_V9__*/
-/* BUILD: fix49 - improved username validation with Cyrillic normalization */
+/* BUILD: fix51 - improved username validation and logging */
 (function(){
   // guaranteed global function for shop case buttons
   window.openCaseModal = function(mode){
