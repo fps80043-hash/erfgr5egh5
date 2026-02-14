@@ -1,1525 +1,595 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>R$T — RBX Tool Seller</title>
-<link href="/static/styles.css?v=fix48" rel="stylesheet"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>RBX Store — Robux & Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="/static/styles.css?v={{build_version}}" rel="stylesheet">
 </head>
-<body class="theme-pastex">
-<canvas id="particles"></canvas>
-<div class="veil"></div>
-<header class="top">
-<div class="brand">
-<div aria-label="R$T logo" class="logo">
-<span class="logoChar c1">R</span><span class="logoChar c2">$</span><span class="logoChar c3">T</span>
-</div>
-<div class="btxt">
-<div aria-label="R$T logo" class="name"><span class="l1">R</span><span class="l2">$</span><span class="l3">T</span></div>
-<div class="tag">RBX Tool Seller</div>
-</div>
-</div>
-<nav aria-label="Навигация" class="nav">
-<button class="navbtn active tilt" data-tab="home"><span class="navIco ico" data-ico="home" aria-hidden="true"></span><b>Главная</b></button>
-<button class="navbtn tilt" data-tab="tools"><span class="navIco ico" data-ico="box" aria-hidden="true"></span><b>Инструменты</b></button>
-<button class="navbtn tilt" data-tab="shop"><span class="navIco ico" data-ico="cart" aria-hidden="true"></span><b>Магазин</b></button>
-<button class="navbtn tilt" data-tab="profile"><span class="navIco ico" data-ico="user" aria-hidden="true"></span><b>Профиль</b></button>
-</nav>
-<div class="topright">
-<div class="topBalance" id="topBalanceBox" style="display:none">
-<button class="btn mini tilt balancePill" id="btnTopBalance" type="button">
-<span class="ico" data-ico="wallet" aria-hidden="true" style="opacity:.95"></span>
-<span id="topBalanceValue">0</span>
-</button>
-</div>
-</div>
-</header>
-<main class="wrap">
-<section class="pane active" id="tab-home">
-<div class="gridHome">
-<div class="card hero tilt">
-<div class="heroTop">
-<div>
-<h1>R$T — RBX Tool Seller</h1>
-<p class="muted">Площадка с инструментами для описаний, AI и магазином Premium. Быстро, удобно, красиво.</p>
-</div>
-<div class="heroBadges">
-<span class="badge">BLACK • PURPLE</span>
-<span class="badge">MINIMAL • NEON</span>
-</div>
-</div>
-<div class="heroGrid">
-<div class="heroItem">
-<div class="hIco">⚡</div>
-<div>
-<div class="hT">Генератор описаний</div>
-<div class="muted">Анализ аккаунта и шаблоны — результат одним кликом.</div>
-</div>
-</div>
-<div class="heroItem">
-<div class="hIco">✨</div>
-<div>
-<div class="hT">AI + чат</div>
-<div class="muted">Быстрая генерация под стиль площадки.</div>
-</div>
-</div>
-<div class="heroItem">
-<div class="hIco">🎁</div>
-<div>
-<div class="hT">Кейс с призами</div>
-<div class="muted">Прокрутка как в CS — выбей генерации или Premium.</div>
-</div>
-</div>
-<div class="heroItem">
-<div class="hIco">💳</div>
-<div>
-<div class="hT">Баланс и Premium</div>
-<div class="muted">Оплата за баланс, пополнение через CryptoBot/промокод/админа.</div>
-</div>
-</div>
-</div>
-<div class="heroCtas">
-<button class="btn primary tilt" data-goto="tools" id="btnGoTools" type="button">Открыть инструменты</button>
-<button class="btn tilt" data-goto="shop" id="btnGoShop" type="button">Перейти в магазин</button>
-</div>
-</div>
-<div class="card">
-<h2>ℹ️ Что это за сайт?</h2>
-<div class="muted">
-<p>1) Авторизуйся → 2) выбери инструмент → 3) используй баланс или Premium для снятия ограничений.</p>
-<p>Баланс отображается справа сверху. Если не вошёл — не покажется.</p>
-</div>
-<details class="rawbox" style="margin-top:10px">
-<summary>Показать справку</summary>
-<div class="muted" style="margin-top:10px">
-<p><b>CryptoBot</b> — оплату можно открывать в браузере или в Telegram. После оплаты нажми «Проверить».</p>
-<p><b>Pollinations</b> — бесплатно, без ключей. Иногда может быть медленно.</p>
-<p><b>Groq</b> — нужен ключ <code>GROQ_API_KEY</code> (Environment).</p>
-<p><b>Cookie</b> нигде не сохраняется сервером. Используется только для чтения данных.</p>
-</div>
-</details>
-<div class="divider"></div>
-<h3>👨‍💻 Разработчик</h3>
-<p class="muted">TG: <b>@E6JLAHOC</b></p>
-</div>
-</div>
-</section>
-<section class="pane" id="tab-tools">
-<div class="toolsLanding" id="toolsLanding">
-<div class="gridTools">
-<div class="card toolsIntro">
-<div class="headrow">
-<h2>🧰 Инструменты</h2>
-</div>
-<p class="muted">Нажми на модуль — откроется отдельная рабочая область. Никакой каши, только нужное.</p>
-</div>
-<div class="toolGrid">
-<button class="toolCard tilt" data-tool="gen" type="button">
-<div class="tTop">
-<div class="tIco">✍️</div>
-<div class="tMeta">
-<div class="tName">Генерация описания</div>
-<div class="tSub muted">Cookie → анализ → шаблон → результат</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">быстро</span>
-<span class="pillTag">шаблоны</span>
-</div>
-</button>
-<button class="toolCard tilt" data-tool="chat" type="button">
-<div class="tTop">
-<div class="tIco">💬</div>
-<div class="tMeta">
-<div class="tName">AI чат</div>
-<div class="tSub muted">Общение с моделью (Premium)</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">контекст</span>
-<span class="pillTag">premium</span>
-</div>
-</button>
-<button class="toolCard tilt" data-tool="ai" type="button">
-<div class="tTop">
-<div class="tIco">✨</div>
-<div class="tMeta">
-<div class="tName">AI генератор</div>
-<div class="tSub muted">Новый заголовок и описание под стиль</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">pollinations</span>
-<span class="pillTag">groq</span>
-</div>
-</button>
-<button class="toolCard tilt soon" data-tool="checker" type="button">
-<div class="ribbon">SOON</div>
-<div class="tTop">
-<div class="tIco">🔍</div>
-<div class="tMeta">
-<div class="tName">Checker</div>
-<div class="tSub muted">Проверка аккаунтов / данных</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">в разработке</span>
-</div>
-</button>
-<button class="toolCard tilt soon" data-tool="refresher" type="button">
-<div class="ribbon">SOON</div>
-<div class="tTop">
-<div class="tIco">🔄</div>
-<div class="tMeta">
-<div class="tName">Refresher</div>
-<div class="tSub muted">Обновление/рефреш данных</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">в разработке</span>
-</div>
-</button>
-<button class="toolCard tilt soon" data-tool="bulk" type="button">
-<div class="ribbon">SOON</div>
-<div class="tTop">
-<div class="tIco">📦</div>
-<div class="tMeta">
-<div class="tName">Bulk tools</div>
-<div class="tSub muted">Пакетные операции</div>
-</div>
-</div>
-<div class="tFoot">
-<span class="pillTag">в разработке</span>
-</div>
-</button>
-</div>
-</div>
-</div>
-<div class="toolsTopbar" id="toolsTopbar" style="display:none">
-<button class="iconbtn tilt" id="btnToolsBack" type="button">←</button>
-<div class="toolsTB">
-<div class="toolsT" id="toolsTitle">—</div>
-<div class="muted toolsS" id="toolsSub">—</div>
-</div>
-</div>
-<div class="toolPane" id="toolPaneGen">
-<div class="grid">
-<div class="card">
-<h2>🔐 Вход по cookie</h2>
-<p class="muted">Cookie не изменяется и не «ломается»: мы только читаем данные аккаунта. На сервере не сохраняется.</p>
-<textarea class="input mono" id="cookie" placeholder="_|WARNING:DO-NOT-SHARE-THIS..." rows="3"></textarea>
-<div class="row">
-<button class="btn primary" id="btnAnalyze">Анализировать</button>
-<div class="status" id="status">Ожидание…</div>
-</div>
-<div class="pbar" id="pbarAnalyze"><div class="pfill" id="pfillAnalyze"></div></div>
-<div class="divider"></div>
-<h3>📌 Факты</h3>
-<div class="facts">
-<div class="fact"><span>Ник</span><b id="f_username">—</b></div>
-<div class="fact"><span>Профиль</span><a id="f_link" rel="noreferrer" target="_blank">—</a></div>
-<div class="fact"><span>Robux</span><b id="f_robux">—</b></div>
-<div class="fact"><span>RAP</span><b id="f_rap">—</b></div>
-<div class="fact"><span>Донат</span><b id="f_total">—</b></div>
-<div class="fact"><span>Год</span><b id="f_year">—</b></div>
-<div class="fact"><span>Инвентарь</span><b id="f_inv">—</b></div>
-</div>
-</div>
-<div class="card">
-<div class="headrow">
-<h2>🧩 Шаблоны</h2>
-<div class="headtools">
-<label class="miniToggle" title="Автоматически обновлять результат при изменении шаблона">
-  <input type="checkbox" id="autoPreview" checked>
-  <span>Авто</span>
-</label>
-<button class="btn mini" id="btnBuildPreview" title="Собрать результат по текущим фактам" type="button">⚡ Собрать</button>
-<button class="btn mini" id="btnSaveTpl">💾</button>
-<button class="btn mini" id="btnResetTpl">↺</button>
-</div>
-</div>
+<body>
+  <!-- Ambient Background -->
+  <div class="ambient-bg">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+  </div>
 
-<div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px">
-  <div style="flex:1; min-width:220px">
-    <label class="lbl" style="margin-top:0">Шаблон</label>
-    <select class="input" id="tplSelect"></select>
-  </div>
-  <div style="min-width:160px">
-    <label class="lbl" style="margin-top:0">AGE GROUP</label>
-    <select class="input" id="tplAgeGroup">
-      <option value="0">&lt;13</option>
-      <option value="13">13+</option>
-      <option value="16">16+</option>
-      <option value="18">18+</option>
-      <option value="21">21+</option>
-    </select>
-  </div>
-  <div style="display:flex; gap:8px; align-items:flex-end; padding-bottom:2px">
-    <button class="btn mini" id="btnTplNew" type="button">＋ Создать</button>
-    <button class="btn mini" id="btnTplDel" type="button">🗑 Удалить</button>
-  </div>
-</div>
-
-<label class="lbl">Шаблон заголовка</label>
-<input class="input" id="tplTitle"/>
-<label class="lbl">Шаблон описания</label>
-<textarea class="input mono" id="tplDesc" rows="10"></textarea>
-<div class="divider"></div>
-<div class="headrow">
-<h2>✅ Результат</h2>
-<div class="headtools">
-<button class="btn mini" id="btnCopyTitle">📋 Заголовок</button>
-<button class="btn mini" id="btnCopyDesc">📋 Описание</button>
-<button class="btn primary mini" id="btnCopyAll">📄 Всё</button>
-</div>
-</div>
-<label class="lbl">Заголовок</label>
-<input class="input" id="outTitle" readonly=""/>
-<label class="lbl">Описание</label>
-<textarea class="input mono" id="outDesc" readonly="" rows="12"></textarea>
-<div class="varsRow" id="varsRow" aria-label="Переменные"></div>
-<div class="tip muted">Переменные: <code>{username}</code> <code>{robux}</code> <code>{rap_tag}</code> <code>{donate_tag}</code> <code>{year_tag}</code> <code>{profile_link}</code> <code>{inv_ru}</code> <code>{age_group}</code></div>
-</div>
-</div>
-</div>
-<div class="toolPane" id="toolPaneAI" style="display:none">
-<div class="grid1">
-<div class="card">
-<h2>✨ AI генератор</h2>
-<p class="muted">Сгенерирует новый заголовок и описание по фактам аккаунта. Два сервиса: Pollinations (бесплатно) и Groq (нужен ключ).</p>
-<div class="row">
-<label class="lbl">Сервис</label>
-<select class="input" id="aiProvider">
-<option value="pollinations">Pollinations (free)</option>
-<option value="groq">Groq (key)</option>
-<option value="blackbox">BlackBox (key)</option>
-</select>
-</div>
-<div class="row">
-<label class="lbl">Модель</label>
-<select class="input" id="aiModel"></select>
-</div>
-<div class="row">
-<label class="lbl">Режим</label>
-<select class="input" id="aiMode">
-<option>Рерайт</option>
-<option>Креатив</option>
-<option>С нуля</option>
-</select>
-</div>
-<div class="row">
-<label class="lbl">Стиль</label>
-<select class="input" id="aiTone">
-<option>Классика</option>
-<option>Люкс</option>
-<option>Минимал</option>
-<option>Доверие</option>
-</select>
-</div>
-<label class="lbl">Доп. пожелания</label>
-<input class="input" id="aiExtra" placeholder="Например: сделай под стиль Avito, добавь гарантию..."/>
-<div class="row">
-<button class="btn primary" id="btnAIGen">Сгенерировать</button>
-<div class="status" id="aiStatus">—</div>
-</div>
-<div class="pbar" id="pbarAI"><div class="pfill" id="pfillAI"></div></div>
-<div class="divider"></div>
-<details class="rawbox">
-<summary>Показать ответ модели</summary>
-<pre class="raw" id="aiRaw"></pre>
-</details>
-</div>
-</div>
-</div>
-<div class="toolPane" id="toolPaneChat" style="display:none">
-<div class="grid1">
-<div class="card">
-<h2>💬 AI чат</h2>
-<p class="muted">Отдельный чат. В Premium — без ограничений. Ползунок «Контекст» добавляет данные аккаунта/шаблонов.</p>
-<div class="row">
-<label class="lbl" style="margin:0">Контекст</label>
-<label class="switch">
-<input checked="" id="chatCtx" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="muted" id="chatCtxLabel">включён</div>
-</div>
-<div class="chatlog" id="chatLog"></div>
-<div class="chatrow" id="chatBox">
-<input class="input" id="chatMsg" placeholder="Напиши сообщение…">
-<button class="btn primary" id="btnChatSend">Отправить</button>
-</input></div>
-<div class="pbar" id="pbarChat"><div class="pfill" id="pfillChat"></div></div>
-</div>
-</div>
-</div>
-<div class="toolPane" id="toolPaneSoon" style="display:none">
-<div class="grid1">
-<div class="card">
-<h2>🛠️ В разработке</h2>
-<p class="muted">Этот инструмент появится чуть позже. Сейчас можно пользоваться генератором, AI и чатом.</p>
-<div class="soonBox">
-<div class="soonGlow"></div>
-<div>
-<div class="soonTitle" id="soonTitle">—</div>
-<div class="muted" id="soonDesc" style="margin-top:6px">—</div>
-</div>
-</div>
-<div class="divider"></div>
-<button class="btn primary tilt" id="btnSoonBack" type="button">← Назад к инструментам</button>
-</div>
-</div>
-</div>
-</section>
-
-<section class="pane" id="tab-shop">
-<div class="card">
-<div class="headrow" style="align-items:center; gap:10px"><h2 style="margin:0">🛒 Магазин</h2><button class="btn mini" id="btnShopHistory" type="button"><span class="ico" data-ico="receipt" aria-hidden="true"></span> История покупок</button></div>
-<p class="muted">Покупка Premium, пополнение баланса и кейс с призами. Кейс видно всем, но открыть можно только после входа.</p>
-<div class="shopControls">
-  <div class="shopSearch">
-    <input class="input" id="shopSearch" list="shopHints" placeholder="Поиск товара… (например: prem, кейс, баланс)"/>
-    <datalist id="shopHints">
-      <option value="Пополнение баланса"></option>
-      <option value="Premium"></option>
-      <option value="Кейс"></option>
-      <option value="Кейс с призами"></option>
-    </datalist>
-  </div>
-  <div class="shopSort">
-    <select class="input" id="shopSort">
-      <option value="default">Сортировка: по умолчанию</option>
-      <option value="name_asc">Имя: A → Z</option>
-      <option value="name_desc">Имя: Z → A</option>
-    </select>
-  </div>
-</div>
-
-<div class="productGrid" id="shopGrid">
-<div class="productCard tilt pxtCard" id="prodTopup">
-  <div class="prodMedia">
-    <div class="prodMediaGlow"></div>
-    <div class="prodMediaIcon"><span class="ico" data-ico="card" aria-hidden="true"></span></div>
-  </div>
-  <div class="prodBody">
-    <div class="prodHead">
-      <div class="prodTitle">Пополнение баланса</div>
-      <div class="prodTag">Balance</div>
-    </div>
-    <div class="prodDesc">Быстро пополни баланс и покупай Premium или открывай кейс. Доступны разные способы.</div>
-    <div class="prodFooter">
-      <button class="btn pxtBtn" id="btnTopUpShop" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Пополнить</button>
-      <div class="prodPrice">
-        <div class="priceHint">Любая сумма</div>
-        <div class="priceMain">₽</div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="productCard tilt pxtCard" id="prodPremium">
-  <div class="prodMedia">
-    <div class="prodMediaGlow"></div>
-    <div class="prodMediaIcon"><span class="ico" data-ico="crown" aria-hidden="true"></span></div>
-  </div>
-  <div class="prodBody">
-    <div class="prodHead">
-      <div class="prodTitle">Premium</div>
-      <div class="prodTag">Executor</div>
-    </div>
-    <div class="prodDesc">Доступ к расширенным возможностям: модели, лимиты и приоритет.</div>
-    <div class="prodFooter">
-      <div class="prodBtnRow">
-        <button class="btn pxtBtnGhost" id="btnOpenPremiumShop" type="button">Открыть</button>
-        <button class="btn pxtBtn" id="btnBuyPremium" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Купить</button>
-      </div>
-      <div class="prodPrice">
-        <div class="priceHint">Starting at</div>
-        <div class="priceMain"><span style="opacity:.85">₽</span><span id="premiumPrice">—</span></div>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- Case: FREE (captcha) -->
-<div class="productCard tilt pxtCard" id="prodCaseFree" data-prod="case-free">
-  <div class="prodMedia">
-    <img class="prodMediaArt" src="/static/banners/case_free.svg" alt="Кейс за капчу" loading="lazy"/>
-    <div class="prodMediaGlow"></div>
-  </div>
-  <div class="prodBody">
-    <div class="prodHead">
-      <div class="prodTitle">Кейс за капчу</div>
-      <div class="prodTag">FREE</div>
-    </div>
-    <div class="prodDesc">Открытие раз в 2 дня. Призы: бонусы и Premium. Только для авторизованных.</div>
-    <div class="prodFooter">
-      <button class="btn pxtBtn" id="btnOpenCaseFree" type="button"><span class="ico" data-ico="target" aria-hidden="true"></span> Открыть</button>
-      <div class="prodPrice">
-        <div class="priceHint">Cooldown</div>
-        <div class="priceMain">48h</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Case: PAID (17₽) -->
-<div class="productCard tilt pxtCard" id="prodCasePaid" data-prod="case-paid">
-  <div class="prodMedia">
-    <img class="prodMediaArt" src="/static/banners/case_paid.svg" alt="Кейс за 17 рублей" loading="lazy"/>
-    <div class="prodMediaGlow"></div>
-  </div>
-  <div class="prodBody">
-    <div class="prodHead">
-      <div class="prodTitle">Кейс за 17₽</div>
-      <div class="prodTag">PAID</div>
-    </div>
-    <div class="prodDesc">Без капчи. Быстрый кейс за баланс. Призы начисляются в инвентарь.</div>
-    <div class="prodFooter">
-      <button class="btn pxtBtn" id="btnOpenCasePaid" type="button"><span class="ico" data-ico="cart" aria-hidden="true"></span> Открыть</button>
-      <div class="prodPrice">
-        <div class="priceHint">Starting at</div>
-        <div class="priceMain">₽17</div>
-      </div>
-    </div>
-  </div>
-</div>
-</div> <!-- /productGrid -->
-</div> <!-- /card -->
-</section>
-<section class="pane" id="tab-profile">
-<div class="profileLayout">
-  <!-- LEFT: identity + quick actions -->
-  <div class="profileSide">
-    <div class="card">
-      <div class="pHeroNew">
-        <div class="pAvatar tilt" id="pAvatar">?</div>
-        <div>
-          <div class="pName" id="pName">Гость</div>
-          <div class="pSub">ID: <b id="pUserId">—</b> • <span style="opacity:.9">Статус:</span> <b id="meStatus">не вошёл</b></div>
+  <!-- iOS-style Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">
+          <span class="logo-r">R</span>
+          <span class="logo-dollar">$</span>
         </div>
-        <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
-          <div class="badge" id="badgePremium" style="display:none">FREE</div>
-          <button class="iconBtn" id="btnNotifOpen" style="display:none" type="button" aria-label="Уведомления">
-            <span class="ico" data-ico="bell" aria-hidden="true"></span>
-            <span class="badge hidden" id="notifBadge" style="position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 6px; font-size:11px; border-radius:999px">0</span>
-          </button>
-          <button class="btn mini" id="btnLogout" style="display:none" type="button">Выйти</button>
+        <div class="logo-text">
+          <span class="logo-name">RBX Store</span>
+          <span class="logo-tag">Premium Tools</span>
         </div>
       </div>
-
-      <div class="quickStats">
-        <div class="qStat" id="profileBalanceQuick" style="display:none">
-          <div class="k">Баланс</div>
-          <div class="v" id="profileBalanceValue">0 ₽</div>
-        </div>
-        <div class="qStat" id="premiumState" style="display:none">
-          <div class="k">Premium до</div>
-          <div class="v" id="limPremiumUntil">—</div>
-        </div>
-      </div>
-
-      <div class="profileActions">
-        <button class="btn" id="btnTopUp" type="button"><span class="ico" data-ico="card" aria-hidden="true"></span> Пополнить</button>
-        <button class="btn" id="btnShowTx" type="button"><span class="ico" data-ico="receipt" aria-hidden="true"></span> Транзакции</button>
-        <button class="btn" id="btnShowSavedTemplates" type="button"><span class="ico" data-ico="folder" aria-hidden="true"></span> Шаблоны</button>
       
-<button class="btn" id="btnSettings" type="button"><span class="ico" data-ico="gear" aria-hidden="true"></span> Настройки</button>
-<button class="btn adminOnly" id="btnShopPanel" type="button"><span class="ico" data-ico="edit" aria-hidden="true"></span> Панель магазина</button>
-</div>
+      <nav class="nav-desktop">
+        <button class="nav-btn active" data-tab="home">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span>Главная</span>
+        </button>
+        <button class="nav-btn" data-tab="robux">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v12M6 12h12"/>
+          </svg>
+          <span>Robux</span>
+        </button>
+        <button class="nav-btn" data-tab="tools">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span>Инструменты</span>
+        </button>
+        <button class="nav-btn" data-tab="shop">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span>Магазин</span>
+        </button>
+        <button class="nav-btn" data-tab="profile">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Профиль</span>
+        </button>
+      </nav>
 
-      <div class="divider" style="margin-top:12px"></div>
-      <div class="muted" style="font-size:12px">Быстрые действия: пополнение, история, шаблоны. Всё остальное — справа.</div>
-    </div>
-
-    <div class="card" id="themeBox" style="display:none">
-      <div class="headrow">
-        <h3><span class="ico" data-ico="palette" aria-hidden="true"></span> Тема</h3>
-        <div class="badge" style="margin-left:auto">Оформление</div>
-      </div>
-      <div class="row" style="flex-wrap:wrap; margin-top:10px">
-        <div style="flex:1; min-width:220px">
-          <label class="lbl">Выбор темы</label>
-          <select class="input" id="themeSelect">
-            <option value="night">Night</option>
-            <option value="night2">Night v2</option>
-          </select>
-        </div>
-
-        <div style="flex:1; min-width:220px">
-          <label class="lbl">Курсор</label>
-          <select class="input" id="cursorSelect">
-            <option value="neon-purple">Neon Purple</option>
-            <option value="default">Default</option>
-          </select>
-        </div>
-        <div style="flex:1; min-width:220px">
-          <label class="lbl">Числа</label>
-          <label class="check">
-            <select class="input" id="numFormatSelect">
-            <option value="comma">1,700</option>
-            <option value="abbr">1.7K</option>
-          </select>
-            <span>Сокращать (1K / 1.7K)</span>
-          </label>
-        </div>
-        
-      </div>
-      <div class="muted" style="margin-top:8px; font-size:12px">Тема и формат чисел сохраняются в браузере.</div>
-    </div>
-  </div>
-
-  <!-- RIGHT: account / limits / inventory / admin -->
-  <div class="profileMain">
-<div class="card" id="limitsBox" style="margin-top:12px; display:none">
-<div class="headrow">
-<h3>⚡ Доступ</h3>
-<div class="badge" style="margin-left:auto" class="muted">Права</div>
-</div>
-<div class="grid2" style="margin-top:8px">
-<div class="stat">
-<div class="muted">Генерации описания</div>
-<div class="statv" id="limAnalyze">—</div>
-</div>
-<div class="stat">
-<div class="muted">AI запросы</div>
-<div class="statv" id="limAI">—</div>
-</div>
-<div class="stat">
-<div class="muted">Premium до</div>
-<div class="statv" id="limPremiumUntil2">—</div>
-</div>
-<div class="stat">
-<div class="muted">Кейс</div>
-<div class="statv" id="limCase">—</div>
-</div>
-</div>
-<div class="muted" style="margin-top:10px">
-    Premium снимает лимиты и открывает чат с ИИ. Можно оформить подписку ниже или выбить Premium в бесплатном кейсе.
-  </div>
-</div>
-
-<div class="card" id="invBox" style="margin-top:12px; display:none">
-  <div class="headrow">
-    <h3><span class="ico" data-ico="gift" aria-hidden="true"></span> Инвентарь</h3>
-    <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-      <div class="badge" id="invCount">0/10</div>
-      <button class="btn primary" id="btnInvOpen" type="button"><span class="ico" data-ico="eye" aria-hidden="true"></span> Открыть</button>
-    </div>
-  </div>
-  <div class="muted" style="margin-top:8px; font-size:12px">
-    Призы из кейсов попадают сюда. Их можно использовать <b>единоразово</b> в любой момент. Если Premium уже активен — Premium/лимит-призы тратить нельзя.
-  </div>
-</div>
-
-<div class="card" id="adminCard" style="margin-top:12px; display:none">
-  <div class="headrow">
-    <h3><span class="ico" data-ico="shield" aria-hidden="true"></span> Админ-панель</h3>
-    <button class="btn primary tilt" id="btnAdminOpen" type="button" style="margin-left:auto">Открыть</button>
-  </div>
-  <div class="muted" style="margin-top:8px; font-size:12px">
-    Модерация пользователей, баны, смена ников, баланс, промокоды, заявки, уведомления.
-  </div>
-</div>
-
-<div id="authBox" class="authBoxCenter">
-  <div class="authTabs">
-    <button class="pill active" data-auth="login" type="button">Войти</button>
-    <button class="pill" data-auth="register" type="button">Зарегистрироваться</button>
-    <button class="pill" data-auth="reset" type="button">Сбросить пароль</button>
-  </div>
-
-  <!-- LOGIN WIZARD -->
-  <div class="authPane" id="authPaneLogin">
-    <div class="authTitleRow">
-      <div class="authTitle">Вход</div>
-      <div class="authStepHint" id="loginStepHint">Шаг 1 из 3 — логин или email</div>
-    </div>
-
-    <div class="authSteps" data-flow="login">
-      <div class="authStep active" data-step="1">
-        <label class="lbl">Логин или Email</label>
-        <input class="input" id="loginUser" autocomplete="username" placeholder="Kirill_123 или mail@example.com"/>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnLoginNext1" type="button">Далее</button>
-        </div>
-      </div>
-
-      <div class="authStep" data-step="2">
-        <button class="authBack" type="button" data-flow="login" data-to="1" aria-label="Назад">←</button>
-        <label class="lbl">Пароль</label>
-        <input class="input" id="loginPass" autocomplete="current-password" placeholder="••••••" type="password"/>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnLoginNext2" type="button">Войти</button>
-        </div>
-      </div>
-
-      <div class="authStep" data-step="3">
-        <button class="authBack" type="button" data-flow="login" data-to="2" aria-label="Назад">←</button>
-        <label class="lbl">Код из письма (2FA)</label>
-        <input class="input" id="loginCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnLoginConfirm" type="button">Подтвердить</button>
-        </div>
-        <p class="muted" style="margin-top:10px">Если кода нет — проверь «Спам». Можно запросить код повторно, просто нажав «Войти» на предыдущем шаге.</p>
+      <div class="header-actions">
+        <button class="balance-btn hidden" id="balanceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+          <span id="balanceValue">0 ₽</span>
+        </button>
+        <button class="avatar-btn" id="avatarBtn">
+          <span id="avatarLetter">?</span>
+        </button>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- REGISTER WIZARD -->
-  <div class="authPane" id="authPaneRegister" style="display:none">
-    <div class="authTitleRow">
-      <div class="authTitle">Регистрация</div>
-      <div class="authStepHint" id="regStepHint">Шаг 1 из 3 — логин и email</div>
-    </div>
-
-    <div class="authSteps" data-flow="reg">
-      <div class="authStep active" data-step="1">
-        <div class="row">
-          <div style="flex:1">
-            <label class="lbl">Логин</label>
-            <input class="input" id="regUser" autocomplete="username" placeholder="Kirill_123"/>
-          </div>
-          <div style="flex:1">
-            <label class="lbl">Email</label>
-            <input class="input" id="regEmail" autocomplete="email" placeholder="mail@example.com"/>
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnRegNext1" type="button">Далее</button>
-        </div>
-      </div>
-
-      <div class="authStep" data-step="2">
-        <button class="authBack" type="button" data-flow="reg" data-to="1" aria-label="Назад">←</button>
-        <div class="row">
-          <div style="flex:1">
-            <label class="lbl">Пароль</label>
-            <input class="input" id="regPass" autocomplete="new-password" placeholder="••••••" type="password"/>
-          </div>
-          <div style="flex:1">
-            <label class="lbl">Повтори пароль</label>
-            <input class="input" id="regPass2" autocomplete="new-password" placeholder="••••••" type="password"/>
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn" id="btnRegSendCode" type="button">Отправить код</button>
-        </div>
-        <p class="muted" style="margin-top:10px">Код придёт на почту. Если письма нет — проверь «Спам».</p>
-      </div>
-
-      <div class="authStep" data-step="3">
-        <button class="authBack" type="button" data-flow="reg" data-to="2" aria-label="Назад">←</button>
-        <label class="lbl">Код подтверждения</label>
-        <input class="input" id="regCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnRegConfirm" type="button">Зарегистрироваться</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RESET WIZARD -->
-  <div class="authPane" id="authPaneReset" style="display:none">
-    <div class="authTitleRow">
-      <div class="authTitle">Сброс пароля</div>
-      <div class="authStepHint" id="resetStepHint">Шаг 1 из 2 — email</div>
-    </div>
-
-    <div class="authSteps" data-flow="reset">
-      <div class="authStep active" data-step="1">
-        <label class="lbl">Email</label>
-        <input class="input" id="resetEmail" autocomplete="email" placeholder="mail@example.com"/>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnResetSendCode" type="button">Далее</button>
-        </div>
-        <p class="muted" style="margin-top:10px">Если аккаунт с этим email существует — код отправится.</p>
-      </div>
-
-      <div class="authStep" data-step="2">
-        <button class="authBack" type="button" data-flow="reset" data-to="1" aria-label="Назад">←</button>
-        <div class="row">
-          <div style="flex:1">
-            <label class="lbl">Код</label>
-            <input class="input" id="resetCode" inputmode="numeric" placeholder="000000" maxlength="6"/>
-          </div>
-          <div style="flex:1">
-            <label class="lbl">Новый пароль</label>
-            <input class="input" id="resetPass" autocomplete="new-password" placeholder="••••••" type="password"/>
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnResetConfirm" type="button">Сменить пароль</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-</div>
-</div>
-</section>
-
-</main>
-
-<div id="caseOpenBack" class="modalBack hidden"></div>
-<div id="caseOpenModal" class="modal glass modalCase hidden" role="dialog" aria-modal="true">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="modalTitle" id="caseModalTitle">Кейс</div>
-      <div class="badge" id="caseModeBadge">FREE</div>
-    </div>
-    <button class="iconBtn" id="btnCaseModalClose" type="button" aria-label="Close">✕</button>
-  </div>
-
-  <div class="caseStage">
-    <div class="caseReelWrap">
-      <div class="caseMarker" aria-hidden="true"></div>
-      <div id="caseReel" class="caseReel"></div>
-    </div>
-  </div>
-
-  <div id="caseResult" class="caseResult hidden"></div>
-
-  <div class="caseControls">
-    <div class="row">
-      <button class="btn secondary" id="btnCasePrizes" type="button">👁 Призы</button>
-    </div>
-
-    <div id="caseFreeControls" class="caseControlsBox">
-      <div class="row gap">
-        <button class="btn primary" id="btnCaseGetCaptcha" type="button">Получить капчу</button>
-        <input id="caseAnswer" class="input" placeholder="Ответ капчи" inputmode="numeric" />
-        <button class="btn primary" id="btnCaseOpenFree" type="button">Открыть</button>
-      </div>
-      <div id="caseHint" class="hint"></div>
-    </div>
-
-    <div id="casePaidControls" class="caseControlsBox hidden">
-      <div class="row gap">
-        <button class="btn primary" id="btnCaseOpenPaid" type="button">Открыть за 17₽</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="casePrizesBack" class="modalBack hidden"></div>
-<div id="casePrizesModal" class="modal glass modalPrizes hidden" role="dialog" aria-modal="true">
-  <div class="modalHeader">
-    <div class="modalTitle">Призы</div>
-    <button class="iconBtn" id="btnCasePrizesClose" type="button" aria-label="Close">✕</button>
-  </div>
-  <div id="casePrizesList" class="prizesList"></div>
-</div>
-<!-- /CASES MODALS -->
-
-
-
-<!-- Payment modal -->
-<div class="modal" data-backdrop="1" id="payModal" style="display:none">
-<div class="modal-back" id="payBack"></div>
-<div class="modal-card">
-<div class="headrow">
-<h3 id="payTitle">Оплата</h3>
-<button class="iconbtn" id="btnPayClose" type="button">×</button>
-</div>
-<div class="seg" id="paySeg">
-<button class="segbtn active" data-seg="topup" type="button">Пополнить</button>
-<button class="segbtn" data-seg="premium" type="button">Premium</button>
-</div>
-<div class="payPane" id="payPaneTopup">
-<div class="muted" style="margin-top:6px">1) Выбери пакет баланса</div>
-<div class="packGrid" id="topupPacks" style="margin-top:10px"></div>
-<div class="divider" style="margin-top:12px"></div>
-<div class="muted" style="margin-top:6px">2) Способ пополнения</div>
-<div class="seg" id="topupSeg" style="margin-top:8px">
-<button class="segbtn active" data-method="crypto" type="button">CryptoBot</button>
-<button class="segbtn" data-method="promo" type="button">Промокод</button>
-<button class="segbtn" data-method="manual" type="button">Через админа</button>
-</div>
-<!-- Crypto -->
-<div class="paySubPane" id="topupPaneCrypto" style="margin-top:10px">
-<div class="muted" style="font-size:12px">Откроется инвойс CryptoBot. Можно открыть в браузере или в Telegram. После оплаты нажми «Проверить» — баланс зачислится.</div>
-<button class="btn primary tilt" id="btnTopupCrypto" style="width:100%; margin-top:10px">Создать инвойс</button>
-<div class="muted" id="cryptoLinkBox" style="display:none; margin-top:10px; font-size:12px">
-<div style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap">
-<a class="btn tilt" id="cryptoPayUrl" rel="noreferrer" style="flex:1; justify-content:center; min-width:160px" target="_blank">Открыть оплату</a>
-<a class="btn tilt" id="cryptoTgUrl" rel="noreferrer" style="flex:1; justify-content:center; min-width:160px" target="_blank">Открыть в Telegram</a>
-<button class="btn tilt" id="btnTopupCheck" style="min-width:120px">Проверить</button>
-</div>
-<div class="muted" id="cryptoHint" style="margin-top:8px">—</div>
-</div>
-</div>
-
-<!-- Promo -->
-<div class="paySubPane" id="topupPanePromo" style="display:none; margin-top:10px">
-<div class="muted" style="font-size:12px">Введите промокод (например, после покупки на FanPay).</div>
-<input class="input" id="promoCode" placeholder="PROMO2026" style="margin-top:10px"/>
-<button class="btn primary tilt" id="btnPromoRedeem" style="width:100%; margin-top:10px">Активировать</button>
-</div>
-<!-- Manual -->
-<div class="paySubPane" id="topupPaneManual" style="display:none; margin-top:10px">
-<div class="muted" style="font-size:12px">Создастся заявка на пополнение. Админ начислит баланс вручную.</div>
-<button class="btn primary tilt" id="btnTopupManual" style="width:100%; margin-top:10px">Создать заявку</button>
-<div class="muted" id="manualHint" style="margin-top:8px; font-size:12px">—</div>
-</div>
-</div>
-<div class="payPane" id="payPanePremium" style="display:none">
-<div class="muted" style="margin-top:6px">Premium покупается за баланс — лимиты снимаются, чат с ИИ открывается.</div>
-<div class="packGrid" style="margin-top:10px">
-<button class="packBtn sel tilt" id="premPlan" type="button">
-<div class="p1">Premium</div>
-<div class="p2" id="premPrice">—</div>
-</button>
-</div>
-<button class="btn primary tilt" id="btnPayPremium" style="width:100%; margin-top:12px">Купить Premium</button>
-<div class="muted" style="margin-top:8px; font-size:12px">Срок Premium продлевается при повторной покупке.</div>
-</div>
-</div>
-</div>
-
-
-
-
-
-<!-- Robux purchase wizard -->
-<div id="robuxBack" class="modalBack hidden"></div>
-<div id="robuxModal" data-build="{{ build_version }}" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Покупка Robux">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="modalTitle">💰 Покупка Robux</div>
-      <button class="iconBtn" id="robuxClose" aria-label="Закрыть">✕</button>
-    </div>
-    <div class="robuxSteps" id="robuxSteps">
-      <div class="robuxStep active" data-step="1">1</div>
-      <div class="robuxStep" data-step="2">2</div>
-      <div class="robuxStep" data-step="3">3</div>
-      <div class="robuxStep" data-step="4">4</div>
-      <div class="robuxStep" data-step="5">5</div>
-    </div>
-  </div>
-
-  <div class="robuxBody">
-    <!-- Step 1 -->
-    <div class="robuxPane is-active" id="robuxStep1">
-      <div class="robuxH">Шаг 1 — выбери количество</div>
-      <div class="robuxRow">
-        <div class="robuxField">
-          <div class="robuxLabel">Количество Robux</div>
-          <input id="robuxAmount" class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="50" value="50" />
-        </div>
-        <div class="robuxField">
-          <div class="robuxLabel">Ползунок</div>
-          <input id="robuxSlider" class="robuxSlider" type="range" min="50" max="5000" step="10" value="50" />
-        </div>
-      </div>
-
-      <div class="robuxQuote">
-        <div class="rqItem"><div class="muted">К оплате</div><div class="rqVal" id="robuxRub">25₽</div></div>
-        <div class="rqItem"><div class="muted">Цена геймпасса</div><div class="rqVal" id="robuxGp">72 R$</div></div>
-      </div>
-
-      <div class="robuxActions">
-        <button class="btn pxtBtn" id="robuxNext1">Далее</button>
-      </div>
-    </div>
-
-    
-<!-- Step 2 -->
-<div class="robuxPane" id="robuxStep2">
-  <div class="robuxH">Шаг 2 — способ поиска</div>
-
-  <div class="robuxModeTabs" role="tablist" aria-label="Выбор способа поиска">
-    <button class="robuxModeTab active" id="robuxModeUrl" type="button" role="tab" aria-selected="true">По ссылке / ID</button>
-    <button class="robuxModeTab" id="robuxModeNick" type="button" role="tab" aria-selected="false">По нику</button>
-  </div>
-
-  <div id="robuxModeUrlBox" class="robuxModeBox">
-    <div class="robuxLabel">Ссылка или ID геймпасса</div>
-    <input id="robuxGpUrl" class="input" placeholder="https://www.roblox.com/game-pass/... или просто ID" autocomplete="off" />
-  </div>
-
-  <div id="robuxModeNickBox" class="robuxModeBox hidden">
-    <div class="robuxLabel">Ник Roblox (мы найдём геймпасс с нужной ценой)</div>
-    <input id="robuxUsername" class="input" placeholder="nickname" autocomplete="off" />
-  </div>
-
-  <div class="muted" style="margin-top:10px">Цена геймпасса должна быть: <b id="robuxGpNeed">—</b></div>
-
-  <div class="robuxHelpRow">
-    <button class="btn pxtBtn ghost" id="robuxHowTo" type="button">Как создать геймпасс?</button>
-    <button class="btn pxtBtn ghost" id="robuxNickTest" type="button" style="margin-left:8px; display:none">TEST по нику</button>
-  </div>
-<div class="robuxActions">
-    <button class="btn pxtBtn secondary" id="robuxBack2">Назад</button>
-    <button class="btn pxtBtn" id="robuxNext2">Проверить</button>
-  </div>
-</div>
-
-<!-- Step 3 -->
-    <div class="robuxPane" id="robuxStep3">
-      <div class="robuxH">Шаг 3 — проверка</div>
-      <div class="robuxCheckCard" id="robuxCheckCard">
-        <div class="muted">Данные геймпасса появятся здесь…</div>
-      </div>
-      <div class="robuxActions">
-        <button class="btn pxtBtn secondary" id="robuxBack3">Нет, это не я</button>
-        <button class="btn pxtBtn" id="robuxPay">Начать бронирование</button>
-      </div>
-    </div>
-
-    <!-- Step 4 -->
-<div class="robuxPane" id="robuxStep4">
-  <div class="robuxH">Шаг 4 — бронь и оплата</div>
-  <div class="robuxStatus" id="robuxStatus">Создаём бронь…</div>
-  <div class="robuxTimer" id="robuxTimer" style="margin-top:10px; font-weight:800"></div>
-  <div class="robuxActions">
-    <button class="btn pxtBtn secondary" id="robuxCancel" type="button">Отменить заказ</button>
-    <button class="btn pxtBtn" id="robuxPayNow" type="button">Оплатить заказ</button>
-    <button class="btn pxtBtn ghost" id="robuxPayLater" type="button">Оплатить позже</button>
-  </div>
-</div>
-
-<!-- Step 5 -->
-<div class="robuxPane" id="robuxStep5">
-  <div class="robuxH">Готово ✅</div>
-  <div class="robuxStatus" id="robuxSuccessText">
-    Robux успешно были отправлены. Они зачислятся на баланс в течение 5 дней.
-  </div>
-  <div class="robuxTimer" id="robuxSettleTimer" style="margin-top:10px; font-weight:800"></div>
-  <div class="robuxActions">
-    <button class="btn pxtBtn" id="robuxFinish" type="button">Ок</button>
-  </div>
-</div>
-  </div>
-</div>
-</div>
-
-
-<!-- Robux Nick Test Modal -->
-<div id="robuxNickBack" class="modalBack hidden"></div>
-<div id="robuxNickModal" class="modal glass hidden robuxModal" role="dialog" aria-modal="true" aria-label="Тест: покупка Robux по нику">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="modalTitle">🧪 TEST — Robux по нику</div>
-      <button class="iconBtn" id="robuxNickCloseTop" aria-label="Закрыть" type="button">✕</button>
-    </div>
-  </div>
-  <div class="robuxBody">
-    <div class="robuxPane is-active">
-      <div class="robuxH">Покупка по нику (отдельное окно)</div>
-      <div class="muted" style="margin-top:6px">Вводишь ник и количество — система находит геймпасс с нужной ценой и полностью запускает заказ.</div>
-
-      <div class="robuxRow" style="margin-top:12px">
-        <div class="robuxField">
-          <div class="robuxLabel">Ник Roblox</div>
-          <input id="rntUsername" class="input" placeholder="nickname" autocomplete="off" />
-        </div>
-        <div class="robuxField">
-          <div class="robuxLabel">Количество Robux</div>
-          <input id="rntAmount" class="input" type="text" inputmode="numeric" autocomplete="off" placeholder="50" value="50" />
-        </div>
-      </div>
-
-      <div class="robuxQuote" style="margin-top:12px">
-        <div class="rqItem"><div class="muted">К оплате</div><div class="rqVal" id="rntRub">—</div></div>
-        <div class="rqItem"><div class="muted">Цена геймпасса</div><div class="rqVal" id="rntGp">—</div></div>
-      </div>
-
-      <div class="robuxCheckCard" id="rntCard" style="margin-top:12px">
-        <div class="muted">Нажми «Проверить», чтобы найти геймпасс.</div>
-      </div>
-
-      <div class="robuxActions">
-        <button class="btn pxtBtn secondary" id="rntClose" type="button">Закрыть</button>
-        <button class="btn pxtBtn" id="rntCheck" type="button">Проверить</button>
-        <button class="btn pxtBtn" id="rntBuy" type="button">Купить</button>
-      </div>
-
-      <div class="robuxStatus" id="rntStatus" style="margin-top:10px">—</div>
-    </div>
-  </div>
-</div>
-
-<!-- Robux How-To (placeholder; screenshots later) -->
-<div id="robuxHowBack" class="modalBack hidden"></div>
-<div id="robuxHowModal" class="modal glass hidden" role="dialog" aria-modal="true" aria-label="Как создать геймпасс">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="ico" data-ico="info" aria-hidden="true"></div>
-      <div class="modalTitle">Как создать геймпасс</div>
-    </div>
-    <button class="iconBtn" id="robuxHowClose" type="button" aria-label="Закрыть">✕</button>
-  </div>
-  <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">Скриншоты добавим позже. Пока — коротко по шагам.</div>
-    <ol class="robuxHowList">
-      <li>Открой Roblox Studio → в игре перейди в <b>Monetization</b>.</li>
-      <li>Создай <b>Game Pass</b> и выставь цену ровно как на сайте (например <b id="robuxHowNeed">72</b> Robux).</li>
-      <li>Сделай геймпасс <b>On Sale</b> (в продаже) и убедись, что он <b>Public</b>.</li>
-      <li>Скопируй ссылку на геймпасс или его ID и вставь на шаге 2.</li>
-    </ol>
-    <div class="robuxActions" style="justify-content:flex-end">
-      <button class="btn pxtBtn" id="robuxHowOk" type="button">Понял</button>
-    </div>
-  </div>
-</div>
-
-<!-- Purchases History Modal (Robux only) -->
-<div id="historyBack" class="modalBack hidden"></div>
-<div id="historyModal" class="modal glass hidden" role="dialog" aria-modal="true" aria-label="История покупок">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="ico" data-ico="receipt" aria-hidden="true"></div>
-      <div class="modalTitle">История покупок</div>
-    </div>
-    <button class="iconBtn" id="historyClose" type="button" aria-label="Закрыть">✕</button>
-  </div>
-  <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">
-      Тут отображаются только покупки Robux. Кейс и Premium сюда не попадают.
-    </div>
-    <div id="historyList" class="prizeList"></div>
-    <div id="historyEmpty" class="muted" style="display:none; padding:12px; text-align:center">Пока пусто.</div>
-  </div>
-</div>
-
-<!-- Inventory Modal -->
-<div class="modalBack hidden" id="invBack"></div>
-<div class="modal glass hidden" id="invModal" role="dialog" aria-modal="true" aria-label="Инвентарь">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="ico" data-ico="gift" aria-hidden="true"></div>
-      <div class="modalTitle">Инвентарь</div>
-      <div class="badge" id="invModalCount" style="margin-left:8px">0/10</div>
-    </div>
-    <button class="iconBtn" id="btnInvClose" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">
-      Здесь хранятся призы из кейсов. Можно удалить приз или применить его. Если Premium активен — бессмысленные призы применить нельзя.
-    </div>
-    <div class="prizeList" id="invModalList"></div>
-  </div>
-</div>
-
-<!-- Mobile bottom navigation -->
-<nav class="bottomnav" aria-label="Нижняя навигация">
-  <button class="btab active" data-tab="home" type="button"><span aria-hidden="true">🏠</span><small>Home</small></button>
-  <button class="btab" data-tab="tools" type="button"><span aria-hidden="true">🧰</span><small>Tools</small></button>
-  <button class="btab" data-tab="shop" type="button"><span aria-hidden="true">🛒</span><small>Shop</small></button>
-  <button class="btab" data-tab="profile" type="button"><span aria-hidden="true">👤</span><small>Me</small></button>
-</nav>
-
-
-<!-- Notifications Modal -->
-<div class="modalBack hidden" id="notifBack"></div>
-<div class="modal glass hidden" id="notifModal" role="dialog" aria-modal="true" aria-label="Уведомления">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="ico" data-ico="bell" aria-hidden="true"></div>
-      <div class="modalTitle">Уведомления</div>
-      <div class="badge" id="notifCount" style="margin-left:8px">0</div>
-    </div>
-    <button class="iconBtn" id="btnNotifClose" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">Админ может оставлять сообщения. Нажмите «Прочитать всё», чтобы убрать счётчик.</div>
-    <div style="display:flex; gap:8px; margin-bottom:10px">
-      <button class="btn tilt" id="btnNotifRefresh" type="button">Обновить</button>
-      <button class="btn primary tilt" id="btnNotifReadAll" type="button">Прочитать всё</button>
-    </div>
-    <div class="prizeList" id="notifList"></div>
-  </div>
-</div>
-
-<!-- Admin Modal -->
-<div class="modalBack hidden" id="adminBack"></div>
-<div class="modal glass hidden" id="adminModal" role="dialog" aria-modal="true" aria-label="Admin panel">
-  <div class="modalHeader">
-    <div class="modalTitleRow">
-      <div class="ico" data-ico="shield" aria-hidden="true"></div>
-      <div class="modalTitle">Admin panel</div>
-      <div class="badge" id="adminModeBadge" style="margin-left:8px">ON</div>
-    </div>
-    <button class="iconBtn" id="btnAdminClose" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="caseStage" style="padding:14px">
-    <div class="muted" style="font-size:12px; margin-bottom:10px">Пользователи → действия (баланс, бан, ник, уведомления). Поиск работает вверху списка.</div>
-
-    <div class="adminShell">
-      <aside class="adminSide">
-        <div class="pCard" id="adminUsersBox">
-          <div class="headrow" style="margin-bottom:10px">
-            <div style="font-weight:900">Пользователи</div>
-            <button class="btn tilt" id="btnAdminUsersRefresh" type="button" style="margin-left:auto">Обновить</button>
-          </div>
-
-          <div class="adminFindRow">
-            <input class="input" id="adminIdent" placeholder="username / email / id" />
-            <button class="btn primary tilt" id="btnAdminFind" type="button">Найти</button>
-          </div>
-          <div class="muted" style="font-size:12px; margin:10px 0 8px">Клик по пользователю → загрузка карточки.</div>
-          <div id="adminUsersList" class="adminUsersList"></div>
-        </div>
-      </aside>
-
-      <main class="adminMain">
-        <div class="pCard" id="adminUserCard" style="display:none">
-      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap">
-        <div style="min-width:220px">
-          <div style="font-weight:800" id="adm_username">—</div>
-          <div class="muted" style="font-size:12px">ID: <span class="mono" id="adm_id">—</span> • <span id="adm_email">—</span></div>
-          <div class="muted" style="font-size:12px">Регистрация: <span class="mono" id="adm_created">—</span></div>
-          <div class="muted" style="font-size:12px">Последний вход: <span class="mono" id="adm_seen">—</span></div>
-          <div class="muted" style="font-size:12px">IP: <span class="mono" id="adm_ip">—</span> • <span id="adm_geo">—</span></div>
-          <div class="muted" style="font-size:12px">Бан: <span class="mono" id="adm_ban">—</span></div>
-        </div>
-        <div style="min-width:200px; text-align:right">
-          <div class="muted" style="font-size:12px">Баланс</div>
-          <div class="bigBalance" id="adm_balance" style="justify-content:flex-end">0</div>
-        </div>
-      </div>
-
-      <div class="divider" style="margin:12px 0"></div>
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
-        <div>
-          <div class="muted" style="font-size:12px; margin-bottom:6px">Изменить баланс</div>
-          <div style="display:flex; gap:8px">
-            <input class="input" id="adm_delta" placeholder="+100 / -50" style="flex:1"/>
-            <button class="btn primary tilt" id="btnAdminApply" type="button">Применить</button>
-          </div>
-          <input class="input" id="adm_reason" placeholder="Причина (опционально)" style="margin-top:8px"/>
-          <div class="muted" style="font-size:12px; margin-top:10px">История</div>
-          <div class="pCard" id="adminTxBox" style="margin-top:6px; display:none">
-            <div id="adminTxList"></div>
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Home Tab -->
+    <section class="tab-content active" id="tab-home">
+      <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-card">
+          <div class="hero-badge">NEW</div>
+          <h1 class="hero-title">
+            <span class="gradient-text">RBX Store</span>
+            <br>Robux & Premium Tools
+          </h1>
+          <p class="hero-desc">
+            Покупка Robux по нику, генератор описаний, AI-помощник и Premium подписка. 
+            Всё в одном месте.
+          </p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" data-goto="robux">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v12M6 12h12"/>
+              </svg>
+              Купить Robux
+            </button>
+            <button class="btn btn-secondary btn-lg" data-goto="tools">
+              Инструменты
+            </button>
           </div>
         </div>
 
-        <div>
-          <div class="muted" style="font-size:12px; margin-bottom:6px">Модерация</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap">
-            <input class="input" id="adm_newname" placeholder="Новый ник" style="flex:1; min-width:160px"/>
-            <button class="btn tilt" id="btnAdminRename" type="button">Переименовать</button>
+        <!-- Features Grid -->
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">💎</div>
+            <h3>Robux по нику</h3>
+            <p>Вводишь ник — система находит профиль, игры и геймпасс автоматически</p>
           </div>
-
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px">
-            <input class="input" id="adm_bandays" placeholder="Бан дней (0=перманент)" style="width:170px"/>
-            <button class="btn tilt" id="btnAdminBan" type="button">Забанить</button>
-            <button class="btn tilt" id="btnAdminUnban" type="button">Разбан</button>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Генератор</h3>
+            <p>Анализ аккаунта по cookie и генерация описания по шаблону</p>
           </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>AI помощник</h3>
+            <p>Чат с ИИ для создания уникальных текстов под любой стиль</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">👑</div>
+            <h3>Premium</h3>
+            <p>Безлимитные запросы, приоритет и расширенные возможности</p>
+          </div>
+        </div>
 
-          <div class="muted" style="font-size:12px; margin-top:10px">Уведомление пользователю</div>
-          <textarea class="input" id="adm_notif" placeholder="Текст уведомления…" style="margin-top:6px; min-height:86px"></textarea>
-          <button class="btn primary tilt" id="btnAdminNotify" type="button" style="width:100%; margin-top:8px">Отправить</button>
+        <!-- Info Card -->
+        <div class="info-card">
+          <h2>ℹ️ Как это работает?</h2>
+          <ol class="steps-list">
+            <li>Зарегистрируйся или войди в аккаунт</li>
+            <li>Пополни баланс через CryptoBot или промокод</li>
+            <li>Выбери нужный инструмент или купи Robux</li>
+            <li>Готово! Результат мгновенный</li>
+          </ol>
+          <div class="info-footer">
+            <span class="info-tag">Разработчик: @E6JLAHOC</span>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="divider" style="margin:12px 0"></div>
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
-        <div>
-          <div class="muted" style="font-size:12px; margin-bottom:6px">Заявки на пополнение</div>
-          <button class="btn tilt" id="btnAdminTopupsRefresh" type="button">Обновить</button>
-          <div class="pCard" style="margin-top:8px">
-            <div id="adminTopupsList">—</div>
-          </div>
+    <!-- Robux Tab -->
+    <section class="tab-content" id="tab-robux">
+      <div class="container">
+        <div class="section-header">
+          <h1>💎 Покупка Robux</h1>
+          <p>Быстро и безопасно. Вводишь ник — получаешь Robux.</p>
         </div>
-        <div>
-          <div class="muted" style="font-size:12px; margin-bottom:6px">Промокоды</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap">
-            <button class="btn tilt" id="btnAdminPromosRefresh" type="button">Обновить</button>
-            <button class="btn primary tilt" id="btnAdminPromoCreate" type="button">Создать</button>
+
+        <!-- Robux Calculator -->
+        <div class="robux-card">
+          <div class="robux-header">
+            <h2>Калькулятор</h2>
+            <div class="robux-rate" id="robuxRate">Курс: загрузка...</div>
           </div>
-          <div class="pCard" style="margin-top:8px">
-            <div id="adminPromosList">—</div>
-          </div>
-        </div>
-      </div>
-        </div>
-        
-
-        <!-- Robux admin: seller cookie + orders -->
-        <div class="pCard" id="adminRobuxBox" style="margin-top:10px">
-          <div class="headrow" style="margin-bottom:10px">
-            <div style="font-weight:900">Robux — продавец и заказы</div>
-            <button class="btn tilt" id="btnAdminRobuxRefresh" type="button" style="margin-left:auto">Обновить</button>
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:12px">
-            <div>
-              <div class="muted" style="font-size:12px; margin-bottom:6px">Cookie продавца (.ROBLOSECURITY)</div>
-              <div style="display:flex; gap:8px">
-                <input class="input" id="adm_robux_cookie" type="password" placeholder=".ROBLOSECURITY=..." style="flex:1" autocomplete="off" />
-                <button class="btn tilt" id="btnAdminRobuxCookieToggle" type="button" title="Показать/скрыть">👁</button>
-              </div>
-              <div class="muted" style="font-size:12px; margin-top:8px">Если cookie задан в ENV (Render) — он имеет приоритет и здесь будет только статус.</div>
-
-              <div class="divider" style="margin:12px 0"></div>
-
-              <div class="muted" style="font-size:12px; margin-bottom:6px">Параметры расчёта</div>
-              <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px">
-                <input class="input" id="adm_robux_min" placeholder="Мин. Robux" />
-                <input class="input" id="adm_robux_rub" placeholder="₽ за 1 Robux" />
-                <input class="input" id="adm_robux_factor" placeholder="Коэф. комиссии" />
-                <input class="input" id="adm_robux_stock_show" placeholder="Показывать в наличии (0=авто)" />
-                <input class="input" id="adm_robux_stock_sell" placeholder="Лимит продаж (0=без лимита)" />
-                <input class="input" id="adm_robux_reserve_seconds" placeholder="Бронь (сек)" />
-              </div>
-
-              <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
-                <button class="btn primary tilt" id="btnAdminRobuxSave" type="button">Сохранить</button>
-                <button class="btn tilt" id="btnAdminRobuxTest" type="button">Проверить продавца</button>
-              </div>
-
-              <div class="pCard" style="margin-top:10px">
-                <div class="muted" style="font-size:12px">Статус</div>
-                <div id="adm_robux_status" style="margin-top:4px; font-weight:800">—</div>
-                <div class="muted" id="adm_robux_status_sub" style="font-size:12px; margin-top:4px">—</div>
+          
+          <div class="robux-form">
+            <div class="form-group">
+              <label class="form-label">Количество Robux</label>
+              <div class="input-with-icon">
+                <input type="number" class="form-input" id="robuxAmount" value="50" min="10" max="100000">
+                <span class="input-suffix">R$</span>
               </div>
             </div>
+            
+            <div class="robux-quick-amounts">
+              <button class="quick-btn" data-amount="50">50</button>
+              <button class="quick-btn" data-amount="100">100</button>
+              <button class="quick-btn" data-amount="250">250</button>
+              <button class="quick-btn" data-amount="500">500</button>
+              <button class="quick-btn" data-amount="1000">1K</button>
+            </div>
 
-            <div>
-              <div class="muted" style="font-size:12px; margin-bottom:6px">Очередь Robux-заказов</div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px">
-                <select class="input" id="adm_robux_orders_status" style="max-width:210px">
-                  <option value="active">Активные</option>
-                  <option value="all">Все</option>
-                  <option value="new">Новые</option>
-                  <option value="processing">В работе</option>
-                  <option value="done">Готово</option>
-                  <option value="failed">Ошибка</option>
-                </select>
-                <button class="btn tilt" id="btnAdminRobuxOrdersRefresh" type="button">Обновить</button>
+            <div class="robux-summary">
+              <div class="summary-row">
+                <span>К оплате:</span>
+                <span class="summary-value" id="robuxPrice">— ₽</span>
               </div>
+              <div class="summary-row">
+                <span>Цена геймпасса:</span>
+                <span class="summary-value" id="gamepassPrice">— R$</span>
+              </div>
+            </div>
+          </div>
 
-              <div class="pCard" style="max-height:340px; overflow:auto">
-                <div id="adminRobuxOrdersList">—</div>
+          <div class="robux-divider"></div>
+
+          <!-- Mode Tabs -->
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="username">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              По нику
+            </button>
+            <button class="mode-tab" data-mode="url">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              По ссылке
+            </button>
+          </div>
+
+          <!-- Username Mode -->
+          <div class="mode-content active" id="modeUsername">
+            <div class="form-group">
+              <label class="form-label">Ник Roblox</label>
+              <input type="text" class="form-input" id="robuxUsername" placeholder="Например: Builderman">
+              <span class="form-hint">Латиница, цифры и подчёркивание. Без кириллицы!</span>
+            </div>
+          </div>
+
+          <!-- URL Mode -->
+          <div class="mode-content" id="modeUrl">
+            <div class="form-group">
+              <label class="form-label">Ссылка на геймпасс</label>
+              <input type="text" class="form-input" id="robuxUrl" placeholder="https://www.roblox.com/game-pass/...">
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="robux-actions">
+            <button class="btn btn-secondary" id="btnRobuxCheck">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Проверить
+            </button>
+            <button class="btn btn-primary" id="btnRobuxBuy" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+              Купить
+            </button>
+          </div>
+
+          <!-- Status -->
+          <div class="robux-status hidden" id="robuxStatus">
+            <div class="status-spinner"></div>
+            <span class="status-text">Проверяем...</span>
+          </div>
+
+          <!-- Result Card -->
+          <div class="robux-result hidden" id="robuxResult">
+            <div class="result-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span>Геймпасс найден</span>
+            </div>
+            <div class="result-body">
+              <div class="result-row">
+                <span>Название:</span>
+                <span id="resultName">—</span>
+              </div>
+              <div class="result-row">
+                <span>Владелец:</span>
+                <span id="resultOwner">—</span>
+              </div>
+              <div class="result-row">
+                <span>Цена:</span>
+                <span id="resultPrice">—</span>
               </div>
             </div>
           </div>
         </div>
-<div class="pCard" id="adminEmptyHint">
-          <div style="font-weight:800; margin-bottom:6px">Выберите пользователя</div>
-          <div class="muted" style="font-size:12px">Нажмите на пользователя слева или используйте поиск.</div>
-        </div>
-      </main>
-    </div>
-  </div>
-</div>
 
-
-<!-- Toast notifications -->
-<div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
-
-
-<!-- core logic -->
-<script src="/static/app.js?v=fix48"></script>
-
-  <!-- Confirm Modal -->
-  <div class="modalBack hidden" id="confirmBack"></div>
-  <div class="modal confirmModal hidden" id="confirmModal" role="dialog" aria-modal="true">
-    <div class="modalHeader">
-      <div class="title">Подтверждение</div>
-      <button class="iconBtn" id="btnConfirmClose" type="button" aria-label="Close">✕</button>
-    </div>
-    <div class="confirmBody">
-      <div class="confirmText" id="confirmText">Вы уверены?</div>
-      <div class="confirmActions">
-        <button class="btn" id="btnConfirmNo" type="button">Отмена</button>
-        <button class="btn primary" id="btnConfirmYes" type="button">Удалить</button>
-      </div>
-    </div>
-  </div>
-
-<!-- 2FA Recommendation -->
-<div id="twofaRecBack" class="modalBack hidden"></div>
-<div id="twofaRecModal" class="modal glass hidden" role="dialog" aria-modal="true" style="max-width:520px">
-  <div class="modalHeader">
-    <div class="modalTitle">🔐 Рекомендуем включить 2FA</div>
-    <button class="iconBtn" id="btnTwofaRecClose" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="muted" style="margin-top:6px">
-    Двухфакторная защита по почте заметно повышает безопасность аккаунта.
-  </div>
-  <div class="row" style="margin-top:14px; justify-content:flex-end; gap:10px; flex-wrap:wrap">
-    <button class="btn" id="btnTwofaRecLater" type="button">Позже</button>
-    <button class="btn" id="btnTwofaRecNever" type="button">Больше не напоминать</button>
-    <button class="btn primary" id="btnTwofaRecEnable" type="button">Поставить 2FA</button>
-  </div>
-</div>
-
-<!-- 2FA Enable Wizard -->
-<div id="twofaSetBack" class="modalBack hidden"></div>
-<div id="twofaSetModal" class="modal glass hidden" role="dialog" aria-modal="true" style="max-width:520px">
-  <div class="modalHeader">
-    <div class="modalTitle">Настройка 2FA</div>
-    <button class="iconBtn" id="btnTwofaSetClose" type="button" aria-label="Close">✕</button>
-  </div>
-
-  <div id="twofaSetStep1">
-    <div class="muted" style="margin-top:6px">Код будет отправлен на твою почту, привязанную к аккаунту.</div>
-    <div class="row" style="margin-top:14px">
-      <button class="btn primary" id="btnTwofaSend" type="button">Отправить код</button>
-      <button class="btn" id="btnTwofaDisable" type="button" style="margin-left:auto">Выключить 2FA</button>
-    </div>
-  </div>
-
-  <div id="twofaSetStep2" style="display:none">
-    <label class="lbl">Код из письма</label>
-    <input class="input" id="twofaEnableCode" inputmode="numeric" maxlength="6" placeholder="000000"/>
-    <div class="row" style="margin-top:12px">
-      <button class="btn primary" id="btnTwofaConfirm" type="button">Подтвердить</button>
-    </div>
-  </div>
-</div>
-
-<!-- Settings modal -->
-
-<!-- Transactions Modal -->
-<div class="modal modalFull" id="txModal" aria-hidden="true">
-  <div class="modalCard">
-    <div class="modalHead">
-      <div class="modalTitle">Транзакции</div>
-      <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-        <button class="iconBtn" id="btnTxRefresh" type="button" title="Обновить">↻</button>
-        <button class="iconBtn" id="btnTxClose" type="button" aria-label="Закрыть">✕</button>
-      </div>
-    </div>
-    <div class="modalBody">
-      <div id="txList" class="txList">
-        <div class="muted">Загрузка…</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Templates Modal -->
-<div class="modal modalFull" id="templatesModal" aria-hidden="true">
-  <div class="modalCard">
-    <div class="modalHead">
-      <div class="modalTitle">Шаблоны</div>
-      <div style="margin-left:auto; display:flex; gap:10px; align-items:center">
-        <button class="iconBtn" id="btnTemplatesClose" type="button" aria-label="Закрыть">✕</button>
-      </div>
-    </div>
-    <div class="modalBody">
-      <div id="templatesList" class="templatesList">
-        <div class="muted">Загрузка…</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal modalFull" id="settingsModal" aria-hidden="true">
-  <div class="modalCard tilt">
-    <div class="modalHead">
-      <div class="modalTitle">Настройки</div>
-      <button class="iconBtn" id="btnSettingsClose" type="button" aria-label="Закрыть">✕</button>
-    </div>
-    <div class="modalTabs">
-      <button class="pill active" data-stab="appearance" type="button">Оформление</button>
-      <button class="pill" data-stab="security" type="button">Безопасность</button>
-    </div>
-
-    <div class="modalBody">
-      <div class="modalPane" id="settingsPaneAppearance">
-        <div id="settingsAppearanceMount"></div>
-        <div class="muted" style="margin-top:10px; font-size:12px">
-          Оформление сохраняется в браузере. Доступно после входа.
+        <!-- How it works -->
+        <div class="info-card">
+          <h3>🔧 Как работает покупка по нику?</h3>
+          <ol class="steps-list">
+            <li>Ты указываешь ник и количество Robux</li>
+            <li>Система находит профиль пользователя</li>
+            <li>Ищет публичные игры и геймпассы</li>
+            <li>Находит геймпасс с нужной ценой</li>
+            <li>Покупает его с аккаунта продавца</li>
+            <li>Robux поступают тебе!</li>
+          </ol>
+          <div class="alert alert-warning">
+            <strong>Важно:</strong> У пользователя должна быть хотя бы одна публичная игра с геймпассом нужной цены.
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="modalPane" id="settingsPaneSecurity" style="display:none">
-        <div class="card" style="padding:14px; margin:0">
-          <div class="headrow">
-            <h3><span class="ico" data-ico="lock" aria-hidden="true"></span> 2FA по почте</h3>
-            <div class="badge" id="twofaStateBadge" style="margin-left:auto">OFF</div>
-          </div>
-          <div class="muted" style="margin-top:8px; font-size:12px">
-            При включении — при входе будет запрашиваться код из письма.
-          </div>
-          <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
-            <button class="btn primary" id="btnTwofaEnable" type="button">Включить 2FA</button>
-            <button class="btn" id="btnTwofaDisable" type="button">Выключить</button>
-          </div>
+    <!-- Tools Tab -->
+    <section class="tab-content" id="tab-tools">
+      <div class="container">
+        <div class="section-header">
+          <h1>🧰 Инструменты</h1>
+          <p>Генерация описаний, AI-помощник и другие полезные функции.</p>
+        </div>
 
-          <div class="divider"></div>
-
-          <div class="secGrid">
-            <div class="secCol">
-              <div class="secTitle">Смена пароля</div>
-              <label class="lbl">Текущий пароль</label>
-              <input class="input" id="secCurPw" type="password" placeholder="Текущий пароль"/>
-              <label class="lbl" style="margin-top:10px">Новый пароль</label>
-              <input class="input" id="secNewPw" type="password" placeholder="Новый пароль"/>
-              <label class="lbl" style="margin-top:10px">Повтори новый пароль</label>
-              <input class="input" id="secNewPw2" type="password" placeholder="Повтори новый пароль"/>
-              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
-                <button class="btn primary" id="btnSecPwSave" type="button">Изменить пароль</button>
-              </div>
-              <div class="muted" style="margin-top:8px; font-size:12px">Совет: используй пароль от 8+ символов.</div>
+        <div class="tools-grid">
+          <!-- Generator Tool -->
+          <button class="tool-card" data-tool="generator">
+            <div class="tool-icon">✍️</div>
+            <div class="tool-info">
+              <h3>Генератор описания</h3>
+              <p>Анализ аккаунта по cookie и генерация по шаблону</p>
             </div>
+            <div class="tool-tags">
+              <span class="tag">Шаблоны</span>
+              <span class="tag">Быстро</span>
+            </div>
+            <svg class="tool-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
 
-            <div class="secCol">
-              <div class="secTitle">Смена почты</div>
-              <label class="lbl">Пароль (для подтверждения)</label>
-              <input class="input" id="secEmailPw" type="password" placeholder="Пароль"/>
-              <label class="lbl" style="margin-top:10px">Новая почта</label>
-              <input class="input" id="secNewEmail" type="email" placeholder="new@email.com"/>
-              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
-                <button class="btn" id="btnSecEmailSend" type="button">Отправить код</button>
-              </div>
+          <!-- AI Chat -->
+          <button class="tool-card" data-tool="chat">
+            <div class="tool-icon">💬</div>
+            <div class="tool-info">
+              <h3>AI Чат</h3>
+              <p>Общение с ИИ для создания текстов</p>
+            </div>
+            <div class="tool-tags">
+              <span class="tag">Premium</span>
+              <span class="tag">Контекст</span>
+            </div>
+            <svg class="tool-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
 
-              <div class="divider" style="margin:14px 0"></div>
-              <label class="lbl">Код подтверждения</label>
-              <input class="input" id="secEmailCode" inputmode="numeric" placeholder="6-значный код"/>
-              <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap">
-                <button class="btn primary" id="btnSecEmailConfirm" type="button">Подтвердить почту</button>
-              </div>
-              <div class="muted" style="margin-top:8px; font-size:12px">Код отправим на новую почту.</div>
+          <!-- AI Generator -->
+          <button class="tool-card" data-tool="ai">
+            <div class="tool-icon">✨</div>
+            <div class="tool-info">
+              <h3>AI Генератор</h3>
+              <p>Генерация заголовка и описания нейросетью</p>
+            </div>
+            <div class="tool-tags">
+              <span class="tag">Pollinations</span>
+              <span class="tag">Groq</span>
+            </div>
+            <svg class="tool-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
+          <!-- Coming Soon -->
+          <div class="tool-card disabled">
+            <div class="tool-badge">SOON</div>
+            <div class="tool-icon">🔍</div>
+            <div class="tool-info">
+              <h3>Checker</h3>
+              <p>Проверка аккаунтов</p>
             </div>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- Shop Tab -->
+    <section class="tab-content" id="tab-shop">
+      <div class="container">
+        <div class="section-header">
+          <h1>🛒 Магазин</h1>
+          <p>Premium подписка, пополнение баланса и кейсы.</p>
+        </div>
+
+        <div class="shop-grid">
+          <!-- Balance Top-up -->
+          <div class="product-card">
+            <div class="product-icon">💳</div>
+            <div class="product-info">
+              <h3>Пополнение баланса</h3>
+              <p>CryptoBot, промокод или через админа</p>
+            </div>
+            <div class="product-footer">
+              <span class="product-price">Любая сумма</span>
+              <button class="btn btn-primary" id="btnTopUp">Пополнить</button>
+            </div>
+          </div>
+
+          <!-- Premium -->
+          <div class="product-card featured">
+            <div class="product-badge">Популярное</div>
+            <div class="product-icon">👑</div>
+            <div class="product-info">
+              <h3>Premium</h3>
+              <p>Безлимит AI, приоритет, расширенные функции</p>
+            </div>
+            <div class="product-footer">
+              <span class="product-price">от <strong id="premiumPrice">99</strong> ₽</span>
+              <button class="btn btn-primary" id="btnBuyPremium">Купить</button>
+            </div>
+          </div>
+
+          <!-- Free Case -->
+          <div class="product-card">
+            <div class="product-icon">🎯</div>
+            <div class="product-info">
+              <h3>Кейс за капчу</h3>
+              <p>Бесплатно раз в 48 часов. Призы: бонусы и Premium.</p>
+            </div>
+            <div class="product-footer">
+              <span class="product-price">Бесплатно</span>
+              <button class="btn btn-secondary" id="btnCaseFree">Открыть</button>
+            </div>
+          </div>
+
+          <!-- Paid Case -->
+          <div class="product-card">
+            <div class="product-icon">🎁</div>
+            <div class="product-info">
+              <h3>Кейс за баланс</h3>
+              <p>Без капчи и кулдауна. Призы в инвентарь.</p>
+            </div>
+            <div class="product-footer">
+              <span class="product-price"><strong>17</strong> ₽</span>
+              <button class="btn btn-primary" id="btnCasePaid">Открыть</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile Tab -->
+    <section class="tab-content" id="tab-profile">
+      <div class="container">
+        <!-- Guest View -->
+        <div class="auth-card" id="authCard">
+          <div class="auth-icon">🔐</div>
+          <h2>Войдите в аккаунт</h2>
+          <p>Для доступа к инструментам и покупкам нужна авторизация</p>
+          <div class="auth-actions">
+            <button class="btn btn-primary btn-lg" id="btnLogin">Войти</button>
+            <button class="btn btn-secondary btn-lg" id="btnRegister">Регистрация</button>
+          </div>
+        </div>
+
+        <!-- Logged In View -->
+        <div class="profile-content hidden" id="profileContent">
+          <!-- User Header -->
+          <div class="profile-header">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="profile-info">
+              <h2 id="profileName">Пользователь</h2>
+              <span class="profile-id">ID: <span id="profileId">—</span></span>
+            </div>
+            <div class="profile-badges">
+              <span class="badge badge-premium hidden" id="badgePremium">Premium</span>
+              <span class="badge badge-admin hidden" id="badgeAdmin">Admin</span>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">💰</div>
+              <div class="stat-value" id="statBalance">0 ₽</div>
+              <div class="stat-label">Баланс</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">👑</div>
+              <div class="stat-value" id="statPremium">—</div>
+              <div class="stat-label">Premium до</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⚡</div>
+              <div class="stat-value" id="statGenerations">—</div>
+              <div class="stat-label">Генерации</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🤖</div>
+              <div class="stat-value" id="statAI">—</div>
+              <div class="stat-label">AI запросы</div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="profile-actions">
+            <button class="action-btn" id="btnProfileTopUp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
+              </svg>
+              <span>Пополнить</span>
+            </button>
+            <button class="action-btn" id="btnTransactions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span>Транзакции</span>
+            </button>
+            <button class="action-btn" id="btnInventory">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="21 8 21 21 3 21 3 8"/>
+                <rect x="1" y="3" width="22" height="5"/>
+                <line x1="10" y1="12" x2="14" y2="12"/>
+              </svg>
+              <span>Инвентарь</span>
+            </button>
+            <button class="action-btn" id="btnSettings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>Настройки</span>
+            </button>
+          </div>
+
+          <!-- Logout -->
+          <button class="btn btn-danger" id="btnLogout">Выйти из аккаунта</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- iOS-style Bottom Navigation (Mobile) -->
+  <nav class="nav-mobile">
+    <button class="nav-mobile-btn active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Главная</span>
+    </button>
+    <button class="nav-mobile-btn" data-tab="robux">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v12M6 12h12"/>
+      </svg>
+      <span>Robux</span>
+    </button>
+    <button class="nav-mobile-btn" data-tab="tools">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+      </svg>
+      <span>Инструменты</span>
+    </button>
+    <button class="nav-mobile-btn" data-tab="shop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span>Магазин</span>
+    </button>
+    <button class="nav-mobile-btn" data-tab="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>Профиль</span>
+    </button>
+  </nav>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Modal Container -->
+  <div class="modal-overlay hidden" id="modalOverlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div class="modal-content" id="modalContent"></div>
     </div>
   </div>
-</div>
 
-<!-- Admin: Shop panel modal -->
-<div class="modal modalFull" id="shopPanelModal" aria-hidden="true">
-  <div class="modalCard tilt" style="max-width:900px">
-    <div class="modalHead">
-      <div class="modalTitle">Панель магазина</div>
-      <button class="iconBtn" id="btnShopPanelClose" type="button" aria-label="Закрыть">✕</button>
-    </div>
-
-    <div class="muted" style="margin:8px 0 10px 0; font-size:12px">
-      Перетаскивай товары, меняй текст/цену/баннер и сохраняй — изменения сразу применяются на сайте (и на телефоне).
-    </div>
-
-    <div class="row" id="shopGate" style="gap:10px; flex-wrap:wrap; margin:10px 0 12px 0">
-      <button class="btn primary" id="btnShopGoBuilder" type="button">Перейти в конструктор магазина</button>
-      <button class="btn" id="btnShopGoManage" type="button">Изменить / добавить товар</button>
-    </div>
-
-    <div class="shopBuilder" id="shopBuilderWrap" style="display:none">
-      <div class="shopBuilderList" id="shopBuilderList"></div>
-
-      <div class="shopBuilderActions">
-        <button class="btn primary" id="btnShopSave" type="button">Сохранить изменения</button>
-        <button class="btn" id="btnShopReset" type="button">Сбросить</button>
-      </div>
-
-      <div class="muted" style="margin-top:10px; font-size:12px">
-        Подсказка: на мобильном используй кнопки ↑ ↓ для изменения порядка.
-      </div>
-    </div>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-spinner"></div>
   </div>
-</div>
 
-
-<!-- (removed legacy gpHowModal; robux uses robuxHowModal) -->
-
+  <script src="/static/app.js?v={{build_version}}"></script>
 </body>
 </html>
