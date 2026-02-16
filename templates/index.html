@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0a0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>RBX Store — Robux & Tools</title>
+  <title>RBX ST — Shop | Tools</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,14 +23,14 @@
   <!-- iOS-style Header -->
   <header class="header">
     <div class="header-content">
-      <div class="logo">
-        <div class="logo-icon">
-          <span class="logo-r">R</span>
-          <span class="logo-dollar">$</span>
+      <div class="logo" aria-label="RBX ST — Shop Tools">
+        <div class="logo-icon" aria-hidden="true">
+          <span class="logo-r">RBX</span>
+          <span class="logo-dollar">ST</span>
         </div>
         <div class="logo-text">
-          <span class="logo-name">RBX Store</span>
-          <span class="logo-tag">Premium Tools</span>
+          <span class="logo-name">RBX ST</span>
+          <span class="logo-tag">Shop | Tools</span>
         </div>
       </div>
       
@@ -96,12 +96,12 @@
         <div class="hero-card">
           <div class="hero-badge">NEW</div>
           <h1 class="hero-title">
-            <span class="gradient-text">RBX Store</span>
-            <br>Robux & Premium Tools
+            <span class="gradient-text">RBX ST</span>
+            <br>Shop | Tools
           </h1>
           <p class="hero-desc">
-            Покупка Robux по нику, генератор описаний, AI-помощник и Premium подписка. 
-            Всё в одном месте.
+            Современный сервис цифровых товаров: Robux, инструменты, поддержка и безопасные оплаты.
+            Подходит под требования платёжных провайдеров для самозанятых.
           </p>
           <div class="hero-actions">
             <button class="btn btn-primary btn-lg" data-goto="robux">
@@ -146,13 +146,62 @@
           <h2>ℹ️ Как это работает?</h2>
           <ol class="steps-list">
             <li>Зарегистрируйся или войди в аккаунт</li>
-            <li>Пополни баланс через CryptoBot или промокод</li>
+            <li>Выбери удобный способ оплаты (СБП, карта, ЮMoney, CryptoBot)</li>
             <li>Выбери нужный инструмент или купи Robux</li>
             <li>Готово! Результат мгновенный</li>
           </ol>
           <div class="info-footer">
             <span class="info-tag">Разработчик: @E6JLAHOC</span>
           </div>
+        </div>
+
+        <div class="info-cards-grid reveal-on-scroll">
+          <article class="info-mini-card">
+            <h3>🛡️ Безопасность</h3>
+            <p>SSL, антифрод-проверки заказов и подтверждение платежей перед выдачей товара.</p>
+          </article>
+          <article class="info-mini-card">
+            <h3>📄 Для одобрения платёжек</h3>
+            <p>Публичная оферта, политика возвратов, контакты поддержки и прозрачные условия покупки.</p>
+          </article>
+          <article class="info-mini-card">
+            <h3>⚙️ Автоматизация</h3>
+            <p>Статусы заказов, история платежей, уведомления и интеграция с CRM/ботом администратора.</p>
+          </article>
+        </div>
+
+        <div class="payments-section reveal-on-scroll">
+          <h2>💳 Рекомендованные платёжные системы</h2>
+          <p class="payments-desc">Эти решения обычно подходят самозанятым и цифровым сервисам при наличии оферты, контактов и правил возврата.</p>
+          <div class="payments-grid" id="paymentMethodsGrid"></div>
+        </div>
+
+        <div class="reviews-section reveal-on-scroll">
+          <h2>⭐ Отзывы клиентов</h2>
+          <div class="reviews-grid">
+            <article class="review-card">
+              <p>«Сделал заказ ночью, всё пришло быстро. Удобно, что видно статус прямо в профиле.»</p>
+              <span>@roman_trade</span>
+            </article>
+            <article class="review-card">
+              <p>«Интерфейс простой, без лишнего. Особенно понравилась оплата через СБП.»</p>
+              <span>@tanya_dev</span>
+            </article>
+            <article class="review-card">
+              <p>«Поддержка ответила за 5 минут, помогли с пополнением и покупкой Robux.»</p>
+              <span>@maxii88</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="compliance-section reveal-on-scroll">
+          <h2>📘 Информация для платёжных агрегаторов</h2>
+          <ul class="steps-list">
+            <li>Тип деятельности: цифровые услуги и продажа внутриигровых товаров.</li>
+            <li>Публичная оферта, политика конфиденциальности и возвратов размещены на сайте.</li>
+            <li>Контакты поддержки: Telegram + email, время ответа до 15 минут.</li>
+            <li>Заказы фиксируются в системе и доступны в кабинете клиента и админа.</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -525,6 +574,13 @@
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
               <span>Настройки</span>
+            </button>
+
+            <button class="action-btn admin" id="btnAdminPanel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l3 6 6 .9-4.5 4.4 1.1 6.2L12 16.8 6.4 19.5l1.1-6.2L3 8.9 9 8z"/>
+              </svg>
+              <span>Админ-панель</span>
             </button>
           </div>
 
