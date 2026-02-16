@@ -13,6 +13,14 @@
   const $$ = s => document.querySelectorAll(s);
   const escapeHtml = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
 
+  const paymentMethods = [
+    { name: 'ЮKassa', type: 'Агрегатор', note: 'Подходит самозанятым, поддержка СБП и банковских карт.' },
+    { name: 'T-Банк Эквайринг', type: 'Банк', note: 'Быстрое подключение, понятная модерация для digital-услуг.' },
+    { name: 'CloudPayments', type: 'Агрегатор', note: 'Карты + рекуррентные платежи, подходит для подписок.' },
+    { name: 'ЮMoney', type: 'Кошелёк/эквайринг', note: 'Удобно для РФ-аудитории и микроплатежей.' },
+    { name: 'CryptoBot', type: 'Крипто', note: 'Оставляем как доп.метод, но не единственный для модерации.' }
+  ];
+
   // Persist UI state (tab/robux)
   const LS_KEY = 'rst_ui_v2';
   function loadPersist() {
@@ -426,21 +434,31 @@
         <label class="form-label">Сумма (₽)</label>
         <input type="number" class="form-input" id="topupAmount" value="100" min="10">
       </div>
-      <div style="display:flex;gap:12px;margin-top:16px">
-        <button class="btn btn-primary" style="flex:1" id="btnCrypto">CryptoBot</button>
-        <button class="btn btn-secondary" style="flex:1" id="btnPromo">Промокод</button>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px">
+        <button class="btn btn-primary" id="btnSBP">СБП</button>
+        <button class="btn btn-primary" id="btnCard">Банковская карта</button>
+        <button class="btn btn-secondary" id="btnYooMoney">ЮMoney</button>
+        <button class="btn btn-secondary" id="btnCrypto">CryptoBot</button>
       </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:12px" id="btnPromo">Промокод</button>
     `);
-    $('#btnCrypto')?.addEventListener('click', async () => {
-      const amt = parseInt($('#topupAmount')?.value) || 100;
-      try {
-        loading(true);
-        const d = await api('/api/topup/create', { method: 'POST', body: { amount: amt, method: 'cryptobot' } });
-        if (d.pay_url) window.open(d.pay_url, '_blank');
-        closeModal();
-        toast('Перейди по ссылке для оплаты', 'info');
-      } catch (e) { toast(e.message, 'error'); } finally { loading(false); }
-    });
+    const bindTopupMethod = (selector, method, message = 'Перейди по ссылке для оплаты') => {
+      $(selector)?.addEventListener('click', async () => {
+        const amt = parseInt($('#topupAmount')?.value) || 100;
+        try {
+          loading(true);
+          const d = await api('/api/topup/create', { method: 'POST', body: { amount: amt, method } });
+          if (d.pay_url) window.open(d.pay_url, '_blank');
+          closeModal();
+          toast(message, 'info');
+        } catch (e) { toast(e.message, 'error'); } finally { loading(false); }
+      });
+    };
+
+    $('#btnSBP')?.addEventListener('click', () => toast('СБП подключается после модерации эквайринга', 'info'));
+    $('#btnCard')?.addEventListener('click', () => toast('Оплата картой будет включена после одобрения провайдера', 'info'));
+    $('#btnYooMoney')?.addEventListener('click', () => toast('ЮMoney находится в процессе подключения', 'info'));
+    bindTopupMethod('#btnCrypto', 'cryptobot');
     $('#btnPromo')?.addEventListener('click', () => showPromoInput());
   }
 
@@ -469,6 +487,43 @@
     });
   }
 
+
+  function renderPaymentMethods() {
+    const grid = $('#paymentMethodsGrid');
+    if (!grid) return;
+    grid.innerHTML = paymentMethods.map(pm => `
+      <article class="payment-method-card">
+        <span class="chip">${escapeHtml(pm.type)}</span>
+        <h3>${escapeHtml(pm.name)}</h3>
+        <p>${escapeHtml(pm.note)}</p>
+      </article>
+    `).join('');
+  }
+
+  function initScrollReveal() {
+    const nodes = $$('.reveal-on-scroll');
+    if (!nodes.length) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('is-visible');
+      });
+    }, { threshold: 0.12 });
+    nodes.forEach(n => io.observe(n));
+  }
+
+  function showAdminPanelPreview() {
+    modal(`
+      <h2 style="margin-bottom:12px">Админ-панель (обновлено)</h2>
+      <p style="color:var(--text-secondary);margin-bottom:16px">Раздел подготовлен под модерацию платёжек: проверка заказов, возвраты, статусы автодоставки и лог платежей.</p>
+      <ul class="steps-list" style="margin-bottom:12px">
+        <li>Дашборд: выручка, конверсия, спорные платежи.</li>
+        <li>Заказы: фильтры по статусу и способу оплаты.</li>
+        <li>Возвраты: шаблоны ответов и SLA поддержки.</li>
+        <li>Логи: подтверждение выдачи и id транзакций.</li>
+      </ul>
+    `);
+  }
+
   // Init
   document.addEventListener('DOMContentLoaded', () => {
     loadPersist();
@@ -476,6 +531,8 @@
     // Restore last opened tab
     switchTab(state.ui.tab || 'home');
     initRobux();
+    renderPaymentMethods();
+    initScrollReveal();
     checkAuth();
 
     // Auth buttons
@@ -483,6 +540,7 @@
     $('#btnRegister')?.addEventListener('click', showRegister);
     $('#btnLogout')?.addEventListener('click', logout);
     $('#avatarBtn')?.addEventListener('click', () => state.user ? switchTab('profile') : showLogin());
+    $('#btnAdminPanel')?.addEventListener('click', showAdminPanelPreview);
 
     // Top-up
     $('#btnTopUp, #btnProfileTopUp, #balanceBtn').forEach?.(b => b?.addEventListener('click', showTopUp));
