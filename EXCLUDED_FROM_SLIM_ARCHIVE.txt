@@ -1,0 +1,40 @@
+This slim archive was prepared for AI/code review context sharing.
+Goal: preserve project structure and source files while removing heavy or sensitive files.
+
+Excluded directories: .git, __pycache__, build, caches, virtualenvs, node_modules
+Excluded file types: images/video/audio/compiled cache files; also .env
+
+Excluded paths:
+- .env :: excluded secret env file
+- static/banner_intro.apng :: excluded large/binary asset (.apng)
+- static/banner_intro.mp4 :: excluded large/binary asset (.mp4)
+- static/banner_intro.webp :: excluded large/binary asset (.webp)
+- static/banner_intro1.mp4 :: excluded large/binary asset (.mp4)
+- static/banner_loop.mp4 :: excluded large/binary asset (.mp4)
+- static/banner_loop.webp :: excluded large/binary asset (.webp)
+- static/sfx_scan.mp3 :: excluded large/binary asset (.mp3)
+- static/sfx_transition.mp3 :: excluded large/binary asset (.mp3)
+- static/splash_music.mp3 :: excluded large/binary asset (.mp3)
+- static/banners/Case 17r.png :: excluded large/binary asset (.png)
+- static/banners/case_17r.png :: excluded large/binary asset (.png)
+- static/banners/Free case.png :: excluded large/binary asset (.png)
+- static/banners/free_case.png :: excluded large/binary asset (.png)
+- static/banners/premium.png :: excluded large/binary asset (.png)
+- static/banners/Robux.png :: excluded large/binary asset (.png)
+- static/banners/robux_banner.png :: excluded large/binary asset (.png)
+- static/banners/robux_banner2.png :: excluded large/binary asset (.png)
+- static/cursors/neon/default.png :: excluded large/binary asset (.png)
+- static/cursors/neon/pointer.png :: excluded large/binary asset (.png)
+- static/cursors/neon/text.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/default.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/default@1.5x.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/pointer.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/pointer@1.5x.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/text.png :: excluded large/binary asset (.png)
+- static/cursors/neon-purple/text@1.5x.png :: excluded large/binary asset (.png)
+- static/prizes/premium_12h.png :: excluded large/binary asset (.png)
+- static/prizes/premium_24h.png :: excluded large/binary asset (.png)
+- static/prizes/premium_2d.png :: excluded large/binary asset (.png)
+- static/prizes/premium_3d.png :: excluded large/binary asset (.png)
+- static/prizes/premium_6h.png :: excluded large/binary asset (.png)
+- static/prizes/premium_7d.png :: excluded large/binary asset (.png)

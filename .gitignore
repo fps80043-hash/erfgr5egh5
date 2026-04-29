@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.codex_pydeps/
+codex_smoke.db
+codex_uvicorn.*.log
+codex_uvicorn.pid

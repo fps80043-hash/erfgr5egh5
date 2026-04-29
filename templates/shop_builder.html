@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>RBX Tool Seller — Конструктор магазина</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1769004000">
+</head>
+<body class="shopBuilderPage">
+  <div class="topBar">
+    <div class="brand">
+      <div class="logo">R$T</div>
+      <div class="muted">RBX Tool Seller</div>
+    </div>
+    <div class="topActions" style="margin-left:auto; display:flex; gap:10px; align-items:center">
+      <button class="btn" id="btnBuilderToShop" type="button">Открыть магазин</button>
+      <button class="btn pri" id="btnShopSave" type="button">Сохранить</button>
+    </div>
+  </div>
+
+  <div class="builderLayout">
+    <aside class="builderSide glass">
+      <div class="builderSideHead">
+        <div class="h">Разделы</div>
+        <button class="btn mini" id="btnCatAdd" type="button">+ Раздел</button>
+      </div>
+      <div id="catList" class="catList"></div>
+
+      <div class="builderSideHead" style="margin-top:14px;">
+        <div class="h">Товары</div>
+        <button class="btn mini" id="btnShopAdd" type="button">+ Товар</button>
+      </div>
+      <div class="muted" style="font-size:12px; line-height:1.35; margin-top:8px;">
+        Перетаскивай товары внутри раздела, меняй цены/баннеры. Баннер можно загрузить прямо тут.
+      </div>
+    </aside>
+
+    <main class="builderMain">
+      <div class="builderPreview glass">
+        <div class="builderPreviewHead">
+          <div class="h">Предпросмотр магазина</div>
+          <div class="muted">Рендерится из конфига, как на сайте</div>
+        </div>
+        <div id="shopSections" class="shopSections"></div>
+      </div>
+
+      <div class="builderEditor glass">
+        <div class="builderPreviewHead">
+          <div class="h">Редактор товаров</div>
+          <div class="muted">Кликни товар в предпросмотре или выбери из списка</div>
+        </div>
+        <div id="shopBuilderList" class="shopBuilderList"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/static/app.js?v=1769004000"></script>
+  <script>
+    window.__SHOP_BUILDER_PAGE__ = true;
+  </script>
+</body>
+</html>

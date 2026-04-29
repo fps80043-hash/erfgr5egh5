@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07060e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>RBX ST - Shop | Tools — Premium Robux Store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="/static/styles.css?v={{build_version}}" rel="stylesheet">
+  <style id="siteCustomStyle">/* site custom overrides */</style>
+  <style>html{opacity:0}</style>
+  <style id="splashCSS">
+    body.splash-active{overflow:hidden !important;height:100vh !important}
+    #splashScreen{position:fixed;inset:0;z-index:99999;background:#020108;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .8s ease,transform .8s ease;overflow:hidden;font-family:'Share Tech Mono',monospace}
+    #splashScreen.fade-out{opacity:0;transform:scale(1.04)}
+    #spBg{position:absolute;inset:0}
+    #spScene{position:absolute;inset:0}
+    .sp-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(124,58,237,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,.04) 1px,transparent 1px);background-size:32px 32px;animation:spGridPulse 4s ease-in-out infinite;pointer-events:none}
+    @keyframes spGridPulse{0%,100%{opacity:.4}50%{opacity:.8}}
+    @keyframes spPromptPulse{0%,100%{opacity:.3}50%{opacity:.7}}
+    .sp-scan{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 5%,rgba(124,58,237,.2) 30%,rgba(192,132,252,.35) 50%,rgba(124,58,237,.2) 70%,transparent 95%);animation:spScanMove 3s linear infinite;pointer-events:none;box-shadow:0 0 20px rgba(124,58,237,.2)}
+    @keyframes spScanMove{0%{top:-5%}100%{top:105%}}
+    .sp-ui{position:relative;z-index:3;text-align:center;max-width:400px;padding:0 20px;width:100%;box-sizing:border-box}
+    .sp-logo{font-family:'Outfit',sans-serif;font-size:36px;font-weight:900;letter-spacing:2px;margin-bottom:4px;background:linear-gradient(135deg,#e9e5ff,#c084fc,#7c3aed);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:spGradShift 3s ease infinite;text-shadow:none}
+    @media(max-width:600px){
+      .sp-ui{max-width:100%;padding:0 16px}
+      .sp-logo{font-size:22px;letter-spacing:1px}
+      .sp-tagline{font-size:8px;letter-spacing:2px;margin-bottom:8px}
+      .sp-status-box{padding:8px 10px;min-height:40px;max-height:65px;font-size:9px;margin-bottom:10px;overflow-y:auto}
+      .sp-status-line{font-size:9px;line-height:1.5}
+      .sp-bar-wrap{margin-bottom:4px}
+      .sp-pct{font-size:10px}
+      .sp-corner{display:none}
+      .sp-code-rain,.sp-code-rain2{display:none}
+      .sp-grid{display:none}
+      #spPrompt{font-size:9px;margin-top:8px}
+      #spSoundBtn{top:10px;right:10px;width:34px;height:34px;font-size:14px}
+    }
+    /* Breach success animation */
+    #splashScreen.breach-success{animation:breachFlash 1.2s ease-out}
+    @keyframes breachFlash{
+      0%{filter:brightness(1)}
+      15%{filter:brightness(3) hue-rotate(20deg)}
+      30%{filter:brightness(1.5)}
+      50%{filter:brightness(2.5) hue-rotate(-10deg)}
+      100%{filter:brightness(1)}
+    }
+    @keyframes spGradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+    .sp-tagline{font-size:10px;color:rgba(192,132,252,.4);letter-spacing:4px;text-transform:uppercase;margin-bottom:32px}
+    .sp-status-box{background:rgba(124,58,237,.04);border:1px solid rgba(124,58,237,.12);border-radius:10px;padding:14px 18px;margin-bottom:20px;text-align:left;min-height:90px}
+    .sp-status-line{font-size:11px;color:rgba(192,132,252,.5);line-height:1.9;white-space:pre-wrap}
+    .sp-status-line.active{color:rgba(192,132,252,.85)}
+    .sp-status-line .ok{color:#22c55e}
+    .sp-status-line .fail{color:#ef4444}
+    .sp-status-line .warn{color:#f59e0b}
+    .sp-bar-wrap{width:100%;height:5px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:10px}
+    .sp-bar-inner{height:100%;width:0%;border-radius:4px;background:#ef4444;box-shadow:0 0 14px rgba(239,68,68,.5);transition:width .6s ease,background .8s ease,box-shadow .8s ease}
+    .sp-pct{font-size:12px;color:rgba(192,132,252,.6);letter-spacing:2px}
+    .sp-corner{position:absolute;width:24px;height:24px;pointer-events:none}
+    .sp-corner-tl{top:20px;left:20px;border-top:2px solid rgba(124,58,237,.25);border-left:2px solid rgba(124,58,237,.25)}
+    .sp-corner-tr{top:20px;right:20px;border-top:2px solid rgba(124,58,237,.25);border-right:2px solid rgba(124,58,237,.25)}
+    .sp-corner-bl{bottom:20px;left:20px;border-bottom:2px solid rgba(124,58,237,.25);border-left:2px solid rgba(124,58,237,.25)}
+    .sp-corner-br{bottom:20px;right:20px;border-bottom:2px solid rgba(124,58,237,.25);border-right:2px solid rgba(124,58,237,.25)}
+    .sp-code-rain{position:absolute;top:8px;left:8px;font-size:9px;color:rgba(124,58,237,.15);line-height:1.4;white-space:pre;pointer-events:none;overflow:hidden;width:120px;height:200px}
+    .sp-code-rain2{position:absolute;top:8px;right:8px;font-size:9px;color:rgba(124,58,237,.15);line-height:1.4;white-space:pre;pointer-events:none;overflow:hidden;width:120px;height:200px;text-align:right}
+  </style>
+</head>
+<body>
+  <script>
+    (function(){
+      try{
+        window.__rstSeenBefore = localStorage.getItem('rst_seen_before') === '1';
+        if (window.__rstSeenBefore) document.documentElement.classList.add('rst-seen-before');
+      }catch(e){ window.__rstSeenBefore = false; }
+    })();
+  </script>
+  <div id="splashScreen">
+  <script>if(!window.__rstSeenBefore){document.body.classList.add('splash-active');}</script>
+    <canvas id="spBg"></canvas>
+    <canvas id="spScene"></canvas>
+    <div class="sp-grid"></div>
+    <div class="sp-scan"></div>
+    <div class="sp-corner sp-corner-tl"></div>
+    <div class="sp-corner sp-corner-tr"></div>
+    <div class="sp-corner sp-corner-bl"></div>
+    <div class="sp-corner sp-corner-br"></div>
+    <div class="sp-code-rain" id="spCodeL"></div>
+    <div class="sp-code-rain2" id="spCodeR"></div>
+    <button id="spSoundBtn" style="position:absolute;top:16px;right:16px;z-index:10;width:40px;height:40px;border:1px solid rgba(124,58,237,.2);border-radius:50%;background:rgba(124,58,237,.06);color:rgba(192,132,252,.5);font-size:16px;cursor:pointer;transition:all .3s;backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:0;line-height:1">🔇</button>
+    <div class="sp-ui">
+      <div class="sp-logo">RBX ST</div>
+      <div class="sp-tagline">BREACH PROTOCOL v2.6</div>
+      <div class="sp-status-box" id="spBox"></div>
+      <div class="sp-bar-wrap"><div class="sp-bar-inner" id="spBar"></div></div>
+      <div class="sp-pct" id="spPct">0%</div>
+      <div id="spPrompt" style="margin-top:16px;font-size:11px;color:rgba(192,132,252,.35);letter-spacing:2px;animation:spPromptPulse 2s ease-in-out infinite">НАЖМИТЕ ЛЮБУЮ КЛАВИШУ</div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    // ── Cinematic camera: auto-pans between shapes ──
+    var camX=innerWidth/2, camY=innerHeight/2, camTarget=0, camTimer=0;
+    // NO mouse tracking for splash — pure cinematic
+
+    // ── Background canvas: matrix rain ──
+    var bg=document.getElementById('spBg');if(!bg)return;
+    var bctx=bg.getContext('2d'),dpr=window.devicePixelRatio||1;
+    function rsz(){bg.width=innerWidth*dpr;bg.height=innerHeight*dpr;bctx.setTransform(dpr,0,0,dpr,0,0);
+      sc.width=bg.width;sc.height=bg.height;sctx.setTransform(dpr,0,0,dpr,0,0)}
+    var sc=document.getElementById('spScene'),sctx=sc.getContext('2d');
+    rsz();window.addEventListener('resize',rsz);
+    var W=function(){return bg.width/dpr},H=function(){return bg.height/dpr};
+    var cols=Math.floor(W()/14),drops=[];
+    for(var i=0;i<cols;i++)drops[i]=Math.random()*-60;
+    var chars='RBX$01アカサタナ';
+
+    // ── 3D Wireframe Devices (monitor, laptop, server, router, phone) ──
+    function mkMonitor(s){
+      var w=s,h=s*0.7,d=s*0.15,st=s*0.12;
+      return{v:[[-w,-h,-d],[w,-h,-d],[w,h*0.4,-d],[-w,h*0.4,-d],[-w,-h,d],[w,-h,d],[w,h*0.4,d],[-w,h*0.4,d],[-st,h*0.4,0],[st,h*0.4,0],[-st*1.5,h*0.7,0],[st*1.5,h*0.7,0]],e:[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],[8,9],[8,10],[9,11],[10,11]],type:'monitor',label:'WORKSTATION'};}
+    function mkLaptop(s){
+      var w=s*0.9,h=s*0.05,d=s*0.6,sh=s*0.7;
+      return{v:[[-w,0,-d],[w,0,-d],[w,0,d],[-w,0,d],[-w,-h,-d],[w,-h,-d],[w,-h,d],[-w,-h,d],[-w*0.85,-sh,-d*0.95],[w*0.85,-sh,-d*0.95],[w*0.85,-h,-d],[w*0.85,-h,-d],[-w*0.85,-h,-d],[-w*0.85,-h,-d]],e:[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],[8,9],[8,12],[9,10]],type:'laptop',label:'LAPTOP'};}
+    function mkServer(s){
+      var w=s*0.5,h=s*1.2,d=s*0.4;
+      var v=[[-w,-h,-d],[w,-h,-d],[w,h,-d],[-w,h,-d],[-w,-h,d],[w,-h,d],[w,h,d],[-w,h,d]];
+      var e=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      // Rack lines
+      for(var i=0;i<5;i++){var y=-h+h*0.4*(i+1);var idx=v.length;v.push([-w,y,-d],[w,y,-d]);e.push([idx,idx+1]);}
+      // Blinking LEDs (dots drawn separately)
+      return{v:v,e:e,type:'server',label:'SERVER NODE'};}
+    function mkRouter(s){
+      var w=s*0.7,h=s*0.15,d=s*0.4;
+      var v=[[-w,-h,-d],[w,-h,-d],[w,h,-d],[-w,h,-d],[-w,-h,d],[w,-h,d],[w,h,d],[-w,h,d]];
+      var e=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      // Antennas
+      var idx=v.length;
+      v.push([-w*0.5,-h,0],[-w*0.5,-h-s*0.8,s*0.15]);e.push([idx,idx+1]);
+      v.push([w*0.5,-h,0],[w*0.5,-h-s*0.8,-s*0.15]);e.push([idx+2,idx+3]);
+      return{v:v,e:e,type:'router',label:'FIREWALL'};}
+    function mkPhone(s){
+      var w=s*0.3,h=s*0.55,d=s*0.04;
+      return{v:[[-w,-h,-d],[w,-h,-d],[w,h,-d],[-w,h,-d],[-w,-h,d],[w,-h,d],[w,h,d],[-w,h,d],[-w*0.7,-h*0.85,-d],[w*0.7,-h*0.85,-d],[w*0.7,h*0.7,-d],[-w*0.7,h*0.7,-d]],e:[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],[8,9],[9,10],[10,11],[11,8]],type:'phone',label:'MOBILE'};}
+
+    var _deviceBuilders=[mkMonitor,mkServer,mkLaptop,mkRouter,mkPhone];
+    var _cols=[[124,58,237],[168,85,247],[99,102,241],[139,92,246],[192,132,252]];
+    function _shuf(a){for(var i=a.length-1;i>0;i--){var j=0|Math.random()*(i+1);var t=a[i];a[i]=a[j];a[j]=t;}return a}
+
+    // 5 devices on screen, camera hacks 3 random ones
+    var _devPositions=[{cx:.15,cy:.3},{cx:.45,cy:.2},{cx:.75,cy:.35},{cx:.25,cy:.7},{cx:.8,cy:.65}];
+    _shuf(_devPositions);
+    var shapes=[];
+    var _usedTypes=[];
+    for(var _si=0;_si<5;_si++){
+      var _sz=35+Math.random()*25;
+      // Don't repeat device types
+      var _avail=_deviceBuilders.filter(function(b,i){return _usedTypes.indexOf(i)<0;});
+      if(!_avail.length){_avail=_deviceBuilders;_usedTypes=[];}
+      var _bIdx=_deviceBuilders.indexOf(_avail[Math.floor(Math.random()*_avail.length)]);
+      _usedTypes.push(_bIdx);
+      var _s=_deviceBuilders[_bIdx](_sz);
+      var _p=_devPositions[_si];
+      shapes.push({v:_s.v,e:_s.e,cx:_p.cx,cy:_p.cy,rx:0,ry:0,spd:0.003+Math.random()*0.006,col:_cols[_si%_cols.length],type:_s.type,label:_s.label});
+    }
+
+    // ── Hack data generator ──
+    function _randIP(){return(10+Math.floor(Math.random()*245))+'.'+(Math.floor(Math.random()*256))+'.'+(Math.floor(Math.random()*256))+'.'+(Math.floor(Math.random()*256));}
+    function _randHex(n){var s='';for(var i=0;i<n;i++)s+='0123456789abcdef'[Math.floor(Math.random()*16)];return s;}
+    function _randFile(){var p=['/etc/shadow','/var/log/auth','/root/.ssh/id_rsa','/sys/kernel/core','/proc/net/tcp','/home/admin/.bash_history','/opt/data/users.db'];return p[Math.floor(Math.random()*p.length)];}
+    // Each device gets hack data — driven by camera focus, not timer
+    var _hackData=shapes.map(function(){return{ip:_randIP(),port:Math.floor(1000+Math.random()*64000),file:_randFile(),key:_randHex(8),progress:0,status:'IDLE',active:false};});
+    var _lastFocusedIdx=-1;
+
+    // Called every frame from draw() — only progress focused device when zoomed in
+    function _updateHackData(focusIdx, zoomLevel){
+      if(!document.getElementById('splashScreen')){_stopScanSfx();return;}
+      // Deactivate non-focused (but keep completed ones)
+      for(var i=0;i<_hackData.length;i++){
+        if(i!==focusIdx&&_hackData[i].active&&_hackData[i].progress<100){
+          _hackData[i].active=false;
+          _hackData[i].progress=0;
+          _hackData[i].status='IDLE';
+        }
+      }
+      var hd=_hackData[focusIdx];
+      if(!hd)return;
+      // Skip already completed
+      if(hd.progress>=100){_stopScanSfx();return;}
+      // Only start scanning when zoomed in enough
+      if(zoomLevel<1.3){
+        if(hd.active){_stopScanSfx();hd.active=false;}
+        return;
+      }
+      // Activate and progress
+      if(!hd.active){
+        hd.active=true;hd.progress=0;hd.status='SCANNING';
+        hd.ip=_randIP();hd.port=Math.floor(1000+Math.random()*64000);
+        hd.file=_randFile();hd.key=_randHex(8);
+        _playScanSfx();
+      }
+      if(hd.progress<100){
+        hd.progress=Math.min(100,hd.progress+1.2+Math.random()*0.6);
+        if(hd.progress<25)hd.status='SCANNING';
+        else if(hd.progress<55)hd.status='BREACHING';
+        else if(hd.progress<85)hd.status='DECRYPTING';
+        else hd.status='EXTRACTED';
+      }
+      if(hd.progress>=100&&_sfxScanPlaying){
+        _stopScanSfx();
+      }
+    }
+
+    // ── Audio system: music + SFX ──
+    var _splashAudio=null,_splashAnalyser=null,_splashFreqData=null,_bassLevel=0;
+    var _audioOn=false,_audioCtx=null,_audioInited=false;
+    var _sfxScan=null,_sfxScanPlaying=false;
+    var _sfxTransition=null;
+
+    // Pre-create all audio objects (doesn't require gesture)
+    function _initAudioObjects(){
+      if(_audioInited)return;
+      _audioInited=true;
+      try{
+        _splashAudio=new Audio('/static/splash_music.mp3');
+        _splashAudio.loop=true;_splashAudio.volume=0;
+        _splashAudio.setAttribute('playsinline','');
+        _splashAudio.setAttribute('webkit-playsinline','');
+        _splashAudio.preload='auto';
+        window._splashAudio=_splashAudio;
+        _sfxScan=new Audio('/static/sfx_scan.mp3');
+        _sfxScan.loop=true;_sfxScan.volume=0.2;
+        _sfxScan.setAttribute('playsinline','');
+        _sfxScan.preload='auto';
+        window._sfxScan=_sfxScan;
+        _sfxTransition=new Audio('/static/sfx_transition.mp3');
+        _sfxTransition.volume=0.35;
+        _sfxTransition.setAttribute('playsinline','');
+        window._sfxTransition=_sfxTransition;
+      }catch(e){}
+    }
+    // Pre-init immediately (loading files, not playing)
+    _initAudioObjects();
+
+    // Start playback (requires user gesture)
+    function _startMusic(){
+      if(!_splashAudio)_initAudioObjects();
+      if(!_splashAudio)return;
+      _audioOn=true;
+      var btn=document.getElementById('spSoundBtn');
+      if(btn)btn.innerHTML='🔊';
+      // Play FIRST — before Web Audio connection
+      _splashAudio.volume=0;
+      _splashAudio.play().then(function(){
+        // Fade in
+        var vol=0;var fi=setInterval(function(){
+          vol+=0.012;
+          if(vol>=0.3||!_audioOn){if(_audioOn&&_splashAudio)_splashAudio.volume=0.3;clearInterval(fi);return;}
+          if(_splashAudio)_splashAudio.volume=vol;
+        },40);
+        // THEN connect analyser (after playback started)
+        if(!_audioCtx){
+          try{
+            var AC=window.AudioContext||window.webkitAudioContext;
+            if(AC){
+              _audioCtx=new AC();
+              if(_audioCtx.state==='suspended')_audioCtx.resume();
+              var src=_audioCtx.createMediaElementSource(_splashAudio);
+              _splashAnalyser=_audioCtx.createAnalyser();
+              _splashAnalyser.fftSize=512;
+              _splashAnalyser.smoothingTimeConstant=0.75;
+              _splashFreqData=new Uint8Array(_splashAnalyser.frequencyBinCount);
+              src.connect(_splashAnalyser);
+              _splashAnalyser.connect(_audioCtx.destination);
+              window._splashAudioCtx=_audioCtx;
+            }
+          }catch(e){console.log('[splash] analyser err:',e);}
+        }else if(_audioCtx.state==='suspended'){
+          _audioCtx.resume();
+        }
+      }).catch(function(e){
+        console.log('[splash] play failed:',e.message);
+        // Retry after short delay
+        setTimeout(function(){
+          if(!_audioOn||!_splashAudio)return;
+          _splashAudio.play().then(function(){
+            _splashAudio.volume=0.3;
+            // Connect analyser on retry
+            if(!_audioCtx){
+              try{
+                var AC=window.AudioContext||window.webkitAudioContext;
+                if(AC){
+                  _audioCtx=new AC();
+                  if(_audioCtx.state==='suspended')_audioCtx.resume();
+                  var src=_audioCtx.createMediaElementSource(_splashAudio);
+                  _splashAnalyser=_audioCtx.createAnalyser();
+                  _splashAnalyser.fftSize=512;_splashAnalyser.smoothingTimeConstant=0.75;
+                  _splashFreqData=new Uint8Array(_splashAnalyser.frequencyBinCount);
+                  src.connect(_splashAnalyser);_splashAnalyser.connect(_audioCtx.destination);
+                  window._splashAudioCtx=_audioCtx;
+                }
+              }catch(e2){}
+            }
+          }).catch(function(){});
+        },300);
+      });
+    }
+
+    function _toggleSplashAudio(){
+      var btn=document.getElementById('spSoundBtn');
+      if(_audioOn){
+        _audioOn=false;
+        if(_splashAudio)_splashAudio.pause();
+        if(_sfxScan){_sfxScan.pause();_sfxScanPlaying=false;}
+        if(btn)btn.innerHTML='🔇';
+        return;
+      }
+      // Turn on — resume if already initialized, otherwise full start
+      if(_splashAudio&&_audioInited){
+        _audioOn=true;
+        if(btn)btn.innerHTML='🔊';
+        if(_audioCtx&&_audioCtx.state==='suspended')_audioCtx.resume();
+        _splashAudio.play().catch(function(){});
+        if(_splashAudio.volume<0.3)_splashAudio.volume=0.3;
+      }else{
+        _startMusic();
+      }
+    }
+
+    // Scan SFX: play when zoomed in, pause when zooming out
+    function _playScanSfx(){
+      if(!_audioOn||!_sfxScan||_sfxScanPlaying)return;
+      _sfxScanPlaying=true;
+      _sfxScan.currentTime=0;
+      _sfxScan.play().catch(function(){});
+    }
+    function _stopScanSfx(){
+      if(!_sfxScan||!_sfxScanPlaying)return;
+      _sfxScanPlaying=false;
+      // Fade out scan sfx
+      var _sc=_sfxScan;
+      var _fo=setInterval(function(){
+        if(_sc.volume>0.03){_sc.volume=Math.max(0,_sc.volume-0.03);}
+        else{_sc.pause();_sc.volume=0.2;clearInterval(_fo);}
+      },30);
+    }
+
+    function _updateBassLevel(){
+      if(!_splashAnalyser||!_splashFreqData||!_audioOn){_bassLevel*=0.9;return;}
+      _splashAnalyser.getByteFrequencyData(_splashFreqData);
+      var sum=0,w=0;
+      for(var i=0;i<8;i++){var wt=2-i*0.15;sum+=_splashFreqData[i]*wt;w+=wt;}
+      _bassLevel=Math.min(1,(sum/(w*255))*1.8);
+    }
+
+    // ── Start splash on first interaction (any key, click, touch) ──
+    var _splashStarted=false;
+    window._splashStarted=false;
+    function _startSplash(){
+      if(_splashStarted)return;
+      _splashStarted=true;
+      window._splashStarted=true;
+      _startTime=Date.now(); // track when we started
+      // Hide prompt
+      var pr=document.getElementById('spPrompt');
+      if(pr)pr.style.display='none';
+      // Start progress bar steps
+      if(window._runSplashSteps)window._runSplashSteps();
+      // Check mute setting
+      var muted=false;
+      try{muted=localStorage.getItem('rst_splash_mute')==='1';}catch(e){}
+      try{localStorage.setItem('rst_seen_before','1');}catch(e){}
+      if(!muted)_startMusic();
+      else{var btn=document.getElementById('spSoundBtn');if(btn)btn.innerHTML='🔇';}
+      document.removeEventListener('keydown',_startSplash);
+      document.removeEventListener('mousedown',_startSplash);
+      document.removeEventListener('touchstart',_startSplash);
+    }
+    var _startTime=0;
+    document.addEventListener('keydown',_startSplash);
+    document.addEventListener('mousedown',_startSplash);
+    document.addEventListener('touchstart',_startSplash,{passive:true});
+
+    // Sound toggle button — ignore for 500ms after start to prevent double-toggle
+    document.getElementById('spSoundBtn')?.addEventListener('click',function(e){
+      e.stopPropagation();
+      e.preventDefault();
+      if(!_splashStarted){_startSplash();return;}
+      if(Date.now()-_startTime<500)return; // prevent double-toggle
+      _toggleSplashAudio();
+    });
+
+    function proj(v,cx,cy,fov){var f=fov/(fov+v[2]+200);return[cx+v[0]*f,cy+v[1]*f,f]}
+    function rotY(v,a){var c=Math.cos(a),s=Math.sin(a);return[v[0]*c+v[2]*s,v[1],v[2]*c-v[0]*s]}
+    function rotX(v,a){var c=Math.cos(a),s=Math.sin(a);return[v[0],v[1]*c-v[2]*s,v[1]*s+v[2]*c]}
+
+    var t=0;
+    // Smooth camera state
+    var camScale = 1, camOX = 0, camOY = 0;
+    var camTargetScale = 1, camTargetOX = 0, camTargetOY = 0;
+    var _shakeX=0,_shakeY=0; // bass shake offset
+    function draw(){
+      if(!document.getElementById('splashScreen'))return;
+      t+=0.012;
+      // Update bass level from music analyser
+      _updateBassLevel();
+      // Bass shake effect
+      var bassKick=Math.pow(_bassLevel,1.3); // amplify peaks more
+      _shakeX=(_shakeX*0.6)+(Math.random()-0.5)*bassKick*14;
+      _shakeY=(_shakeY*0.6)+(Math.random()-0.5)*bassKick*10;
+      var w=W(),h=H();
+
+      // Matrix rain — speed and brightness react to bass
+      bctx.fillStyle='rgba(2,1,8,'+(0.06+_bassLevel*0.04)+')';bctx.fillRect(0,0,w,h);
+      for(var i=0;i<drops.length;i++){
+        var ch=chars[Math.floor(Math.random()*chars.length)];
+        var bright=Math.random()+_bassLevel*0.3;
+        bctx.font='12px "Share Tech Mono",monospace';
+        bctx.fillStyle=bright>0.96?'rgba(192,132,252,'+(0.6+_bassLevel*0.3)+')':bright>0.88?'rgba(124,58,237,'+(0.3+_bassLevel*0.2)+')':'rgba(124,58,237,0.06)';
+        bctx.fillText(ch,i*14,drops[i]*14);
+        if(drops[i]*14>h&&Math.random()>0.975)drops[i]=0;
+        drops[i]+=0.3+Math.random()*0.2+_bassLevel*0.5;
+      }
+
+      // 3D scene
+      sctx.clearRect(0,0,w,h);
+
+      // ── Cinematic camera: zoom toward 3 random devices ──
+      if(_splashStarted) camTimer += 0.016;
+      var cycleDur = 2.5;
+      var _numTargets = 3; // hack 3 out of 5
+      if(!window._camTargets){
+        // Pick 3 random indices from shapes
+        var _all=[];for(var _ti=0;_ti<shapes.length;_ti++)_all.push(_ti);
+        _shuf(_all);
+        window._camTargets=_all.slice(0,_numTargets);
+      }
+      var _targets=window._camTargets;
+      var totalCycle = cycleDur * _numTargets;
+      var cyclePos = (camTimer % totalCycle);
+      var _targetIdx = Math.floor(cyclePos / cycleDur);
+      var shapeIdx = _targets[_targetIdx % _numTargets];
+      var nextShapeIdx = _targets[(_targetIdx+1) % _numTargets];
+      var progress = (cyclePos % cycleDur) / cycleDur;
+
+      var curShape = shapes[shapeIdx];
+      var nextShape = shapes[nextShapeIdx];
+
+      var focusX = w * curShape.cx;
+      var focusY = h * curShape.cy;
+      var nextFocusX = w * nextShape.cx;
+      var nextFocusY = h * nextShape.cy;
+
+      if (progress < 0.8) {
+        // Phase 1: zoom IN (80% of cycle)
+        var zp = progress / 0.8;
+        var ez = zp < 0.5 ? 2*zp*zp : 1 - Math.pow(-2*zp+2,2)/2;
+        camTargetScale = 1.0 + ez * 1.0; // zoom 1.0 → 2.0
+        camTargetOX = -(focusX - w/2) * ez * 1.0;
+        camTargetOY = -(focusY - h/2) * ez * 1.0;
+      } else {
+        // Phase 2: zoom OUT + pan (20%)
+        var tp = (progress - 0.8) / 0.2;
+        var et = tp < 0.5 ? 2*tp*tp : 1 - Math.pow(-2*tp+2,2)/2;
+        camTargetScale = 2.0 - et * 1.0;
+        var mx = focusX + (nextFocusX - focusX) * et;
+        var my = focusY + (nextFocusY - focusY) * et;
+        camTargetOX = -(mx - w/2) * (2.0 - et * 1.0 - 1);
+        camTargetOY = -(my - h/2) * (2.0 - et * 1.0 - 1);
+      }
+
+      // Smooth interpolation
+      camScale += (camTargetScale - camScale) * 0.1;
+      camOX += (camTargetOX - camOX) * 0.1;
+      camOY += (camTargetOY - camOY) * 0.1;
+
+      // Drive hack data by camera focus
+      _updateHackData(shapeIdx, camScale);
+
+      // ── Sync loading bar with device scanning ──
+      if(_splashStarted && bar){
+        var _completedDevices=0;
+        var _totalProgress=0;
+        var _tgts=window._camTargets||[];
+        for(var _di=0;_di<_tgts.length;_di++){
+          var _hdi=_tgts[_di];
+          if(_hackData[_hdi]&&_hackData[_hdi].progress>=100)_completedDevices++;
+          if(_hackData[_hdi])_totalProgress+=_hackData[_hdi].progress;
+        }
+        var _numT=_tgts.length||3;
+        var _overallPct=Math.min(100,Math.round(_totalProgress/(_numT*100)*100));
+        // Signal completion when all 3 targets done
+        if(_completedDevices>=_numT&&!window._splashAllDevicesDone){
+          window._splashAllDevicesDone=true;
+        }
+        // First 2% is from initial steps, rest from devices
+        var _displayPct=Math.max(2,_overallPct);
+        bar.style.width=_displayPct+'%';
+        if(pctEl)pctEl.textContent=_displayPct+'%';
+        // Bar color
+        if(_displayPct<33){bar.style.background='#ef4444';bar.style.boxShadow='0 0 14px rgba(239,68,68,.6)';}
+        else if(_displayPct<66){bar.style.background='#f59e0b';bar.style.boxShadow='0 0 14px rgba(245,158,11,.6)';}
+        else{bar.style.background='#22c55e';bar.style.boxShadow='0 0 14px rgba(34,197,94,.6)';}
+        // Status messages when device completes
+        if(_completedDevices>0 && box){
+          var _existingLines=box.querySelectorAll('.sp-status-line').length;
+          var _devMsgs=[
+            '> Firewall bypassed <span class="ok">✓</span>',
+            '> Keys extracted <span class="ok">✓</span>',
+            '> <span class="ok" style="font-size:13px;font-weight:700">ACCESS GRANTED</span>'
+          ];
+          while(_existingLines < _completedDevices+2 && _completedDevices<=3){
+            var _dm=_devMsgs[Math.min(_existingLines-2,_devMsgs.length-1)];
+            if(_dm){
+              var _ln=document.createElement('div');_ln.className='sp-status-line active';
+              _ln.innerHTML=_dm;box.appendChild(_ln);
+              var _all=box.querySelectorAll('.sp-status-line');
+              for(var _ai=0;_ai<_all.length-1;_ai++)_all[_ai].classList.remove('active');
+              box.scrollTop=box.scrollHeight;
+            }
+            _existingLines++;
+          }
+        }
+      }
+
+      // Glow at camera focus point
+      // Glow — pulses with bass
+      var glowR=w*0.4+_bassLevel*w*0.3;
+      sctx.save();sctx.globalAlpha=0.06+Math.sin(t*0.3)*0.03+_bassLevel*0.2;
+      var g=sctx.createRadialGradient(focusX,focusY,0,focusX,focusY,glowR);
+      g.addColorStop(0,'rgba(124,58,237,0.3)');g.addColorStop(1,'transparent');
+      sctx.fillStyle=g;sctx.fillRect(0,0,w,h);sctx.restore();
+
+      // Apply camera transform + bass shake
+      sctx.save();
+      sctx.translate(w/2 + camOX + _shakeX, h/2 + camOY + _shakeY);
+      sctx.scale(camScale + _bassLevel*0.08, camScale + _bassLevel*0.08);
+      sctx.translate(-w/2, -h/2);
+
+      // Draw shapes — no parallax, camera does all the work
+      for(var si=0;si<shapes.length;si++){
+        var s=shapes[si];
+        s.ry+=s.spd;s.rx+=s.spd*0.7;
+
+        var isFocused = (si === (shapeIdx));
+        var alphaBoost = (isFocused ? 0.2 : 0) + _bassLevel * 0.45;
+        var sizeBoost = isFocused ? 1.0 : 1.0;
+        var cx=w*s.cx, cy=h*s.cy;
+
+        var pts=[];
+        var fov = 400;
+        for(var vi=0;vi<s.v.length;vi++){
+          var vt=s.v[vi].slice();
+          vt=rotY(vt,s.ry);vt=rotX(vt,s.rx);
+          pts.push(proj(vt,cx,cy,fov));
+        }
+
+        // Hologram glow effect: focused shape gets brighter
+        for(var pass=0;pass<3;pass++){
+          var alpha=(pass===0?0.04:pass===1?0.1:0.25) + alphaBoost;
+          var blur=pass===0?15:pass===1?6:0;
+          var offset=pass===0?2:pass===1?1:0;
+          sctx.strokeStyle='rgba('+s.col.join(',')+','+alpha+')';
+          sctx.lineWidth=pass===2?2.5:pass===1?1.5:1;
+          sctx.shadowColor='rgba('+s.col.join(',')+',0.4)';
+          sctx.shadowBlur=blur;
+          for(var ei=0;ei<s.e.length;ei++){
+            sctx.beginPath();
+            sctx.moveTo(pts[s.e[ei][0]][0]+offset,pts[s.e[ei][0]][1]+offset);
+            sctx.lineTo(pts[s.e[ei][1]][0]+offset,pts[s.e[ei][1]][1]+offset);
+            sctx.stroke();
+          }
+        }
+        sctx.shadowBlur=0;
+        // Vertex glow dots
+        for(var vi=0;vi<pts.length;vi++){
+          sctx.beginPath();sctx.arc(pts[vi][0],pts[vi][1],2.5,0,6.28);
+          sctx.fillStyle='rgba('+s.col.join(',')+','+(0.4+Math.sin(t*3+vi)*0.2)+')';
+          sctx.shadowColor='rgba('+s.col.join(',')+',0.6)';sctx.shadowBlur=8;
+          sctx.fill();sctx.shadowBlur=0;
+        }
+        // Device type label (always visible, small)
+        sctx.save();
+        sctx.font='bold 9px "Share Tech Mono",monospace';
+        sctx.textAlign='center';sctx.textBaseline='top';
+        sctx.fillStyle='rgba('+s.col.join(',')+',0.3)';
+        sctx.fillText(s.label||'DEVICE',cx,cy+50);
+        sctx.restore();
+
+        // ── Hack data panel on focused device ──
+        if (isFocused && _hackData[si] && _hackData[si].active) {
+          var hd=_hackData[si];
+          var px=cx+65, py=cy-55;
+          sctx.save();
+          // Connection line from device to panel
+          sctx.strokeStyle='rgba('+s.col.join(',')+',0.3)';
+          sctx.lineWidth=1;sctx.setLineDash([4,4]);
+          sctx.beginPath();sctx.moveTo(cx,cy);sctx.lineTo(px,py+20);sctx.stroke();
+          sctx.setLineDash([]);
+          // Panel background
+          sctx.fillStyle='rgba(2,1,8,0.7)';
+          sctx.strokeStyle='rgba('+s.col.join(',')+','+(0.3+_bassLevel*0.3)+')';
+          sctx.lineWidth=1;
+          var pw=140,ph=72;
+          var _rx=px-4,_ry=py-4,_rr=6;
+          sctx.beginPath();sctx.moveTo(_rx+_rr,_ry);sctx.lineTo(_rx+pw-_rr,_ry);sctx.arcTo(_rx+pw,_ry,_rx+pw,_ry+_rr,_rr);sctx.lineTo(_rx+pw,_ry+ph-_rr);sctx.arcTo(_rx+pw,_ry+ph,_rx+pw-_rr,_ry+ph,_rr);sctx.lineTo(_rx+_rr,_ry+ph);sctx.arcTo(_rx,_ry+ph,_rx,_ry+ph-_rr,_rr);sctx.lineTo(_rx,_ry+_rr);sctx.arcTo(_rx,_ry,_rx+_rr,_ry,_rr);sctx.closePath();sctx.fill();sctx.stroke();
+          // Text content
+          sctx.font='bold 10px "Share Tech Mono",monospace';
+          sctx.textAlign='left';sctx.textBaseline='top';
+          var stColor=hd.status==='EXTRACTED'?'#22c55e':hd.status==='DECRYPTING'?'#f59e0b':'#c084fc';
+          sctx.fillStyle=stColor;
+          sctx.fillText('> '+hd.status,px,py);
+          sctx.fillStyle='rgba(192,132,252,0.6)';
+          sctx.font='9px "Share Tech Mono",monospace';
+          sctx.fillText('IP: '+hd.ip+':'+hd.port,px,py+14);
+          sctx.fillText('FILE: '+hd.file.slice(-18),px,py+26);
+          sctx.fillText('KEY: 0x'+hd.key,px,py+38);
+          // Progress bar
+          sctx.fillStyle='rgba(255,255,255,0.06)';
+          sctx.fillRect(px,py+52,pw-8,5);
+          sctx.fillStyle=stColor;
+          sctx.fillRect(px,py+52,(pw-8)*hd.progress/100,5);
+          // Orbiting data dots
+          for(var oi=0;oi<4;oi++){
+            var oa=t*1.5+oi*1.57;
+            var ox=cx+Math.cos(oa)*55,oy=cy+Math.sin(oa)*35;
+            sctx.beginPath();sctx.arc(ox,oy,1.5,0,6.28);
+            sctx.fillStyle='rgba('+s.col.join(',')+',0.5)';sctx.fill();
+          }
+          sctx.restore();
+        }
+      }
+
+      sctx.restore(); // end camera transform
+
+      // Floating data particles — more of them
+      for(var i=0;i<50;i++){
+        var px=((i*137.5+t*15)%w),py=((i*97.3+Math.sin(t+i)*30)%h);
+        var pAlpha=0.06+Math.sin(t*2+i*0.7)*0.04;
+        sctx.beginPath();sctx.arc(px,py,0.8+Math.sin(i)*0.5,0,6.28);
+        sctx.fillStyle='rgba(192,132,252,'+pAlpha+')';sctx.fill();
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // ── Hacking status log ──
+    var steps=[
+      {t:0,msg:'> Initializing breach protocol...',pct:0},
+      {t:600,msg:'> Scanning target: <span class="warn">rbx-st.win</span>',pct:2},
+    ];
+    // Maintenance fail variant
+    window._splashSetMaintenance = function(){
+      steps = [
+        {t:0,msg:'> Initializing breach protocol...',pct:0},
+        {t:800,msg:'> Scanning target: <span class="warn">rbx-st.win</span>',pct:8},
+        {t:1800,msg:'> Port scan: 443/tcp <span class="ok">OPEN</span>',pct:15},
+        {t:2600,msg:'> Bypassing WAF firewall...',pct:22},
+        {t:3400,msg:'> <span class="fail">FIREWALL BLOCK DETECTED</span>',pct:28},
+        {t:4200,msg:'> Retrying with fallback...',pct:33},
+        {t:5000,msg:'> <span class="fail">CONNECTION REFUSED</span>',pct:35},
+        {t:5800,msg:'> Decryption failed: <span class="fail">TIMEOUT</span>',pct:38},
+        {t:6600,msg:'> <span class="fail">INTRUSION DETECTED — SESSION KILLED</span>',pct:40},
+        {t:7400,msg:'> Attempting recovery...',pct:42},
+        {t:8200,msg:'> <span class="fail" style="font-size:13px;font-weight:700">BREACH FAILED — SERVER LOCKED</span>',pct:42}
+      ];
+    };
+    var box=document.getElementById('spBox'),bar=document.getElementById('spBar'),pctEl=document.getElementById('spPct');
+    function runSteps(){
+      if(!box)return;
+      steps.forEach(function(s){
+        setTimeout(function(){
+          if(!document.getElementById('splashScreen'))return;
+          var line=document.createElement('div');line.className='sp-status-line active';
+          line.innerHTML=s.msg;box.appendChild(line);
+          var lines=box.querySelectorAll('.sp-status-line');
+          for(var i=0;i<lines.length-1;i++)lines[i].classList.remove('active');
+          box.scrollTop=box.scrollHeight;
+        },s.t);
+      });
+    }
+    // Don't run yet — wait for _startSplash
+    // runSteps() is called from _startSplash via window._runSplashSteps
+    window._runSplashSteps=runSteps;
+
+    // Code rain panels
+    var codeL=document.getElementById('spCodeL'),codeR=document.getElementById('spCodeR');
+    function genHex(){var h='0123456789abcdef',s='';for(var i=0;i<12;i++){var l='';for(var j=0;j<12;j++)l+=h[Math.floor(Math.random()*16)];s+=l+'\n'}return s}
+    if(codeL)setInterval(function(){codeL.textContent=genHex()},300);
+    if(codeR)setInterval(function(){codeR.textContent=genHex()},350);
+
+  })();
+  </script>
+  <!-- Ambient Background -->
+  <div class="ambient-bg">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+  </div>
+
+  <!-- iOS-style Header -->
+  <header class="header">
+    <div class="header-content">
+      <!-- Logo -->
+      <a class="logo" href="#" title="RBX ST - Shop | Tools">
+        <div class="logo-icon">
+          <svg class="logo-svg" viewBox="0 0 40 40" fill="none" width="38" height="38">
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                <stop offset="0%" stop-color="#7c3aed">
+                  <animate attributeName="stop-color" values="#7c3aed;#9333ea;#c084fc;#7c3aed" dur="4s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="100%" stop-color="#c084fc">
+                  <animate attributeName="stop-color" values="#c084fc;#7c3aed;#9333ea;#c084fc" dur="4s" repeatCount="indefinite"/>
+                </stop>
+              </linearGradient>
+              <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <rect width="40" height="40" rx="12" fill="url(#logoGrad)" opacity="0.12">
+              <animate attributeName="opacity" values="0.1;0.18;0.1" dur="3s" repeatCount="indefinite"/>
+            </rect>
+            <g filter="url(#glow)">
+              <text x="20" y="27" text-anchor="middle" fill="url(#logoGrad)" font-size="20" font-weight="900" font-family="Space Grotesk,Inter,sans-serif">R</text>
+            </g>
+            <circle cx="33" cy="9" r="3.5" fill="url(#logoGrad)" opacity="0.8">
+              <animate attributeName="r" values="3;4;3" dur="2s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand">RBX ST</span>
+          <span class="logo-tagline">Shop | Tools</span>
+        </div>
+      </a>
+      
+      <!-- Centered Nav -->
+      <nav class="nav-desktop" id="navDesktop">
+        <div class="nav-indicator" id="navIndicator"></div>
+        <button class="nav-btn active" data-tab="home"><span class="nav-content"><span>Главная</span></span></button>
+        <button class="nav-btn" data-tab="robux"><span class="nav-content"><span>Robux</span></span></button>
+        <button class="nav-btn" data-tab="shop"><span class="nav-content"><span>Магазин</span></span></button>
+        <button class="nav-btn" data-tab="profile"><span class="nav-content"><span>Профиль</span></span></button>
+        <button class="nav-btn hidden" data-tab="admin" id="navAdminBtn"><span class="nav-content"><span>Админ</span></span></button>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/v2" class="v2-pill" id="v2Pill" title="Попробовать новую версию сайта">
+          <span class="v2-pill-spark">✨</span>
+          <span class="v2-pill-text">v2</span>
+          <span class="v2-pill-new">NEW</span>
+        </a>
+        <style>
+        .v2-pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 10px;border-radius:999px;
+          background:linear-gradient(135deg,rgba(124,92,255,.2),rgba(91,140,255,.2));
+          border:1px solid rgba(124,92,255,.45);color:#d8d4ff;font-size:13px;font-weight:700;
+          text-decoration:none;letter-spacing:.02em;margin-right:6px;
+          transition:all .25s cubic-bezier(0.25,0.8,0.25,1);position:relative;overflow:hidden}
+        .v2-pill::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,#7c5cff,#5b8cff);
+          opacity:0;transition:opacity .3s}
+        .v2-pill:hover{color:#fff;border-color:transparent;transform:translateY(-1px);
+          box-shadow:0 8px 22px rgba(124,92,255,.5)}
+        .v2-pill:hover::before{opacity:1}
+        .v2-pill > *{position:relative;z-index:1}
+        .v2-pill-spark{display:inline-block;animation:v2pillSpin 5s linear infinite;font-size:13px}
+        @keyframes v2pillSpin{to{transform:rotate(360deg)}}
+        .v2-pill-new{font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;
+          background:linear-gradient(135deg,#ff4d8f,#ff7a4d);color:#fff;letter-spacing:.04em;
+          box-shadow:0 2px 8px rgba(255,77,143,.5)}
+        @media (max-width:640px){.v2-pill{height:30px;padding:0 9px 0 8px;font-size:12px}.v2-pill-new{display:none}}
+        </style>
+        <button class="balance-chip hidden" id="balanceBtn" title="Пополнить баланс">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span id="balanceValue">0 ₽</span>
+        </button>
+        <!-- Notification Bell -->
+        <button class="notif-bell-btn hidden" id="notifBellBtn" title="Уведомления" style="position:relative;background:none;border:none;cursor:pointer;padding:8px;color:var(--text-secondary);transition:color .2s">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge hidden" id="notifBadge" style="position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;background:#ef4444;border-radius:9px;border:2px solid var(--bg-primary);font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1"></span>
+        </button>
+        <!-- Notification Dropdown -->
+        <div class="notif-dropdown hidden" id="notifDropdown" style="position:absolute;top:100%;right:40px;width:360px;max-height:480px;background:var(--bg-secondary);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);z-index:1001;overflow:hidden;margin-top:8px;display:flex;flex-direction:column">
+          <div style="padding:14px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0">
+            <span style="font-weight:700;font-size:15px">Уведомления</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button id="notifMarkAll" style="font-size:11px;color:var(--accent-tertiary);background:none;border:none;cursor:pointer;font-weight:600">Прочитать все</button>
+              <button id="notifDeleteAll" style="font-size:11px;color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:6px;cursor:pointer;padding:2px 8px;font-weight:600" title="Удалить все">🗑 Всё</button>
+            </div>
+          </div>
+          <div id="notifList" style="overflow-y:auto;padding:8px;flex:1">
+            <div style="text-align:center;padding:30px 16px;color:var(--text-muted);font-size:13px">Нет уведомлений</div>
+          </div>
+        </div>
+        <div class="user-menu-wrap" id="userMenuWrap">
+          <button class="avatar-btn" id="avatarBtn" title="Меню">
+            <img id="avatarImg" class="avatar-img hidden" alt="Avatar">
+            <span id="avatarLetter">?</span>
+          </button>
+          <!-- Avatar Dropdown -->
+          <div class="user-dropdown" id="userDropdown">
+            <div class="dropdown-header">
+              <span class="dropdown-username" id="dropdownUsername">Гость</span>
+              <span class="dropdown-balance" id="dropdownBalance">0 ₽</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" data-tab="profile">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Профиль
+            </button>
+            <button class="dropdown-item" id="dropdownTopUp">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Пополнить
+            </button>
+            <button class="dropdown-item" id="dropdownMyPurchases">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 2 3 6 3 20 21 20 21 6 18 2"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Мои покупки
+            </button>
+            <button class="dropdown-item" id="dropdownMyTickets">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Мои обращения
+            </button>
+            <button class="dropdown-item" id="dropdownSettings">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Настройки
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item dropdown-danger" id="dropdownLogout">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Выйти
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Home Tab -->
+    <section class="tab-content active" id="tab-home">
+      <!-- Section 1: Hero -->
+      <div class="home-section home-hero">
+        <div class="container">
+          <div class="hero-card reveal">
+            <div class="hero-badge">Новинка 2026</div>
+            <h1 class="hero-title">
+              <span class="gradient-text">RBX ST</span>
+              <br>Магазин цифровых услуг
+            </h1>
+            <p class="hero-desc">
+              Покупка Robux, генератор описаний, AI-помощник и Premium подписка.
+              Безопасно, быстро и удобно.
+            </p>
+            <div class="hero-actions">
+              <button class="btn btn-primary btn-lg" data-goto="robux">Купить Robux</button>
+              <button class="btn btn-secondary btn-lg" data-goto="shop">Магазин</button>
+            </div>
+            <div class="hero-trust">
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Безопасные платежи</span>
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Мгновенная выдача</span>
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Поддержка 24/7</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Features -->
+      <div class="home-section">
+        <div class="container">
+          <div class="section-label reveal">Возможности</div>
+          <h2 class="section-title reveal">Всё что нужно — в одном месте</h2>
+          <div class="features-grid">
+            <div class="feature-card reveal reveal-delay-1">
+              <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+              <h3>Robux по нику</h3>
+              <p>Вводишь ник — система находит профиль, игры и геймпасс автоматически</p>
+            </div>
+            <div class="feature-card reveal reveal-delay-2">
+              <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+              <h3>Генератор описаний</h3>
+              <p>Анализ публичного профиля по нику и генерация текста по шаблону</p>
+            </div>
+            <div class="feature-card reveal reveal-delay-3">
+              <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><circle cx="12" cy="16" r="1"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></div>
+              <h3>AI помощник</h3>
+              <p>Чат с ИИ для создания уникальных текстов под любой стиль</p>
+            </div>
+            <div class="feature-card reveal reveal-delay-4">
+              <div class="feature-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="1.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg></div>
+              <h3>Premium</h3>
+              <p>Безлимитные запросы, приоритет и расширенные возможности</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: Reviews -->
+      <div class="home-section">
+        <div class="container">
+          <div class="section-label reveal">Отзывы</div>
+          <h2 class="section-title reveal">Что говорят пользователи</h2>
+          <div class="reviews-section reveal">
+            <div id="reviewsList" class="reviews-grid">
+              <div style="color:var(--text-muted);font-size:14px;padding:30px;text-align:center;grid-column:1/-1">Загрузка отзывов...</div>
+            </div>
+            <div style="text-align:center;margin-top:16px;display:flex;gap:8px;justify-content:center">
+              <button class="btn btn-secondary btn-sm" id="btnWriteReview">Оставить отзыв</button>
+              <button class="btn btn-secondary btn-sm" id="btnAllReviews" style="gap:6px">📋 Все отзывы</button>
+            </div>
+            <div id="reviewFormWrap" class="hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 6: FAQ -->
+      <div class="home-section">
+        <div class="container">
+          <div class="section-label reveal">FAQ</div>
+          <h2 class="section-title reveal">Возможные вопросы</h2>
+          <div class="faq-list">
+            <div class="faq-item reveal reveal-delay-1">
+              <button class="faq-question">Как давно вы на рынке?</button>
+              <div class="faq-answer"><div class="faq-answer-inner">RBX ST работает с начала 2026 года. За это время мы обслужили сотни клиентов и продолжаем расти. Команда состоит из людей, которые сами играют в Roblox и понимают, что нужно игрокам.</div></div>
+            </div>
+            <div class="faq-item reveal reveal-delay-2">
+              <button class="faq-question">Можно ли вам доверять?</button>
+              <div class="faq-answer"><div class="faq-answer-inner">Мы работаем открыто — у нас есть отзывы реальных пользователей, Telegram-канал и поддержка 24/7. Все транзакции проходят через безопасные методы, мы не просим пароли от аккаунтов. Если что-то пойдёт не так — мы всегда на связи.</div></div>
+            </div>
+            <div class="faq-item reveal reveal-delay-3">
+              <button class="faq-question">Не забанят ли меня за покупку Robux у вас?</button>
+              <div class="faq-answer"><div class="faq-answer-inner">Нет. Доставка идёт через геймпассы — это штатный механизм Roblox. Мы не используем эксплойты и не трогаем твой аккаунт. Нужен только ник, и Robux поступают как обычная покупка геймпасса.</div></div>
+            </div>
+            <div class="faq-item reveal reveal-delay-4">
+              <button class="faq-question">Что делать, если Robux не пришли?</button>
+              <div class="faq-answer"><div class="faq-answer-inner">Подожди 10–15 минут — Roblox иногда задерживает зачисление. Если прошло больше получаса — напиши в поддержку с номером заказа, разберёмся и решим вопрос.</div></div>
+            </div>
+            <div class="faq-item reveal reveal-delay-5">
+              <button class="faq-question">Как быстро доставляют товары из магазина?</button>
+              <div class="faq-answer"><div class="faq-answer-inner">Большинство товаров доставляются автоматически сразу после оплаты. Robux — в течение нескольких минут после подтверждения. Если что-то пошло не так — обращайтесь в поддержку, разберёмся.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 7: CTA -->
+      <div class="home-section home-cta-section">
+        <div class="container">
+          <div class="cta-card reveal">
+            <h2>Готов начать?</h2>
+            <p>Покупай Robux, приобретай аккаунты и эксклюзивные товары — всё в одном месте</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary btn-lg" data-goto="robux">Купить Robux</button>
+              <button class="btn btn-secondary btn-lg" data-goto="shop">Магазин</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 8: Telegram / Max announcement -->
+      <div class="home-section" style="padding-bottom:40px">
+        <div class="container">
+          <div class="reveal" style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(168,85,247,.04));border:1px solid rgba(168,85,247,.15);border-radius:18px;padding:28px 24px;text-align:center;max-width:520px;margin:0 auto">
+            <div style="font-size:32px;margin-bottom:12px">📢</div>
+            <h3 style="font-size:18px;font-weight:800;margin:0 0 8px;color:var(--text-primary)">Мы скоро появимся с новостями</h3>
+            <p style="font-size:14px;color:var(--text-muted);margin:0;line-height:1.5">Следите за обновлениями в <b style="color:#7c3aed">Telegram</b> и <b style="color:#7c3aed">Max</b>!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Robux Tab -->
+    <section class="tab-content" id="tab-robux">
+      <div class="container">
+        <!-- Landing Hero (shown only in landing layout via CSS) -->
+        <div id="robuxLandingHero" style="display:none">
+          <div id="rlhHologram" style="width:100%;display:flex;flex-direction:column;align-items:center;padding:40px 0 20px;position:relative;overflow:visible">
+            <!-- Holographic coin -->
+            <div id="rlhCoinWrap" style="perspective:800px;width:180px;height:180px;margin-bottom:24px;position:relative">
+              <div id="rlhCoin" style="width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:rlhSpin 6s linear infinite">
+                <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(168,85,247,.08));border:2px solid rgba(124,58,237,.25);display:flex;align-items:center;justify-content:center;backface-visibility:hidden;box-shadow:0 0 60px rgba(124,58,237,.15),0 0 120px rgba(124,58,237,.05),inset 0 0 40px rgba(124,58,237,.08)">
+                  <span style="font-family:'Space Grotesk',sans-serif;font-size:64px;font-weight:900;background:linear-gradient(180deg,#c084fc,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px rgba(124,58,237,.4))">R$</span>
+                </div>
+                <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(168,85,247,.1),rgba(124,58,237,.15));border:2px solid rgba(124,58,237,.2);transform:rotateY(180deg);backface-visibility:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(124,58,237,.15),inset 0 0 40px rgba(124,58,237,.08)">
+                  <span style="font-family:'Space Grotesk',sans-serif;font-size:48px;font-weight:900;color:rgba(192,132,252,.6)">RBX</span>
+                </div>
+              </div>
+              <!-- Hologram scan line -->
+              <div style="position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none">
+                <div style="position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(192,132,252,.3),transparent);animation:rlhScan 2s linear infinite"></div>
+              </div>
+              <!-- Glow ring -->
+              <div style="position:absolute;inset:-15px;border-radius:50%;border:1px solid rgba(124,58,237,.08);animation:rlhRingPulse 3s ease-in-out infinite"></div>
+              <div style="position:absolute;inset:-30px;border-radius:50%;border:1px solid rgba(124,58,237,.04);animation:rlhRingPulse 3s ease-in-out .5s infinite"></div>
+            </div>
+            <!-- Text -->
+            <h2 style="font-family:'Outfit',sans-serif;font-size:clamp(24px,4vw,38px);font-weight:900;text-align:center;margin:0 0 6px;letter-spacing:-1px"><span class="gradient-text">Покупка Robux</span></h2>
+            <p style="font-size:14px;color:rgba(240,237,246,.4);text-align:center;margin:0">Быстро · Безопасно · По нику</p>
+            <!-- Floating particles via CSS -->
+            <style>
+              @keyframes rlhSpin{to{transform:rotateY(360deg)}}
+              @keyframes rlhScan{0%{top:-10%}100%{top:110%}}
+              @keyframes rlhRingPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.7;transform:scale(1.05)}}
+              @keyframes rlhFloat{0%,100%{transform:translateY(0) scale(1);opacity:.15}50%{transform:translateY(-20px) scale(1.2);opacity:.4}}
+              .rlh-particle{position:absolute;border-radius:50%;background:rgba(124,58,237,.3);animation:rlhFloat 3s ease-in-out infinite;pointer-events:none}
+            </style>
+            <div class="rlh-particle" style="width:4px;height:4px;top:20%;left:15%;animation-delay:0s"></div>
+            <div class="rlh-particle" style="width:3px;height:3px;top:60%;left:10%;animation-delay:.8s"></div>
+            <div class="rlh-particle" style="width:5px;height:5px;top:30%;right:12%;animation-delay:.4s"></div>
+            <div class="rlh-particle" style="width:3px;height:3px;top:70%;right:18%;animation-delay:1.2s"></div>
+            <div class="rlh-particle" style="width:4px;height:4px;top:50%;left:25%;animation-delay:1.6s"></div>
+            <div class="rlh-particle" style="width:3px;height:3px;top:15%;right:30%;animation-delay:2s"></div>
+          </div>
+        </div>
+        <div class="section-header" id="robuxDefaultHeader">
+          <h1><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="1.5" style="vertical-align:middle;margin-right:8px"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Покупка Robux</h1>
+          <p>Быстро и безопасно. Вводишь ник — получаешь Robux.</p>
+          <div class="stock-badge" id="robuxStockBadge">В наличии: <strong id="robuxStock">—</strong></div>
+        </div>
+
+        <div class="robux-page-layout">
+          <!-- Left column: Banner + Trust Panel -->
+          <div class="robux-left-col">
+            <div class="robux-banner-slot" id="robuxBannerSlot">
+              <img src="/static/banners/robux_banner.png?v=1" alt="Robux banner">
+            </div>
+            <!-- Trust Panel fills space below banner -->
+            <div class="robux-trust-panel">
+              <div class="trust-item">
+                <div class="trust-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+                <div class="trust-text"><div class="trust-title">Безопасно</div><div class="trust-desc">Транзакции через геймпассы</div></div>
+              </div>
+              <div class="trust-item">
+                <div class="trust-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                <div class="trust-text"><div class="trust-title">Быстро</div><div class="trust-desc">Доставка от 1 минуты</div></div>
+              </div>
+              <div class="trust-item">
+                <div class="trust-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></div>
+                <div class="trust-text"><div class="trust-title">Выгодно</div><div class="trust-desc">Курс ниже рынка</div></div>
+              </div>
+              <div class="trust-item">
+                <div class="trust-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg></div>
+                <div class="trust-text"><div class="trust-title">Поддержка</div><div class="trust-desc">Помощь 24/7</div></div>
+              </div>
+            </div>
+            <div id="robuxRecentOrders" class="robux-recent-orders" style="display:none"></div>
+          </div>
+
+          <!-- Robux Calculator -->
+          <div class="robux-card">
+            <div class="robux-header">
+              <h2>Калькулятор</h2>
+              <div class="robux-rate" id="robuxRate">Курс: — ₽/R$</div>
+            </div>
+            
+            <div class="robux-form">
+              <div class="form-group">
+                <label class="form-label">Количество Robux</label>
+                <div class="input-with-icon">
+                  <input type="number" class="form-input" id="robuxAmount" value="50" min="50" max="100000">
+                  <span class="input-suffix">R$</span>
+                </div>
+              </div>
+              
+              <div class="robux-quick-amounts">
+                <button class="quick-btn" data-amount="50">50</button>
+                <button class="quick-btn" data-amount="100">100</button>
+                <button class="quick-btn" data-amount="250">250</button>
+                <button class="quick-btn" data-amount="500">500</button>
+                <button class="quick-btn" data-amount="1000">1K</button>
+              </div>
+
+              <div class="robux-summary">
+                <div class="summary-row">
+                  <span>К оплате:</span>
+                  <span class="summary-value" id="robuxPrice">— ₽</span>
+                </div>
+                <div class="summary-row">
+                  <span>Цена геймпасса:</span>
+                  <span class="summary-value" id="gamepassPrice">— R$</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="robux-divider"></div>
+
+            <!-- Purchase Mode Toggle -->
+            <div class="purchase-mode-section" id="purchaseModeSection">
+              <div class="purchase-mode-toggle">
+                <span class="mode-label active-label" id="modeLabelNormal">Обычный</span>
+                <label class="toggle-switch" id="purchaseModeToggle">
+                  <input type="checkbox" id="purchaseModeCheck">
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="mode-label" id="modeLabelAuto">Авто</span>
+                <span class="premium-lock hidden" id="autoModeLock" title="Только для Premium">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+              </div>
+              <div class="mode-description" id="modeDescription">Выбери количество, введи ник или ссылку, проверь и купи.</div>
+            </div>
+
+            <!-- Mode Tabs -->
+            <div class="mode-tabs">
+              <button class="mode-tab active" data-mode="username">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              По нику
+            </button>
+            <button class="mode-tab" data-mode="url">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              По ссылке
+            </button>
+          </div>
+
+          <!-- Username Mode -->
+          <div class="mode-content active" id="modeUsername">
+            <div class="form-group">
+              <label class="form-label">Ник Roblox</label>
+              <input type="text" class="form-input" id="robuxUsername" placeholder="Например: Builderman">
+              <span class="form-hint">Латиница, цифры и подчёркивание. Без кириллицы!</span>
+            </div>
+          </div>
+
+          <!-- URL Mode -->
+          <div class="mode-content" id="modeUrl">
+            <div class="form-group">
+              <label class="form-label">Ссылка на геймпасс</label>
+              <input type="text" class="form-input" id="robuxUrl" placeholder="https://www.roblox.com/game-pass/...">
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="robux-actions">
+            <button class="btn btn-secondary" id="btnRobuxCheck">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span id="btnRobuxCheckText">Проверить</span>
+            </button>
+            <button class="btn btn-primary" id="btnRobuxBuy" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+              Купить
+            </button>
+          </div>
+
+          <!-- Status -->
+          <div class="robux-status hidden" id="robuxStatus">
+            <div class="status-spinner"></div>
+            <span class="status-text">Проверяем...</span>
+          </div>
+
+          <!-- Result Card -->
+          <div class="robux-result hidden" id="robuxResult">
+            <div class="result-header" id="robuxResultHeader">
+              <svg id="robuxResultIconOk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <svg id="robuxResultIconNo" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <span id="robuxResultTitle">—</span>
+            </div>
+
+            <div class="result-body">
+              <div class="result-message" id="robuxResultMsg"></div>
+
+              <div class="gamepass-mini hidden" id="robuxGamepassMini">
+                <img id="resultThumb" class="gamepass-thumb" alt="Gamepass">
+                <div class="gamepass-meta">
+                  <div class="gamepass-name" id="resultName">—</div>
+                  <div class="gamepass-owner" id="resultOwner">—</div>
+                </div>
+              </div>
+
+              <div class="result-row" id="robuxPriceRow">
+                <span>Цена:</span>
+                <span id="resultPrice">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div> <!-- End robux-page-layout -->
+
+        <!-- How it works - Animated Info Cards -->
+        <div class="robux-info-grid">
+          <div class="robux-info-card reveal-up">
+            <div class="robux-info-icon">👤</div>
+            <h4>Покупка по нику</h4>
+            <p>Самый простой способ — укажи ник и количество Robux.</p>
+            <ol class="robux-info-steps">
+              <li>Введи ник Roblox и количество R$</li>
+              <li>Система найдёт профиль и публичные игры</li>
+              <li>Подберёт геймпасс с нужной ценой</li>
+              <li>Робуксы поступят тебе на счёт!</li>
+            </ol>
+          </div>
+
+          <div class="robux-info-card reveal-up" style="transition-delay:.12s">
+            <div class="robux-info-icon">🔗</div>
+            <h4>Покупка по ссылке</h4>
+            <p>Если у тебя есть готовый геймпасс — вставь ссылку.</p>
+            <ol class="robux-info-steps">
+              <li>Создай геймпасс в Roblox Studio</li>
+              <li>Установи нужную цену и опубликуй</li>
+              <li>Скопируй ссылку на геймпасс</li>
+              <li>Вставь в поле и нажми «Купить»</li>
+            </ol>
+          </div>
+
+          <div class="robux-info-card reveal-up" style="transition-delay:.24s">
+            <div class="robux-info-icon">⚡</div>
+            <h4>Авто-покупка</h4>
+            <p>Для Premium — геймпасс создаётся автоматически.</p>
+            <ol class="robux-info-steps">
+              <li>Включи авто-режим переключателем</li>
+              <li>Если геймпасс не найден — вставь куки</li>
+              <li>Система сама создаст геймпасс</li>
+              <li>Покупка произойдёт мгновенно!</li>
+            </ol>
+            <div style="margin-top:8px">
+              <span class="robux-info-badge robux-info-badge--premium">Premium</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tools Tab -->
+        <!-- Инструменты -->
+    <section id="tab-shop" class="tab-content">
+      <div class="container">
+        <div class="section-header">
+          <h1>Магазин</h1>
+          <p>Выбирай товар — дальше всё сделаем автоматически</p>
+        </div>
+
+        <!-- Editor Mode Banner (admin only) -->
+        <div id="shopEditorBanner" class="shop-editor-banner hidden">
+          <div class="shop-editor-banner-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 1 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Режим редактора активен</span>
+          </div>
+          <div class="shop-editor-banner-actions">
+            <button class="btn btn-secondary btn-sm" id="btnShopEditorAddCat">+ Категория</button>
+            <button class="btn btn-secondary btn-sm" id="btnShopEditorAddItem">+ Товар</button>
+            <button class="btn btn-primary btn-sm" id="btnShopEditorSave">💾 Сохранить</button>
+            <button class="btn btn-ghost btn-sm" id="btnShopEditorExit">✕ Выйти</button>
+          </div>
+        </div>
+
+        <!-- Category tabs (rendered by JS) -->
+        <div id="shopTabsContainer"></div>
+
+        <!-- Search + Sort bar -->
+        <div class="shop-toolbar">
+          <div class="field">
+            <label class="muted">Поиск</label>
+            <input id="shopSearch" class="input" placeholder="Поиск товаров..." autocomplete="off" name="q_nofill" readonly onfocus="this.removeAttribute('readonly')" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" />
+          </div>
+          <div class="field">
+            <label class="muted">Сортировка</label>
+            <select id="shopSort" class="input">
+              <option value="popular">По популярности</option>
+              <option value="price-asc">Сначала дешёвые</option>
+              <option value="price-desc">Сначала дорогие</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic shop grid -->
+        <div id="shopDynamicGrid"></div>
+      </div>
+    </section>
+
+    <!-- Profile Tab -->
+    <section class="tab-content" id="tab-profile">
+      <div class="container">
+        <!-- Guest View -->
+        <div class="auth-card" id="authCard">
+          <div class="auth-glow"></div>
+          <div class="auth-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <circle cx="12" cy="10" r="3"/>
+              <path d="M12 13v2"/>
+            </svg>
+          </div>
+          <h2>Войдите в аккаунт</h2>
+          <p>Авторизуйтесь для доступа к инструментам и покупкам</p>
+          <div class="auth-actions">
+            <button class="btn btn-primary btn-lg" id="btnLogin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+              Войти
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btnRegister">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Регистрация
+            </button>
+          </div>
+        </div>
+
+        <!-- Logged In View -->
+        <div class="profile-content hidden" id="profileContent">
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start">
+    <!-- Left: Avatar + Info -->
+    <div>
+      <div style="background:linear-gradient(135deg,rgba(147,51,234,0.18),rgba(79,70,229,0.08));border:1px solid rgba(147,51,234,0.2);border-radius:16px;padding:20px;text-align:center">
+        <div class="profile-avatar profile-avatar-upload" id="profileAvatar" title="Загрузить аватар" style="width:80px;height:80px;border-radius:50%;background:var(--accent-gradient);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;margin:0 auto 12px;position:relative;cursor:pointer;border:3px solid rgba(147,51,234,0.4)">
+          <img id="profileAvatarImg" class="avatar-img hidden" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
+          <span id="profileAvatarLetter" style="color:#fff">?</span>
+          <!-- Upload hover overlay -->
+          <div class="avatar-upload-overlay" style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s;pointer-events:none">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;opacity:0;transition:opacity .2s;color:#fff">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+              <span style="font-size:9px;font-weight:700;letter-spacing:.5px">СМЕНИТЬ</span>
+            </div>
+          </div>
+          <button class="avatar-reset hidden" id="btnAvatarReset" type="button" title="Сбросить аватар" style="position:absolute;top:-4px;right:-4px;width:22px;height:22px;border-radius:50%;background:#ef4444;border:2px solid var(--bg-primary);color:#fff;cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.4)">✕</button>
+        </div>
+        <style>
+          .profile-avatar-upload:hover .avatar-upload-overlay { background: rgba(0,0,0,.45) !important; }
+          .profile-avatar-upload:hover .avatar-upload-overlay > div { opacity: 1 !important; }
+        </style>
+        <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" hidden>
+        <h2 id="profileName" style="margin:0;font-size:20px;font-weight:800">Пользователь</h2>
+        <div style="color:var(--text-muted);font-size:12px;margin:2px 0 8px">ID: <span id="profileId">—</span></div>
+        <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap">
+          <span class="badge badge-premium hidden" id="badgePremium" style="font-size:10px;padding:2px 8px;border-radius:20px;background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;font-weight:700">⭐ Premium</span>
+          <span class="badge badge-admin hidden" id="badgeAdmin" style="font-size:10px;padding:2px 8px;border-radius:20px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700">🛡 Admin</span>
+        </div>
+      </div>
+      <!-- Stats under avatar -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+        <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Баланс</div>
+          <div id="statBalance" style="font-size:17px;font-weight:800;color:var(--success);margin-top:2px">0 ₽</div>
+          <button id="btnBalanceHistory" style="font-size:10px;color:var(--text-muted);background:none;border:none;cursor:pointer;margin-top:4px;text-decoration:underline">История</button>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Premium</div>
+          <div id="statPremium" style="font-size:17px;font-weight:800;color:var(--accent-tertiary);margin-top:2px">—</div>
+        </div>
+      </div>
+      <!-- Quick actions -->
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+        <button class="action-card" id="btnProfileTopUp" style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:all .2s;color:inherit;width:100%">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#22c55e" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+          <div><div style="font-weight:700;font-size:12px">Пополнить</div><div style="font-size:10px;color:var(--text-muted)">CryptoBot / промокод</div></div>
+        </button>
+        <button class="action-card" id="btnSupport" style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:all .2s;color:inherit;width:100%">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(168,85,247,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a855f7" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <div><div style="font-weight:700;font-size:12px">Поддержка</div><div style="font-size:10px;color:var(--text-muted)">Написать</div></div>
+        </button>
+        <button class="action-card" id="btnTelegramLinkCode" style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:all .2s;color:inherit;width:100%">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+          <div><div style="font-weight:700;font-size:12px">Telegram</div><div style="font-size:10px;color:var(--text-muted)">Код привязки</div></div>
+        </button>
+        <button class="action-card action-danger" id="btnLogout" style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:all .2s;color:inherit;width:100%">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+          <div><div style="font-weight:700;font-size:12px">Выйти</div></div>
+        </button>
+      </div>
+    </div>
+    <!-- Right: Tabs + Content -->
+    <div>
+      <div class="profile-tabs" id="profileInnerTabs" style="display:flex;gap:3px;background:rgba(255,255,255,0.03);border-radius:10px;padding:3px;margin-bottom:16px">
+        <button class="profile-tab-btn active" data-ptab="overview">Обзор</button>
+        <button class="profile-tab-btn" data-ptab="chat">Общение</button>
+        <button class="profile-tab-btn" data-ptab="purchases">Покупки</button>
+      </div>
+      <div class="profile-tab-pane active" data-ptab-pane="overview">
+        <div class="analytics-card" id="profileAnalyticsCard" style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div><div style="font-weight:700;font-size:15px">Статистика</div><div style="font-size:12px;color:var(--text-muted)">Пополнения и траты</div></div>
+            <div class="segmented" id="profileStatsMode" style="display:flex;gap:2px">
+              <button class="seg-btn active" data-mode="all" style="padding:4px 10px;font-size:11px">Всё</button>
+              <button class="seg-btn" data-mode="topups" style="padding:4px 10px;font-size:11px">Пополнения</button>
+              <button class="seg-btn" data-mode="spends" style="padding:4px 10px;font-size:11px">Траты</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:10px;align-items:center">
+            <div class="segmented segmented-sm" id="profileStatsRange" style="display:flex;gap:2px">
+              <button class="seg-btn active" data-days="7" style="padding:3px 8px;font-size:11px">7д</button>
+              <button class="seg-btn" data-days="30" style="padding:3px 8px;font-size:11px">30д</button>
+              <button class="seg-btn" data-days="90" style="padding:3px 8px;font-size:11px">90д</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnProfileStatsRefresh" style="padding:3px 10px;font-size:11px;margin-left:auto;display:flex;align-items:center;gap:4px" title="Обновить данные">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+              Обновить
+            </button>
+            <button class="btn btn-ghost btn-sm hidden" id="btnProfileStatsReset" style="padding:3px 10px;font-size:11px;color:var(--danger);border:1px solid rgba(239,68,68,0.25);display:flex;align-items:center;gap:4px" title="Сброс данных (только для администраторов)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              Сброс
+            </button>
+          </div>
+          <div style="height:160px;position:relative"><canvas id="profileChart" height="160"></canvas><div class="chart-empty hidden" id="profileChartEmpty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px">Нет данных</div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
+            <div style="text-align:center;padding:8px;background:rgba(34,197,94,0.06);border-radius:8px"><div style="font-size:10px;color:var(--text-muted)">Пополнено</div><div style="font-weight:800;color:#22c55e;font-size:14px" id="kpiTopups">0 ₽</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(239,68,68,0.06);border-radius:8px"><div style="font-size:10px;color:var(--text-muted)">Потрачено</div><div style="font-weight:800;color:#ef4444;font-size:14px" id="kpiSpends">0 ₽</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(59,130,246,0.06);border-radius:8px"><div style="font-size:10px;color:var(--text-muted)">Итог</div><div style="font-weight:800;color:#3b82f6;font-size:14px" id="kpiNet">0 ₽</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="profile-tab-pane" data-ptab-pane="chat">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">💬 Поддержка</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Свяжитесь с командой по любому вопросу</div>
+            <button class="btn btn-primary" style="width:100%;gap:8px" id="btnOpenSupportFromProfile">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Написать в поддержку
+            </button>
+          </div>
+          <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">🤖 AI-ассистент</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Быстрые ответы на частые вопросы</div>
+            <button class="btn btn-secondary" style="width:100%;gap:8px" id="btnOpenAIFromProfile">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Открыть AI-чат
+            </button>
+          </div>
+          <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">📱 Telegram</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Наш официальный канал и группа</div>
+            <a href="https://t.me/E6JLAHOC" target="_blank" class="btn btn-secondary" style="width:100%;gap:8px;text-decoration:none;display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.281c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.94z"/></svg>
+              Написать @E6JLAHOC
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="profile-tab-pane" data-ptab-pane="purchases">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0;font-size:16px;font-weight:700">Мои покупки</h3>
+          <button class="btn btn-secondary btn-sm" id="btnRefreshPurchases" style="padding:4px 10px;font-size:12px">⟳</button>
+        </div>
+        <div id="purchasesListContent" style="min-height:100px"><div style="text-align:center;padding:24px;color:var(--text-muted)">Загрузка...</div></div>
+      </div>
+    </div>
+  </div>
+
+    </section>
+
+  <!-- Admin Tab -->
+    <section class="tab-content" id="tab-admin">
+      <div class="container">
+        <div class="section-header" style="margin-bottom:var(--spacing-xl)">
+          <h1 style="font-family:var(--font-display);background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Админ-панель</h1>
+          <p style="color:var(--text-muted)">Управление магазином и Roblox-аккаунтами</p>
+        </div>
+
+        
+        <div class="admin-tabs-wrap at-start">
+        <div class="admin-tabs" id="adminTabsScroll">
+          <button class="admin-tab active" data-admin-tab="dashboard">📊 Dashboard</button>
+          <button class="admin-tab" data-admin-tab="shop">🏪 Магазин</button>
+          <button class="admin-tab" data-admin-tab="promos">🎟 Промокоды</button>
+          <button class="admin-tab" data-admin-tab="users">👥 Пользователи</button>
+          <button class="admin-tab" data-admin-tab="payments">💳 Платежи</button>
+          <button class="admin-tab" data-admin-tab="robux">🟣 Robux</button>
+          <button class="admin-tab" data-admin-tab="reviews">⭐ Отзывы</button>
+          <button class="admin-tab" data-admin-tab="complaints">🚩 Жалобы</button>
+          <button class="admin-tab" data-admin-tab="support">💬 Заявки</button>
+          <button class="admin-tab" data-admin-tab="maintenance">🔧 Тех. работы</button>
+          <button class="admin-tab" data-admin-tab="email">📧 Email</button>
+          <button class="admin-tab" data-admin-tab="notifications">🔔 Рассылка</button>
+          <button class="admin-tab" data-admin-tab="siteeditor">🎨 Редактор</button>
+        </div>
+        </div><!-- /admin-tabs-wrap -->
+
+        <div class="admin-page active" data-admin-page="dashboard">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Обзор</h3></div>
+              <div class="admin-section-actions"><button class="btn btn-secondary btn-sm" id="btnDashRefresh">Обновить</button></div>
+            </div>
+            <div id="adminDashboard" class="admin-stats-grid">
+              <div class="admin-stat-card">
+                <div class="admin-stat-label">Загрузка...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="shop">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 1 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <h3>Редактор магазина</h3>
+              </div>
+              <p class="muted">Включи режим редактора — затем перейди во вкладку «Магазин» и редактируй прямо на странице</p>
+            </div>
+
+            <div class="shop-admin-controls">
+              <div class="shop-admin-status" id="shopEditorStatus">
+                <span class="status-dot status-dot--off"></span>
+                <span>Режим редактора <b>выключен</b></span>
+              </div>
+              <button class="btn btn-primary" id="btnToggleShopEditor">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 1 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Включить режим редактора
+              </button>
+            </div>
+
+            <div class="shop-admin-hint">
+              <div class="hint-step"><span class="hint-num">1</span><span>Нажми «Включить режим редактора»</span></div>
+              <div class="hint-step"><span class="hint-num">2</span><span>Перейди во вкладку «<a href="#" data-tab="shop" style="color:var(--accent-tertiary)">Магазин</a>»</span></div>
+              <div class="hint-step"><span class="hint-num">3</span><span>Нажимай ✏ на карточках, добавляй товары и категории</span></div>
+              <div class="hint-step"><span class="hint-num">4</span><span>Нажми «💾 Сохранить» в жёлтой панели вверху магазина</span></div>
+            </div>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06)">
+              <div class="admin-section-title" style="margin-bottom:12px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span style="font-size:13px;font-weight:600">Быстрые действия</span>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" id="btnAdminShopReload">🔄 Обновить конфиг</button>
+                <button class="btn btn-secondary btn-sm" id="btnAdminViewVouchers">🎁 Все ваучеры</button>
+                <button class="btn btn-ghost btn-sm" id="btnAdminShopReset" style="color:var(--text-muted)">↩ Сброс к умолчаниям</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="admin-page" data-admin-page="promos">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Промокоды</h3></div>
+              <p class="muted">Создание и список промо</p>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:12px">
+              <div class="form-group">
+                <label class="form-label">Код</label>
+                <input class="form-input" id="adminPromoCode" placeholder="RBX2026">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Начисление баланса (₽)</label>
+                <input class="form-input" id="adminPromoAmountRub" type="number" min="1" step="1" value="100">
+              </div>
+            </div>
+            <div class="grid-2" style="margin-bottom:12px">
+              <div class="form-group">
+                <label class="form-label">Лимит использований</label>
+                <input class="form-input" id="adminPromoMaxUses" type="number" min="1" value="100">
+              </div>
+            </div>
+
+            <div class="row gap-10" style="margin-bottom:12px">
+              <button class="btn btn-primary" id="btnAdminPromoCreate">Создать</button>
+              <button class="btn btn-secondary" id="btnAdminPromoReload">Обновить</button>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="adminPromoTable">
+                <thead>
+                  <tr><th>Код</th><th>Сумма</th><th>Использований</th><th>Создан</th><th>Действия</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Discount codes section -->
+          <div class="admin-section" style="margin-top:24px">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>🏷 Промокоды на скидку</h3></div>
+              <p class="muted">Скидки в % или фиксированные, для магазина / робуксов / всего</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px">
+              <div class="form-group">
+                <label class="form-label">Код</label>
+                <input class="form-input" id="adminDiscCode" placeholder="SALE20" style="text-transform:uppercase">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Тип</label>
+                <select class="form-input" id="adminDiscType">
+                  <option value="percent">Процент (%)</option>
+                  <option value="fixed">Фиксированная (₽)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Значение</label>
+                <input class="form-input" id="adminDiscValue" type="number" min="1" value="10">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Применяется к</label>
+                <select class="form-input" id="adminDiscApplies">
+                  <option value="all">Ко всему</option>
+                  <option value="shop">Только магазин</option>
+                  <option value="robux">Только робуксы</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Мин. сумма (₽)</label>
+                <input class="form-input" id="adminDiscMin" type="number" min="0" value="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Лимит использований</label>
+                <input class="form-input" id="adminDiscMaxUses" type="number" min="1" value="100">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Истекает (дата)</label>
+                <input class="form-input" id="adminDiscExpires" type="date">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Заметка</label>
+                <input class="form-input" id="adminDiscNote" placeholder="Новогодняя акция">
+              </div>
+            </div>
+
+            <div class="row gap-10" style="margin-bottom:12px">
+              <button class="btn btn-primary" id="btnAdminDiscCreate">Создать скидку</button>
+              <button class="btn btn-secondary" id="btnAdminDiscReload">Обновить</button>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="adminDiscTable">
+                <thead>
+                  <tr><th>Код</th><th>Скидка</th><th>Для</th><th>Мин.</th><th>Использ.</th><th>Истек.</th><th>Действия</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="users">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title">
+                <h3>Пользователи</h3>
+              </div>
+              <p class="muted">Поиск, бан, баланс, история операций</p>
+            </div>
+
+            <div class="row gap-10" style="margin-bottom:12px;flex-wrap:wrap">
+              <input class="form-input" id="adminUsersQuery" placeholder="Поиск: логин / email / id" style="flex:1;min-width:240px">
+              <button class="btn btn-secondary" id="btnAdminUsersLoad">Найти</button>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="adminUsersTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Логин</th><th>Email</th><th>Баланс</th><th>Premium</th><th>Бан</th><th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="payments">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Платежи</h3></div>
+              <p class="muted">Заявки на пополнение и статусы оплат</p>
+            </div>
+
+            <div class="row gap-10" style="margin-bottom:12px;flex-wrap:wrap">
+              <select class="form-input" id="adminTopupStatus" style="max-width:240px">
+                <option value="pending">Ожидают</option>
+                <option value="paid">Оплачены</option>
+                <option value="canceled">Отменены</option>
+              </select>
+              <button class="btn btn-secondary" id="btnAdminTopupsLoad">Обновить</button>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="adminTopupsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Польз.</th><th>Сумма</th><th>Метод</th><th>Статус</th><th>Создано</th><th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="robux">
+<!-- Robux Settings Section -->
+        <div class="admin-section">
+          <div class="admin-section-header">
+            <div class="admin-section-title">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(147,51,234,.1);border:1px solid rgba(147,51,234,.2);display:flex;align-items:center;justify-content:center;font-size:18px">⚙️</div>
+              <div>
+                <h3>Robux: настройки</h3>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;-webkit-text-fill-color:var(--text-muted)">Цены, коэффициенты и лимиты</div>
+              </div>
+            </div>
+          </div>
+
+          <form id="adminRobuxSettingsForm" class="admin-form">
+            <div class="admin-form-grid">
+              <div class="form-group">
+                <label class="form-label">💰 Цена за 1 Robux (₽)</label>
+                <input class="form-input" id="adminRublePerRobux" type="number" step="0.01" min="0" placeholder="2.50">
+              </div>
+              <div class="form-group">
+                <label class="form-label">📐 Коэф. геймпасса</label>
+                <input class="form-input" id="adminGpFactor" type="number" step="0.01" min="1" placeholder="1.43">
+              </div>
+              <div class="form-group">
+                <label class="form-label">🏷 Комиссия (₽)</label>
+                <input class="form-input" id="adminFeeRub" type="number" step="1" min="0" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">📊 Лимит продажи</label>
+                <input class="form-input" id="adminStockSell" type="number" step="1" min="0" placeholder="0 = без лимита">
+              </div>
+            </div>
+
+            <div class="admin-form-footer">
+              <button type="submit" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                Сохранить
+              </button>
+              <button type="button" class="btn btn-secondary" id="adminRefreshStock">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Обновить наличие
+              </button>
+            </div>
+
+            <div class="admin-status" id="adminStockHint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Наличие сейчас: —
+            </div>
+          </form>
+        </div>
+
+        <!-- Accounts Section -->
+        <div class="admin-section">
+          <div class="admin-section-header">
+            <div class="admin-section-title">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;font-size:18px">🤖</div>
+              <div>
+                <h3>Roblox: аккаунты</h3>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;-webkit-text-fill-color:var(--text-muted)">Аккаунты-продавцы для автоматической покупки геймпассов</div>
+              </div>
+            </div>
+          </div>
+
+          <form id="adminAddAccountForm" class="admin-form">
+            <div class="admin-form-grid">
+              <div class="form-group">
+                <label class="form-label">📝 Название</label>
+                <input class="form-input" id="adminAccLabel" type="text" placeholder="Main, Backup...">
+              </div>
+              <div class="form-group">
+                <label class="form-label">🔑 Cookie (.ROBLOSECURITY)</label>
+                <input class="form-input" id="adminAccCookie" type="password" placeholder="Вставь .ROBLOSECURITY куки">
+              </div>
+            </div>
+            <div class="admin-form-footer">
+              <button type="submit" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Добавить
+              </button>
+              <button type="button" class="btn btn-secondary" id="adminRefreshAll">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Обновить все
+              </button>
+            </div>
+          </form>
+
+          <div id="adminAccountsList" class="admin-accounts-list"></div>
+        </div>
+
+        <!-- Orders History Section -->
+        <div class="admin-section">
+          <div class="admin-section-header">
+            <div class="admin-section-title">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-size:18px">📋</div>
+              <div>
+                <h3>История заказов Robux</h3>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;-webkit-text-fill-color:var(--text-muted)">Все покупки робуксов с деталями и статусами</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm admin-order-filter active" data-filter="active">🔵 Активные</button>
+            <button class="btn btn-secondary btn-sm admin-order-filter" data-filter="done">✅ Завершённые</button>
+            <button class="btn btn-secondary btn-sm admin-order-filter" data-filter="cancelled">🚫 Отменённые</button>
+            <button class="btn btn-secondary btn-sm admin-order-filter" data-filter="all">📊 Все</button>
+          </div>
+          <div id="adminOrdersList" style="display:grid;gap:8px"></div>
+        </div>
+      </div>
+
+
+        <div class="admin-page" data-admin-page="reviews">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Модерация отзывов</h3></div>
+              <div class="admin-section-actions">
+                <button class="btn btn-secondary btn-sm" id="btnAdminReviewsReload">Обновить</button>
+              </div>
+            </div>
+            <div id="adminReviewsList">
+              <div style="color:var(--text-muted);padding:20px;text-align:center">Загрузка...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Complaints Tab -->
+        <div class="admin-page" data-admin-page="complaints">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);display:flex;align-items:center;justify-content:center;font-size:18px">🚩</div>
+                <div>
+                  <h3>Жалобы пользователей</h3>
+                  <div style="font-size:12px;color:var(--text-muted);-webkit-text-fill-color:var(--text-muted)">Жалобы на отзывы, поданные через кнопку «Пожаловаться»</div>
+                </div>
+              </div>
+              <div class="admin-section-actions" style="display:flex;gap:6px">
+                <button class="btn btn-secondary btn-sm admin-complaint-filter active" data-cstatus="pending">⏳ Новые</button>
+                <button class="btn btn-secondary btn-sm admin-complaint-filter" data-cstatus="resolved">✅ Решённые</button>
+                <button class="btn btn-secondary btn-sm admin-complaint-filter" data-cstatus="dismissed">❌ Отклонённые</button>
+                <button class="btn btn-secondary btn-sm" id="btnAdminComplaintsReload">🔄</button>
+              </div>
+            </div>
+            <div id="adminComplaintsList"><div style="text-align:center;padding:24px;color:var(--text-muted)">Загрузка...</div></div>
+          </div>
+        </div>
+
+        <!-- Support Tickets -->
+        <div class="admin-page" data-admin-page="support">
+          <div class="admin-section" style="margin-bottom:20px">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>💬 История ИИ-чатов</h3></div>
+              <p class="muted">Все диалоги пользователей с ИИ-ассистентом. ⚠️ — просил оператора</p>
+            </div>
+            <div id="adminAiChats" style="display:flex;flex-direction:column;gap:8px">
+              <div style="text-align:center;padding:24px;color:var(--text-muted)">Загрузка...</div>
+            </div>
+          </div>
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>📋 Заявки в поддержку</h3></div>
+              <p class="muted">Управление тикетами пользователей</p>
+            </div>
+            <div class="segmented" id="adminTicketFilter" style="margin-bottom:14px">
+              <button class="seg-btn active" data-tfilter="open">Открытые</button>
+              <button class="seg-btn" data-tfilter="closed">Закрытые</button>
+            </div>
+            <div id="adminTicketsList" style="display:flex;flex-direction:column;gap:8px">
+              <div style="text-align:center;padding:24px;color:var(--text-muted)">Загрузка...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="admin-page" data-admin-page="maintenance">
+          <!-- Storage info card -->
+          <div class="admin-section" style="margin-bottom:16px">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>💾 Хранилище данных</h3></div>
+              <p class="muted">Проверь, что БД на persistent volume — иначе данные пропадут при редеплое</p>
+            </div>
+            <div class="card" id="adminStorageCard" style="padding:16px;font-size:13px">
+              <div style="color:var(--text-muted)">Загрузка...</div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" id="btnAdminCheckBalance">🔍 Проверить колонку balance в БД</button>
+              <button class="btn btn-ghost btn-sm" id="btnAdminRecalcBalance" style="color:#f59e0b">🔄 Пересчитать балансы из истории</button>
+            </div>
+          </div>
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Техническое обслуживание</h3></div>
+              <p class="muted">Режим тех. работ блокирует все API кроме авторизации</p>
+            </div>
+            <div class="card" style="padding:16px;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                <label style="font-weight:700;font-size:14px;flex:1">Режим тех. работ</label>
+                <button class="btn btn-secondary" id="btnMaintenanceToggle" style="min-width:120px">Загрузка...</button>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Сообщение</label>
+                <input class="form-input" id="maintenanceMsg" placeholder="Сайт на обслуживании" value="Сайт на техническом обслуживании">
+              </div>
+            </div>
+            <div id="maintenanceStatus" style="color:var(--text-muted);font-size:13px"></div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="email">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>Email</h3></div>
+              <p class="muted">Статус Brevo и тестовые письма</p>
+            </div>
+
+            <div class="row gap-10" style="margin-bottom:12px;flex-wrap:wrap">
+              <input class="form-input" id="adminEmailTo" placeholder="test@example.com" style="flex:1;min-width:240px">
+              <button class="btn btn-secondary" id="btnAdminEmailTest">Отправить тест</button>
+            </div>
+
+            <div class="card" style="padding:14px">
+              <div class="muted">Подсказка: проверь BREVO_API_KEY / BREVO_SENDER / домен-отправитель.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-page" data-admin-page="notifications">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>🔔 Рассылка уведомлений</h3></div>
+              <p class="muted">Отправляйте уведомления пользователям на сайт</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="window._adminSendNotification()">📢 Отправить уведомление</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Site Editor -->
+        <div class="admin-page" data-admin-page="siteeditor">
+          <div class="admin-section">
+            <div class="admin-section-header">
+              <div class="admin-section-title"><h3>🎨 Визуальный редактор сайта</h3></div>
+              <p class="muted">Изменяй тексты, цвета, отступы и стили любых элементов прямо на странице</p>
+            </div>
+            <div id="siteEditorPanel">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+                <button class="btn btn-primary" id="btnStartSiteEdit">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Начать редактирование
+                </button>
+                <button class="btn btn-secondary" id="btnSaveSiteEdit" style="display:none">💾 Сохранить изменения</button>
+                <button class="btn btn-ghost" id="btnStopSiteEdit" style="display:none">✕ Выйти без сохранения</button>
+                <button class="btn btn-secondary" id="btnResetSiteEdit">🗑 Сбросить все</button>
+              </div>
+
+              <!-- Global CSS editor -->
+              <div class="card" style="padding:16px;margin-bottom:16px">
+                <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-tertiary)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Глобальный CSS
+                </div>
+                <textarea id="siteGlobalCss" class="form-input" rows="6" placeholder="/* Дополнительный CSS для всего сайта */
+:root {
+  --accent-primary: #7c3aed;
+}
+.nav-desktop { border-radius: 20px; }
+" style="font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                  <button class="btn btn-secondary btn-sm" id="btnApplyGlobalCss">▶ Применить CSS</button>
+                  <span class="muted" style="font-size:12px;align-self:center">Изменения видны только после сохранения</span>
+                </div>
+              </div>
+
+              <!-- Saved elements list -->
+              <div class="card" style="padding:16px">
+                <div style="font-weight:700;font-size:13px;margin-bottom:12px">📋 Изменённые элементы (<span id="siteEditCount">0</span>)</div>
+                <div id="siteEditElementList" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+</main>
+
+  <!-- iPhone-style Bottom Tab Bar (Mobile) -->
+  <nav class="nav-mobile" id="navMobile">
+    <!-- Blur background layer -->
+    <div class="nav-mobile-bg"></div>
+    <!-- Top separator line -->
+    <div class="nav-mobile-separator"></div>
+    <!-- Tab items -->
+    <div class="nav-mobile-tabs">
+
+      <button class="nav-mobile-btn active" data-tab="home">
+        <span class="nav-mobile-icon-wrap">
+          <!-- Filled version (active) -->
+          <svg class="nmb-icon nmb-icon-filled" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10.55 2.533a2 2 0 0 1 2.9 0l7 7.467A2 2 0 0 1 21 11.467V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8.533a2 2 0 0 1 .55-1.367l7-7.467Z"/>
+            <path fill="var(--bg-primary)" d="M9 22v-5h6v5"/>
+          </svg>
+          <!-- Outline version (inactive) -->
+          <svg class="nmb-icon nmb-icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </span>
+        <span class="nmb-label">Главная</span>
+      </button>
+
+      <button class="nav-mobile-btn" data-tab="robux">
+        <span class="nav-mobile-icon-wrap">
+          <svg class="nmb-icon nmb-icon-filled" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <path fill="var(--bg-primary)" fill-rule="evenodd" d="M12 5.5a.75.75 0 0 1 .75.75v4.75h4.75a.75.75 0 0 1 0 1.5h-4.75v4.75a.75.75 0 0 1-1.5 0v-4.75H6.5a.75.75 0 0 1 0-1.5h4.75V6.25A.75.75 0 0 1 12 5.5Z"/>
+          </svg>
+          <svg class="nmb-icon nmb-icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v12M6 12h12"/>
+          </svg>
+        </span>
+        <span class="nmb-label">Robux</span>
+      </button>
+
+      
+      <button class="nav-mobile-btn" data-tab="shop">
+        <span class="nav-mobile-icon-wrap">
+          <svg class="nmb-icon nmb-icon-filled" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <path fill="var(--bg-primary)" d="M3 6h18M16 10a4 4 0 0 1-8 0" stroke="var(--bg-primary)" stroke-width="1.5" fill="none"/>
+          </svg>
+          <svg class="nmb-icon nmb-icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+        </span>
+        <span class="nmb-label">Магазин</span>
+      </button>
+
+      <button class="nav-mobile-btn" data-tab="profile">
+        <span class="nav-mobile-icon-wrap">
+          <svg class="nmb-icon nmb-icon-filled" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M20 21a8 8 0 1 0-16 0"/>
+          </svg>
+          <svg class="nmb-icon nmb-icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </span>
+        <span class="nmb-label">Профиль</span>
+      </button>
+
+      <button class="nav-mobile-btn hidden" data-tab="admin" id="navAdminBtnMobile">
+        <span class="nav-mobile-icon-wrap">
+          <svg class="nmb-icon nmb-icon-filled" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1.5 3 6.75v4.5c0 5.15 3.84 9.97 9 11.25 5.16-1.28 9-6.1 9-11.25v-4.5L12 1.5Z"/>
+            <circle cx="12" cy="10" r="2.5" fill="var(--bg-primary)"/>
+          </svg>
+          <svg class="nmb-icon nmb-icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </span>
+        <span class="nmb-label">Админ</span>
+      </button>
+
+    </div>
+    <!-- iOS home indicator area -->
+    <div class="nav-mobile-home-indicator"></div>
+  </nav>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Modal Container -->
+  <div class="modal-overlay hidden" id="modalOverlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div class="modal-content" id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="#" data-legal="terms">Пользовательское соглашение</a>
+        <a href="#" data-legal="privacy">Политика конфиденциальности</a>
+        <a href="#" data-legal="refund">Условия возврата</a>
+        <a href="#" data-legal="contacts">Контакты</a>
+      </div>
+      <p class="footer-copy">© 2026 RBX ST. Все права защищены.</p>
+    </div>
+  </footer>
+
+  <!-- SUPPORT ASSISTANT -->
+  <div class="support-fab" id="supportFab">
+    <div class="support-panel" id="supportPanel">
+      <div class="support-panel-header">
+        <div class="support-panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Поддержка
+        </div>
+        <button class="support-close">&times;</button>
+      </div>
+
+      <!-- FAQ View -->
+      <div id="supportViewFaq" class="support-panel-body">
+        <div class="support-greeting">Привет! Чем могу помочь?</div>
+
+        <!-- Grouped FAQ accordion -->
+        <div class="support-faq-groups">
+
+          <div class="sfaq-group">
+            <button class="sfaq-group-hdr">
+              <span>💎 Robux и доставка</span>
+              <svg class="sfaq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sfaq-group-body">
+              <button class="sfaq-q" data-a="Перейди в раздел «Robux», введи свой ник, выбери количество и оплати. Robux придут через геймпасс — автоматически, пароль и куки не нужны.">Как купить Robux?</button>
+              <button class="sfaq-q" data-a="Обычно от 1 до 15 минут. В редких случаях до 24 часов при высокой нагрузке. Если прошло больше 30 минут — обратись в поддержку с номером заказа.">Сколько ждать доставку?</button>
+              <button class="sfaq-q" data-a="Да, мы используем безопасную доставку через геймпасс. Cookie, пароль и данные аккаунта не нужны.">Безопасно ли покупать?</button>
+            </div>
+          </div>
+
+          <div class="sfaq-group">
+            <button class="sfaq-group-hdr">
+              <span>💳 Оплата и возвраты</span>
+              <svg class="sfaq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sfaq-group-body">
+              <button class="sfaq-q" data-a="Принимаем карты (RU/BY), СБП и криптовалюту. Нажми «Пополнить» в шапке сайта.">Как пополнить баланс?</button>
+              <button class="sfaq-q" data-a="Возврат возможен в течение 24 часов, если товар не был доставлен. Напиши в Telegram или оставь заявку — рассматриваем до 3 рабочих дней.">Как оформить возврат или замену?</button>
+              <button class="sfaq-q" data-a="Срок рассмотрения заявки на возврат — до 3 рабочих дней. Статус заявки можно отследить в разделе «Мои обращения».">Сколько рассматривается заявка?</button>
+            </div>
+          </div>
+
+          <div class="sfaq-group">
+            <button class="sfaq-group-hdr">
+              <span>🎁 Кейсы и призы</span>
+              <svg class="sfaq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sfaq-group-body">
+              <button class="sfaq-q" data-a="Кейсы работают как в CS2 — крутится рулетка и выпадает приз. Бесплатный кейс можно открывать раз в 2 дня, платный — без ограничений.">Как работают кейсы?</button>
+              <button class="sfaq-q" data-a="Приз начисляется моментально. Если через несколько минут его нет — проверь раздел «Инвентарь». Если не появился — напиши нам.">Не получил приз из кейса</button>
+            </div>
+          </div>
+
+          <div class="sfaq-group">
+            <button class="sfaq-group-hdr">
+              <span>👤 Аккаунт и Premium</span>
+              <svg class="sfaq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sfaq-group-body">
+              <button class="sfaq-q" data-a="Premium снимает лимиты на AI-генерации, даёт приоритетную поддержку и ранний доступ к новым функциям.">Что даёт Premium?</button>
+              <button class="sfaq-q" data-a="Перейди в Профиль → вкладка «Premium» и выбери подходящий план. Активируется сразу после оплаты.">Как купить Premium?</button>
+              <button class="sfaq-q" data-a="Нажми «Забыл пароль» на экране входа — на твой email придёт код восстановления.">Забыл пароль</button>
+            </div>
+          </div>
+
+          <div class="sfaq-group">
+            <button class="sfaq-group-hdr">
+              <span>⚠️ Сообщить об ошибках</span>
+              <svg class="sfaq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sfaq-group-body">
+              <button class="sfaq-q" data-a="Попробуй обновить страницу (Ctrl+F5). Если проблема повторяется — опиши что происходит и напиши нам через кнопку «Начать чат» ниже.">Баги, лагает сайт, что-то не работает</button>
+              <button class="sfaq-q" data-a="Проверь баланс в профиле. Если средства списаны, но заказ не создан — нажми «Начать чат» и опиши ситуацию, мы разберёмся.">Ошибка при оплате</button>
+              <button class="sfaq-q" data-a="Опиши проблему через кнопку «Начать чат» ниже — мы постараемся помочь как можно быстрее.">Другая проблема</button>
+            </div>
+          </div>
+
+        </div><!-- /sfaq-groups -->
+
+        <div class="support-divider"></div>
+        <div class="support-bottom-text">Не нашли ответ?</div>
+        <div class="support-actions">
+          <button class="support-action-btn" id="supportContactAdmin">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+            Написать в TG
+          </button>
+          <button class="support-action-btn" id="supportStartChat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Начать чат
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat View (AI) -->
+      <div id="supportViewChat" class="support-panel-body" style="display:none;padding:0">
+        <div class="support-chat-back">
+          <button id="supportBackToFaq">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Назад к FAQ
+          </button>
+        </div>
+        <div class="support-chat-msgs" id="supportChatMsgs"></div>
+        <div class="support-escalate-btns" id="supportEscalateBtns" style="display:none">
+          <button class="support-escalate-btn" id="supportEscalateTg">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+            Написать в TG
+          </button>
+          <button class="support-escalate-btn" id="supportEscalateTicket">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Позвать в чат
+          </button>
+        </div>
+        <div class="support-chat-input-row">
+          <input class="support-chat-input" id="supportChatInput" placeholder="Напиши сообщение...">
+          <button class="support-chat-send" id="supportChatSend">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <button class="support-fab-btn" id="supportFabBtn" title="Поддержка">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+  </div>
+
+  <!-- LEGAL MODAL -->
+  <div class="legal-modal-overlay" id="legalModal">
+    <div class="legal-modal">
+      <button class="legal-modal-close" id="legalModalClose">&times;</button>
+      <div id="legalContent"></div>
+    </div>
+  </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Puter.js — disabled global load to prevent 502/CORS spam
+    // Loaded on-demand only when image generation is needed
+    window._puterFailed = false;
+    window._puterLoaded = false;
+    window._loadPuter = function() {
+      if (window._puterLoaded || document.getElementById('puterScript')) return;
+      var s = document.createElement('script');
+      s.id = 'puterScript';
+      s.src = 'https://js.puter.com/v2/';
+      s.onerror = function(){ window._puterFailed = true; };
+      s.onload = function(){ window._puterLoaded = true; };
+      document.head.appendChild(s);
+    };
+  </script>
+  <script src="/static/app.js?v={{build_version}}"></script>
+</body>
+</html>
